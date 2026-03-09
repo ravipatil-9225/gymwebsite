@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Oswald:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-bg-main: #f3f4f6;
+    /* light gray bg */
+    --color-bg-card: #ffffff;
+    /* white card bg */
+    --color-text-main: #1f2937;
+    /* dark text */
+    --color-text-muted: #6b7280;
+    /* muted text */
+    --color-border: rgba(0, 0, 0, 0.1);
+  }
+
+  .dark {
+    --color-bg-main: #0a0a0a;
+    --color-bg-card: #141414;
+    --color-text-main: #f3f4f6;
+    --color-text-muted: #9ca3af;
+    --color-border: rgba(255, 255, 255, 0.05);
+  }
+
+  body {
+    @apply bg-dark text-gray-300 font-sans antialiased overflow-x-hidden transition-colors duration-300;
+    /* Soft particle gradient effect behind the scenes */
+    background-image: radial-gradient(circle at 50% -20%, rgba(227, 74, 41, 0.15) 0%, transparent 60%);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-display text-white transition-colors duration-300 uppercase;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-white font-sans font-semibold py-3 px-8 hover:bg-primary-hover transition-colors shadow-lg shadow-primary/20 tracking-wider;
+    /* Often athletic buttons are sharp or slightly rounded, let's keep it sharp for the raw aesthetic */
+  }
+
+  .glass-card {
+    @apply bg-dark-card border border-white/5 backdrop-blur-md shadow-2xl;
+  }
+
+  .nav-link {
+    @apply text-sm font-semibold text-white opacity-80 hover:text-primary transition-colors tracking-widest uppercase;
+  }
+}

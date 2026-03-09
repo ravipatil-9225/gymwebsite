@@ -1,0 +1,131 @@
+mail - 
+when a new user or any user visites the websites then a mail send to owner with their data and a confirmation mail to new user as well 
+
+
+
+AI INTEGRATION - 
+also i want to integrate ai in this project 
+Add real-time AI personalization to the Tara Fitness Center platform.
+
+Whenever a user updates their fitness profile or progress data, the AI system should automatically regenerate personalized recommendations.
+
+TRIGGER EVENTS
+
+The AI should run whenever the following user data changes:
+
+weight
+height
+fitness goal
+experience level
+attendance
+workout completion
+diet logs
+body measurements
+
+AI SHOULD UPDATE
+
+1. Personalized Workout Plan
+Generate a new weekly workout routine based on updated user data.
+
+2. Diet Plan
+Update calorie intake and meal recommendations.
+
+3. Trainer Recommendation
+Suggest the most suitable trainer based on user goals and progress.
+
+4. Progress Insights
+AI should analyze improvement and show insights like:
+
+"You have improved endurance by 15%."
+"Your weight loss progress is ahead of schedule."
+
+5. Smart Notifications
+Send notifications when:
+
+workout plan changes
+membership about to expire
+user inactivity detected
+
+SYSTEM ARCHITECTURE
+
+Use event-driven architecture:
+
+User Profile Update
+→ Trigger AI Service
+→ Generate new recommendations
+→ Store results in database
+→ Update dashboard in real time.
+
+Use WebSockets or Firebase for real-time updates in both website and mobile app.
+
+DATA STORAGE
+
+Maintain:
+
+user fitness profile
+progress data
+AI generated plans
+AI recommendations history
+
+Ensure that AI responses are fast and personalized.
+
+
+DATA STORING AT DATABASE - 
+Design a robust backend database system for the Tara Fitness Center website and mobile application.
+
+All application data must be stored securely in a MongoDB database.
+
+DATA THAT MUST BE STORED
+
+1. User Registration Data
+Store user details including name, email, phone, password, age, height, weight, fitness goals, membership details, and account creation date.
+
+2. Login Data
+Store login activity including login time, device information, IP address, and login status.
+
+3. Profile Updates
+Whenever a user updates their profile data such as weight, fitness goal, or measurements, store update history in a profile updates collection.
+
+4. Booking Data
+Store all bookings including group classes and personal training sessions.
+
+5. Membership and Payments
+Store package purchases, payment details, transaction IDs, and membership expiry.
+
+6. Forms Data
+Store submitted forms such as:
+PAR-Q
+PT Contract
+Trial Waiver
+
+7. Feedback and Reviews
+Store user feedback and ratings.
+
+8. Trainer Data
+Store trainer profiles including qualifications, experience, specialization, and profile images.
+
+9. AI Generated Data
+Store AI generated workout plans, diet plans, and recommendations.
+
+DATABASE REQUIREMENTS
+
+Use MongoDB with proper schema design.
+
+Implement relationships between:
+
+users
+bookings
+payments
+trainers
+AI recommendations
+
+Ensure secure authentication and encrypted password storage.
+
+Include timestamps for all data records.
+
+Create APIs for creating, updating, and retrieving all stored data.
+
+Ensure the system supports real-time updates when user data changes.
+
+
+CILENT ID = 677200111519-ckd14p5oojhpfv0fn3sq4cf0sb98j3m4.apps.googleusercontent.com
