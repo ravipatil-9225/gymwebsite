@@ -1,0 +1,45 @@
+GYM WEBSITE =
+git token = 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
+
+
+git remote set-url origin https://ravipatil9225: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@github.com/ravipatil9225/gymwebsite.git
+git push -u origin main
+
+
+
+For every future change, just run these 3 commands:
+git add .
+git commit -m "describe what you changed"
+git push
+
+Example:
+git add .
+git commit -m "Fixed login error and updated membership plans"
+git push
+
+
+
+https://github.com/ravipatil-9225/gymwebsite
+
+
+
+mongodb cluster link = mongodb+srv://ravipatil7512:patil7512@cluster0.3hnawhn.mongodb.net/?appName=Cluster0
+
+
+
+
+
+
+google mail app password = riln ouly mmqv rtlw (for ravipatil1761)
+
+
+
+DATABASE = MONGODB CLUSTER 
+BACKEND DEPLOY = RENDER
+FRONTEND DEPLOY = VERCEL
+
+
+BACKEND URL = https://gymwebsite-g5vx.onrender.com
+
+
+GOOGLE CLIENTID = 677200111519-ckd14p5oojhpfv0fn3sq4cf0sb98j3m4.apps.googleusercontent.com

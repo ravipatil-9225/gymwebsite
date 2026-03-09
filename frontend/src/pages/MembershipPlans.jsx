@@ -1,7 +1,8 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useContext } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Check, Dumbbell, Activity, Target, Zap, Shield, Crown, X, Loader, CheckCircle, Mail, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Check, Dumbbell, Activity, Target, Zap, Shield, Crown } from 'lucide-react';
+import { AuthContext } from '../context/AuthContext';
 
 const plans = [
     {
@@ -132,6 +133,44 @@ const itemVariants = {
 };
 
 const MembershipPlans = () => {
+    const { user } = useContext(AuthContext);
+    const [selected, setSelected] = useState(null); // { name, price, accentColor }
+    const [form, setForm] = useState({ name: '', email: '' });
+    const [status, setStatus] = useState('idle'); // idle | submitting | success | error
+    const [errMsg, setErrMsg] = useState('');
+
+    const openModal = (plan) => {
+        setSelected(plan);
+        setForm({ name: user?.name || '', email: user?.email || '' });
+        setStatus('idle');
+        setErrMsg('');
+    };
+
+    const closeModal = () => { setSelected(null); setStatus('idle'); };
+
+    const handleChoose = async (e) => {
+        e.preventDefault();
+        setStatus('submitting');
+        try {
+            const res = await fetch('/api/plan-interest', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: form.name,
+                    email: form.email,
+                    planName: selected.name,
+                    planPrice: selected.price,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Failed to submit');
+            setStatus('success');
+        } catch (err) {
+            setErrMsg(err.message);
+            setStatus('error');
+        }
+    };
+
     return (
         <section className="py-24 bg-dark min-h-[calc(100vh-80px)] relative overflow-hidden">
             {/* Ambient glow */}
@@ -232,17 +271,14 @@ const MembershipPlans = () => {
                                 </div>
 
                                 {/* CTA */}
-                                <Link
-                                    to="/join"
-                                    className="block w-full py-3.5 px-6 rounded-xl text-center text-white font-semibold font-sans text-sm tracking-wider transition-all duration-300 border border-white/10 bg-white/5 hover:border-none mt-auto"
-                                    style={{
-                                        '--hover-bg': plan.accentColor,
-                                    }}
+                                <button
+                                    onClick={() => openModal(plan)}
+                                    className="block w-full py-3.5 px-6 rounded-xl text-center text-white font-semibold font-sans text-sm tracking-wider transition-all duration-300 border border-white/10 bg-white/5 hover:border-none mt-auto cursor-pointer"
                                     onMouseEnter={e => { e.currentTarget.style.background = plan.accentColor; e.currentTarget.style.boxShadow = `0 0 20px ${plan.accentColor}55`; }}
                                     onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.boxShadow = ''; }}
                                 >
                                     Get Started
-                                </Link>
+                                </button>
                             </div>
                         </motion.div>
                     ))}
@@ -256,6 +292,70 @@ const MembershipPlans = () => {
                     All memberships include access to our full facility. For more enquiries, <Link to="/forms/enquiry" className="text-primary hover:underline">contact us</Link>.
                 </motion.p>
             </div>
+
+            {/* ── PLAN INTEREST MODAL ── */}
+            <AnimatePresence>
+                {selected && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+                        onClick={(e) => e.target === e.currentTarget && closeModal()}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-dark-card border border-white/10 rounded-2xl p-8 w-full max-w-md shadow-2xl relative"
+                        >
+                            <button onClick={closeModal} className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"><X size={20} /></button>
+
+                            {status === 'success' ? (
+                                <div className="text-center py-4">
+                                    <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <CheckCircle className="w-8 h-8 text-green-400" />
+                                    </div>
+                                    <h3 className="text-xl font-display font-bold text-white mb-2">Request Received!</h3>
+                                    <p className="text-gray-400 text-sm">We've sent a confirmation to <strong className="text-white">{form.email}</strong>. Our team will contact you shortly.</p>
+                                    <button onClick={closeModal} className="mt-6 px-6 py-2.5 bg-primary hover:bg-primary-hover rounded-xl text-white font-semibold text-sm transition-colors">Done</button>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center border border-white/10">{selected.icon}</div>
+                                        <div>
+                                            <h3 className="text-lg font-display font-bold text-white">{selected.name}</h3>
+                                            <p className="text-sm font-sans" style={{ color: selected.accentColor }}>₹{selected.price} {selected.duration}</p>
+                                        </div>
+                                    </div>
+
+                                    <form onSubmit={handleChoose} className="space-y-4">
+                                        <div className="relative">
+                                            <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                            <input required type="text" placeholder="Your full name *" value={form.name}
+                                                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                                                className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 focus:border-primary rounded-xl text-white placeholder-gray-500 focus:outline-none text-sm" />
+                                        </div>
+                                        <div className="relative">
+                                            <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                            <input required type="email" placeholder="Your email address *" value={form.email}
+                                                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                                                className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 focus:border-primary rounded-xl text-white placeholder-gray-500 focus:outline-none text-sm" />
+                                        </div>
+
+                                        {status === 'error' && <p className="text-red-400 text-sm bg-red-500/10 px-3 py-2 rounded-lg">{errMsg}</p>}
+
+                                        <button type="submit" disabled={status === 'submitting'}
+                                            className="w-full py-3.5 rounded-xl text-white font-bold text-sm tracking-wider transition-all disabled:opacity-60"
+                                            style={{ background: selected.accentColor }}
+                                        >
+                                            {status === 'submitting' ? <Loader size={18} className="animate-spin mx-auto" /> : 'Confirm Plan Interest'}
+                                        </button>
+                                        <p className="text-xs text-gray-500 text-center">Our team will contact you to confirm and process payment.</p>
+                                    </form>
+                                </>
+                            )}
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </section>
     );
 };

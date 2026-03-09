@@ -11,6 +11,22 @@ const bcrypt = require('bcryptjs');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'tara_fitness_secret_2024';
 
+// ── EMAIL HELPER ──
+const sendEmail = async (to, subject, html) => {
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        console.log(`[EMAIL SKIPPED - no credentials] To: ${to} | Subject: ${subject}`);
+        return;
+    }
+    const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+    });
+    await transporter.sendMail({ from: process.env.EMAIL_USER, to, subject, html });
+};
+
+const OWNER = () => process.env.OWNER_EMAIL || process.env.EMAIL_USER;
+
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -56,6 +72,26 @@ app.post('/api/auth/register', async (req, res) => {
         const user = await User.create({ name, email, password });
         const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '30d' });
 
+        // Email to owner
+        sendEmail(OWNER(), `🆕 New Registration: ${name}`,
+            `<h2 style="color:#E34A29">New Member Registered</h2>
+             <p><strong>Name:</strong> ${name}</p>
+             <p><strong>Email:</strong> ${email}</p>
+             <p><strong>Time:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>`
+        ).catch(console.error);
+
+        // Confirmation email to user
+        sendEmail(email, 'Welcome to Tara Fitness! 🏋️ Account Created',
+            `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+               <h2 style="color:#E34A29">Welcome to Tara Fitness, ${name}! 💪</h2>
+               <p>Your account has been successfully created. You're now part of our elite fitness community!</p>
+               <p><strong>Your login email:</strong> ${email}</p>
+               <br/>
+               <p>Ready to start your fitness journey? Log in and explore membership plans, book sessions, and more.</p>
+               <p style="margin-top:24px">Stay strong,<br/><strong>The Tara Fitness Team</strong></p>
+             </div>`
+        ).catch(console.error);
+
         res.status(201).json({
             token,
             user: { id: user._id, name: user.name, email: user.email, phone: user.phone, dob: user.dob, goal: user.goal, photo: user.photo }
@@ -65,6 +101,7 @@ app.post('/api/auth/register', async (req, res) => {
         res.status(500).json({ message: 'Server error during registration.' });
     }
 });
+
 
 // ── LOGIN ──
 app.post('/api/auth/login', async (req, res) => {
@@ -90,6 +127,14 @@ app.post('/api/auth/login', async (req, res) => {
 
         const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '30d' });
 
+        // Notify owner of login
+        sendEmail(OWNER(), `🔐 Member Login: ${user.name}`,
+            `<h2 style="color:#E34A29">Member Logged In</h2>
+             <p><strong>Name:</strong> ${user.name}</p>
+             <p><strong>Email:</strong> ${user.email}</p>
+             <p><strong>Time:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>`
+        ).catch(console.error);
+
         res.json({
             token,
             user: { id: user._id, name: user.name, email: user.email, phone: user.phone || '', dob: user.dob || '', goal: user.goal || '', photo: user.photo || '' }
@@ -99,6 +144,47 @@ app.post('/api/auth/login', async (req, res) => {
         res.status(500).json({ message: 'Server error: ' + err.message });
     }
 });
+
+// ── PLAN INTEREST (Choose Plan) ──
+app.post('/api/plan-interest', async (req, res) => {
+    try {
+        const { name, email, planName, planPrice } = req.body;
+        if (!name || !email || !planName)
+            return res.status(400).json({ message: 'Name, email and plan are required.' });
+
+        // Save as FormSubmission
+        await new FormSubmission({ type: 'enquiry', name, email, message: `Interested in: ${planName} - ₹${planPrice}` }).save();
+
+        // Email to owner
+        sendEmail(OWNER(), `💳 Plan Interest: ${name} → ${planName}`,
+            `<h2 style="color:#E34A29">Membership Plan Interest</h2>
+             <p><strong>Member:</strong> ${name}</p>
+             <p><strong>Email:</strong> ${email}</p>
+             <p><strong>Plan:</strong> ${planName}</p>
+             <p><strong>Price:</strong> ₹${planPrice}</p>
+             <p><strong>Time:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
+             <p>Please contact the member to process payment and confirm membership.</p>`
+        ).catch(console.error);
+
+        // Confirmation to user
+        sendEmail(email, `✅ Tara Fitness – ${planName} Plan Request Received`,
+            `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+               <h2 style="color:#E34A29">Plan Request Confirmed! 🏋️</h2>
+               <p>Hi ${name},</p>
+               <p>We've received your interest in the <strong>${planName}</strong> plan (₹${planPrice}).</p>
+               <p>Our team will contact you shortly to confirm your membership and guide you through the payment process.</p>
+               <br/>
+               <p>Stay strong,<br/><strong>The Tara Fitness Team</strong></p>
+             </div>`
+        ).catch(console.error);
+
+        res.json({ success: true, message: 'Plan interest recorded! We will contact you shortly.' });
+    } catch (err) {
+        console.error('Plan interest error:', err);
+        res.status(500).json({ message: 'Server error: ' + err.message });
+    }
+});
+
 
 // ── GET PROFILE ──
 app.get('/api/users/profile', protect, async (req, res) => {
