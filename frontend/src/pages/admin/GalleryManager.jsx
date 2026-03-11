@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import socket from '../../utils/socket';
 import { Trash2, Plus, Image as ImageIcon } from 'lucide-react';
 
 const GalleryManager = () => {
@@ -22,8 +23,21 @@ const GalleryManager = () => {
         }
     };
 
+    const fetchImagesSilent = async () => {
+        try {
+            const token = localStorage.getItem('gymToken');
+            const { data } = await axios.get('/api/admin/gallery', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setImages(data);
+        } catch (err) { }
+    };
+
     useEffect(() => {
         fetchImages();
+        socket.on('db_changed', fetchImagesSilent);
+        return () => socket.off('db_changed', fetchImagesSilent);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleDelete = async (id) => {

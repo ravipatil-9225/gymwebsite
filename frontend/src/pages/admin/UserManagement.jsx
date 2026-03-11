@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import socket from '../../utils/socket';
 import { Trash2, Edit, X } from 'lucide-react';
 
 const UserManagement = () => {
@@ -24,13 +25,22 @@ const UserManagement = () => {
     useEffect(() => {
         fetchUsers();
 
-        // Auto-refresh every 5 seconds to show new members immediately
+        // Listen for real-time database changes
+        socket.on('db_changed', fetchUsersSilent);
+
+        // Background polling fallback
         const intervalId = setInterval(() => {
-            fetchUsersSilent();
+            if (!editingUser) { // Changed from editingId to editingUser
+                fetchUsersSilent();
+            }
         }, 5000);
 
-        return () => clearInterval(intervalId);
-    }, []);
+        return () => {
+            clearInterval(intervalId);
+            socket.off('db_changed', fetchUsersSilent);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [editingUser]); // Changed from editingId to editingUser
 
     const fetchUsersSilent = async () => {
         try {

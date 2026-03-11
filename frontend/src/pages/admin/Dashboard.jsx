@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Users, PhoneCall, HandCoins, Activity } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import socket from '../../utils/socket';
 
 const Dashboard = () => {
     const [stats, setStats] = useState({
@@ -30,12 +31,18 @@ const Dashboard = () => {
         };
         fetchAnalytics();
 
-        // Auto-refresh every 5 seconds to keep stats real-time
+        // Listen for real-time database changes
+        socket.on('db_changed', fetchAnalyticsSilent);
+
+        // Setup background auto-sync just in case sockets fail (every 5 seconds)
         const intervalId = setInterval(() => {
             fetchAnalyticsSilent();
         }, 5000);
 
-        return () => clearInterval(intervalId);
+        return () => {
+            clearInterval(intervalId);
+            socket.off('db_changed', fetchAnalyticsSilent);
+        };
     }, []);
 
     const fetchAnalyticsSilent = async () => {

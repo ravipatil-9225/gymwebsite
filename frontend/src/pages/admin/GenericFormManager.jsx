@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Trash2 } from 'lucide-react';
+import socket from '../../utils/socket';
+import { Trash2, Search, CheckCircle, FileText, ChevronDown } from 'lucide-react';
 
 const GenericFormManager = ({ title, type }) => {
     const [forms, setForms] = useState([]);
@@ -24,11 +25,17 @@ const GenericFormManager = ({ title, type }) => {
         fetchForms();
 
         // Auto-refresh every 5 seconds to show new form submissions immediately
+        // Listen for real-time database changes
+        socket.on('db_changed', fetchFormsSilent);
+
         const intervalId = setInterval(() => {
             fetchFormsSilent();
         }, 5000);
 
-        return () => clearInterval(intervalId);
+        return () => {
+            clearInterval(intervalId);
+            socket.off('db_changed', fetchFormsSilent);
+        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [type]);
 

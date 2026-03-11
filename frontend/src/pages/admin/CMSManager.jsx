@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import socket from '../../utils/socket';
 import { Save, Loader } from 'lucide-react';
 
 const CMSManager = () => {
@@ -42,9 +43,26 @@ const CMSManager = () => {
         }
     ];
 
+    const fetchContentSilent = async () => {
+        try {
+            const token = localStorage.getItem('gymToken');
+            const { data } = await axios.get(`/api/admin/content/${activeSection}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (data && data.data) {
+                setContentData(data.data);
+            }
+        } catch (err) { }
+    };
+
     useEffect(() => {
-        fetchContent();
-    }, [activeSection]);
+        if (!saving) {
+            fetchContent();
+        }
+        socket.on('db_changed', fetchContentSilent);
+        return () => socket.off('db_changed', fetchContentSilent);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeSection, saving]);
 
     const fetchContent = async () => {
         setLoading(true);

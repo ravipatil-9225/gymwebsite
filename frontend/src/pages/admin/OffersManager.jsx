@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import socket from '../../utils/socket';
 import { Trash2, Edit, Plus } from 'lucide-react';
 
 const OffersManager = () => {
@@ -23,8 +24,21 @@ const OffersManager = () => {
         }
     };
 
+    const fetchOffersSilent = async () => {
+        try {
+            const token = localStorage.getItem('gymToken');
+            const { data } = await axios.get('/api/admin/offers', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setOffers(data);
+        } catch (err) { }
+    };
+
     useEffect(() => {
         fetchOffers();
+        socket.on('db_changed', fetchOffersSilent);
+        return () => socket.off('db_changed', fetchOffersSilent);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleDelete = async (id) => {

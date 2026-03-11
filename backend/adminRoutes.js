@@ -8,6 +8,7 @@ const Trainer = require('./models/Trainer');
 const Offer = require('./models/Offer');
 const Gallery = require('./models/Gallery');
 const Content = require('./models/Content');
+const socket = require('./socket');
 
 // Protect all admin routes
 router.use(verifyAdmin);
@@ -99,6 +100,7 @@ router.put('/users/:id', async (req, res) => {
     try {
         const updated = await User.findByIdAndUpdate(req.params.id, req.body, { new: true }).select('-password');
         res.json(updated);
+        socket.getIO().emit('db_changed');
     } catch (err) {
         res.status(500).json({ message: 'Error updating user' });
     }
@@ -108,6 +110,7 @@ router.delete('/users/:id', async (req, res) => {
     try {
         await User.findByIdAndDelete(req.params.id);
         res.json({ message: 'User deleted successfully' });
+        socket.getIO().emit('db_changed');
     } catch (err) {
         res.status(500).json({ message: 'Error deleting user' });
     }
@@ -129,6 +132,7 @@ router.put('/forms/:id', async (req, res) => {
     try {
         const updated = await FormSubmission.findByIdAndUpdate(req.params.id, req.body, { new: true });
         res.json(updated);
+        socket.getIO().emit('db_changed');
     } catch (err) {
         res.status(500).json({ message: 'Error updating form submission' });
     }
@@ -138,6 +142,7 @@ router.delete('/forms/:id', async (req, res) => {
     try {
         await FormSubmission.findByIdAndDelete(req.params.id);
         res.json({ message: 'Submission deleted' });
+        socket.getIO().emit('db_changed');
     } catch (err) {
         res.status(500).json({ message: 'Error deleting submission' });
     }
@@ -159,6 +164,7 @@ router.post('/packages', async (req, res) => {
     try {
         const newPackage = await Package.create(req.body);
         res.status(201).json(newPackage);
+        socket.getIO().emit('db_changed');
     } catch (err) {
         res.status(500).json({ message: 'Error creating package' });
     }
@@ -168,6 +174,7 @@ router.put('/packages/:id', async (req, res) => {
     try {
         const updated = await Package.findByIdAndUpdate(req.params.id, req.body, { new: true });
         res.json(updated);
+        socket.getIO().emit('db_changed');
     } catch (err) {
         res.status(500).json({ message: 'Error updating package' });
     }
@@ -177,6 +184,7 @@ router.delete('/packages/:id', async (req, res) => {
     try {
         await Package.findByIdAndDelete(req.params.id);
         res.json({ message: 'Package deleted' });
+        socket.getIO().emit('db_changed');
     } catch (err) {
         res.status(500).json({ message: 'Error deleting package' });
     }
@@ -198,6 +206,7 @@ router.post('/trainers', async (req, res) => {
     try {
         const trainer = await Trainer.create(req.body);
         res.status(201).json(trainer);
+        socket.getIO().emit('db_changed');
     } catch (err) {
         res.status(500).json({ message: 'Error creating trainer' });
     }
@@ -207,6 +216,7 @@ router.put('/trainers/:id', async (req, res) => {
     try {
         const updated = await Trainer.findByIdAndUpdate(req.params.id, req.body, { new: true });
         res.json(updated);
+        socket.getIO().emit('db_changed');
     } catch (err) {
         res.status(500).json({ message: 'Error updating trainer' });
     }
@@ -216,6 +226,7 @@ router.delete('/trainers/:id', async (req, res) => {
     try {
         await Trainer.findByIdAndDelete(req.params.id);
         res.json({ message: 'Trainer deleted' });
+        socket.getIO().emit('db_changed');
     } catch (err) {
         res.status(500).json({ message: 'Error deleting trainer' });
     }
@@ -237,6 +248,7 @@ router.post('/offers', async (req, res) => {
     try {
         const offer = await Offer.create(req.body);
         res.status(201).json(offer);
+        socket.getIO().emit('db_changed');
     } catch (err) {
         res.status(500).json({ message: 'Error creating offer' });
     }
@@ -246,6 +258,7 @@ router.put('/offers/:id', async (req, res) => {
     try {
         const updated = await Offer.findByIdAndUpdate(req.params.id, req.body, { new: true });
         res.json(updated);
+        socket.getIO().emit('db_changed');
     } catch (err) {
         res.status(500).json({ message: 'Error updating offer' });
     }
@@ -255,6 +268,7 @@ router.delete('/offers/:id', async (req, res) => {
     try {
         await Offer.findByIdAndDelete(req.params.id);
         res.json({ message: 'Offer deleted' });
+        socket.getIO().emit('db_changed');
     } catch (err) {
         res.status(500).json({ message: 'Error deleting offer' });
     }
@@ -276,6 +290,7 @@ router.post('/gallery', async (req, res) => {
     try {
         const image = await Gallery.create(req.body);
         res.status(201).json(image);
+        socket.getIO().emit('db_changed');
     } catch (err) {
         res.status(500).json({ message: 'Error adding image' });
     }
@@ -285,6 +300,7 @@ router.put('/gallery/:id', async (req, res) => {
     try {
         const updated = await Gallery.findByIdAndUpdate(req.params.id, req.body, { new: true });
         res.json(updated);
+        socket.getIO().emit('db_changed');
     } catch (err) {
         res.status(500).json({ message: 'Error updating image' });
     }
@@ -294,6 +310,7 @@ router.delete('/gallery/:id', async (req, res) => {
     try {
         await Gallery.findByIdAndDelete(req.params.id);
         res.json({ message: 'Image deleted' });
+        socket.getIO().emit('db_changed');
     } catch (err) {
         res.status(500).json({ message: 'Error deleting image' });
     }
@@ -320,6 +337,7 @@ router.put('/content/:section', async (req, res) => {
             { new: true, upsert: true }
         );
         res.json(updated);
+        socket.getIO().emit('db_changed');
     } catch (err) {
         res.status(500).json({ message: 'Error updating content' });
     }

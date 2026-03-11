@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const http = require('http');
 const cors = require('cors');
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
@@ -10,6 +11,7 @@ const FormSubmission = require('./models/FormSubmission');
 const bcrypt = require('bcryptjs');
 
 const adminRoutes = require('./adminRoutes');
+const socket = require('./socket');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'tara_fitness_secret_2024';
 
@@ -30,6 +32,9 @@ const OWNER = () => process.env.OWNER_EMAIL || process.env.EMAIL_USER;
 
 
 const app = express();
+const httpServer = http.createServer(app);
+socket.init(httpServer);
+
 const PORT = process.env.PORT || 5000;
 
 // Connect to MongoDB
@@ -102,6 +107,7 @@ app.post('/api/auth/register', async (req, res) => {
             token,
             user: { id: user._id, name: user.name, email: user.email, role: user.role, phone: user.phone, dob: user.dob, goal: user.goal, photo: user.photo }
         });
+        socket.getIO().emit('db_changed');
     } catch (err) {
         console.error('Register error:', err);
         res.status(500).json({ message: 'Server error during registration.' });
@@ -214,6 +220,7 @@ app.post('/api/auth/google', async (req, res) => {
             token,
             user: { id: user._id, name: user.name, email: user.email, role: user.role, phone: user.phone || '', dob: user.dob || '', goal: user.goal || '', photo: user.photo || '' }
         });
+        socket.getIO().emit('db_changed');
 
     } catch (error) {
         console.error('Google auth error:', error);
@@ -255,6 +262,7 @@ app.post('/api/plan-interest', async (req, res) => {
         ).catch(console.error);
 
         res.json({ success: true, message: 'Plan interest recorded! We will contact you shortly.' });
+        socket.getIO().emit('db_changed');
     } catch (err) {
         console.error('Plan interest error:', err);
         res.status(500).json({ message: 'Server error: ' + err.message });
@@ -402,6 +410,7 @@ app.post('/api/join', async (req, res) => {
         }
 
         res.status(200).json({ success: true, message: 'Your request has been submitted successfully. We will contact you soon!' });
+        socket.getIO().emit('db_changed');
 
     } catch (error) {
         console.error('Error processing join request:', error);
@@ -516,6 +525,7 @@ app.post('/api/forms', async (req, res) => {
         }
 
         res.status(200).json({ success: true, message: 'Form submitted successfully!' });
+        socket.getIO().emit('db_changed');
 
     } catch (error) {
         console.error('Error processing form:', error);
@@ -527,6 +537,6 @@ app.post('/api/forms', async (req, res) => {
 app.use('/api/admin', adminRoutes);
 
 // Start server
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import socket from '../../utils/socket';
 import { Trash2, Edit, Plus, Image as ImageIcon } from 'lucide-react';
 
 const TrainersManager = () => {
@@ -23,8 +24,21 @@ const TrainersManager = () => {
         }
     };
 
+    const fetchTrainersSilent = async () => {
+        try {
+            const token = localStorage.getItem('gymToken');
+            const { data } = await axios.get('/api/admin/trainers', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setTrainers(data);
+        } catch (err) { }
+    };
+
     useEffect(() => {
         fetchTrainers();
+        socket.on('db_changed', fetchTrainersSilent);
+        return () => socket.off('db_changed', fetchTrainersSilent);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleDelete = async (id) => {

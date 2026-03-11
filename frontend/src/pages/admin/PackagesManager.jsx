@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Trash2, Edit, Plus } from 'lucide-react';
+import socket from '../../utils/socket';
 
 const PackagesManager = () => {
     const [packages, setPackages] = useState([]);
@@ -23,8 +24,21 @@ const PackagesManager = () => {
         }
     };
 
+    const fetchPackagesSilent = async () => {
+        try {
+            const token = localStorage.getItem('gymToken');
+            const { data } = await axios.get('/api/admin/packages', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setPackages(data);
+        } catch (err) { }
+    };
+
     useEffect(() => {
         fetchPackages();
+        socket.on('db_changed', fetchPackagesSilent);
+        return () => socket.off('db_changed', fetchPackagesSilent);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleDelete = async (id) => {
