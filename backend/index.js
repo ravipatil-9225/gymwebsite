@@ -9,6 +9,8 @@ const User = require('./models/User');
 const FormSubmission = require('./models/FormSubmission');
 const bcrypt = require('bcryptjs');
 
+const adminRoutes = require('./adminRoutes');
+
 const JWT_SECRET = process.env.JWT_SECRET || 'tara_fitness_secret_2024';
 
 // ── EMAIL HELPER ──
@@ -69,7 +71,11 @@ app.post('/api/auth/register', async (req, res) => {
         if (exists)
             return res.status(409).json({ message: 'An account with this email already exists.' });
 
-        const user = await User.create({ name, email, password });
+        let role = 'user';
+        if (email.toLowerCase() === OWNER().toLowerCase()) {
+            role = 'admin';
+        }
+        const user = await User.create({ name, email, password, role });
         const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '30d' });
 
         // Email to owner
@@ -94,7 +100,7 @@ app.post('/api/auth/register', async (req, res) => {
 
         res.status(201).json({
             token,
-            user: { id: user._id, name: user.name, email: user.email, phone: user.phone, dob: user.dob, goal: user.goal, photo: user.photo }
+            user: { id: user._id, name: user.name, email: user.email, role: user.role, phone: user.phone, dob: user.dob, goal: user.goal, photo: user.photo }
         });
     } catch (err) {
         console.error('Register error:', err);
@@ -125,6 +131,11 @@ app.post('/api/auth/login', async (req, res) => {
         if (!isMatch)
             return res.status(401).json({ message: 'Incorrect password. Please try again.' });
 
+        if (user.email.toLowerCase() === OWNER().toLowerCase() && user.role !== 'admin') {
+            user.role = 'admin';
+            await user.save();
+        }
+
         const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '30d' });
 
         // Notify owner of login
@@ -137,11 +148,76 @@ app.post('/api/auth/login', async (req, res) => {
 
         res.json({
             token,
-            user: { id: user._id, name: user.name, email: user.email, phone: user.phone || '', dob: user.dob || '', goal: user.goal || '', photo: user.photo || '' }
+            user: { id: user._id, name: user.name, email: user.email, role: user.role, phone: user.phone || '', dob: user.dob || '', goal: user.goal || '', photo: user.photo || '' }
         });
     } catch (err) {
         console.error('Login error:', err);
         res.status(500).json({ message: 'Server error: ' + err.message });
+    }
+});
+
+// ── GOOGLE AUTH ──
+app.post('/api/auth/google', async (req, res) => {
+    try {
+        const { credential } = req.body;
+        if (!credential) return res.status(400).json({ message: 'No credential provided.' });
+
+        // Verify with Google
+        const googleRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+        const googleUser = await googleRes.json();
+
+        if (!googleRes.ok || !googleUser.email) {
+            return res.status(401).json({ message: 'Invalid Google credential.' });
+        }
+
+        const email = googleUser.email.toLowerCase();
+        let user = await User.findOne({ email });
+
+        if (!user) {
+            let role = 'user';
+            if (email === OWNER().toLowerCase()) {
+                role = 'admin';
+            }
+            // Generate random strong password for google users
+            const password = Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10);
+            user = await User.create({ name: googleUser.name, email, password, role, photo: googleUser.picture });
+
+            // Welcome email
+            sendEmail(email, 'Welcome to Tara Fitness! 🏋️ Account Created via Google',
+                `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+                   <h2 style="color:#E34A29">Welcome to Tara Fitness, ${user.name}! 💪</h2>
+                   <p>Your account has been successfully created using Google Sign-In. You're now part of our elite fitness community!</p>
+                   <br/>
+                   <p>Ready to start your fitness journey? Explore membership plans, book sessions, and more.</p>
+                   <p style="margin-top:24px">Stay strong,<br/><strong>The Tara Fitness Team</strong></p>
+                 </div>`
+            ).catch(console.error);
+
+            // Notify owner
+            sendEmail(OWNER(), `🆕 New Registration (Google): ${user.name}`,
+                `<h2 style="color:#E34A29">New Member Registered via Google</h2>
+                 <p><strong>Name:</strong> ${user.name}</p>
+                 <p><strong>Email:</strong> ${email}</p>
+                 <p><strong>Time:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>`
+            ).catch(console.error);
+
+        } else {
+            if (email === OWNER().toLowerCase() && user.role !== 'admin') {
+                user.role = 'admin';
+                await user.save();
+            }
+        }
+
+        const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '30d' });
+
+        res.json({
+            token,
+            user: { id: user._id, name: user.name, email: user.email, role: user.role, phone: user.phone || '', dob: user.dob || '', goal: user.goal || '', photo: user.photo || '' }
+        });
+
+    } catch (error) {
+        console.error('Google auth error:', error);
+        res.status(500).json({ message: 'Server error during Google authentication.' });
     }
 });
 
@@ -311,9 +387,13 @@ app.post('/api/join', async (req, res) => {
         // Send emails
         // Only attempt to send if credentials exist, otherwise just log to console for dev
         if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-            await transporter.sendMail(ownerMailOptions);
-            await transporter.sendMail(userMailOptions);
-            console.log('Join Us emails sent successfully.');
+            try {
+                await transporter.sendMail(ownerMailOptions);
+                await transporter.sendMail(userMailOptions);
+                console.log('Join Us emails sent successfully.');
+            } catch (emailErr) {
+                console.warn('Failed to send join notification emails (invalid credentials?):', emailErr.message);
+            }
         } else {
             console.log('--- EMAIL SIMULATION (No credentials in .env) ---');
             console.log('Would send Owner Email:', ownerMailOptions.subject);
@@ -421,9 +501,13 @@ app.post('/api/forms', async (req, res) => {
         };
 
         if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-            await transporter.sendMail(ownerMailOptions);
-            await transporter.sendMail(userMailOptions);
-            console.log(`Form type '${type}' emails sent successfully.`);
+            try {
+                await transporter.sendMail(ownerMailOptions);
+                await transporter.sendMail(userMailOptions);
+                console.log(`Form type '${type}' emails sent successfully.`);
+            } catch (emailErr) {
+                console.warn(`Failed to send form '${type}' notification emails:`, emailErr.message);
+            }
         } else {
             console.log(`--- EMAIL SIMULATION FOR ${type.toUpperCase()} ---`);
             console.log('Would send Owner Email:', ownerMailOptions.subject);
@@ -438,6 +522,9 @@ app.post('/api/forms', async (req, res) => {
         res.status(500).json({ success: false, message: 'Failed to submit the form. Please try again.' });
     }
 });
+
+// Admin Routes
+app.use('/api/admin', adminRoutes);
 
 // Start server
 app.listen(PORT, () => {

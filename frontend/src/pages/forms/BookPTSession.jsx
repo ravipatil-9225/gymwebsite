@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User, Mail, Phone, Calendar, MessageSquare, ArrowRight, CheckCircle, Dumbbell } from 'lucide-react';
+import axios from 'axios';
 
 const BookPTSession = () => {
     const [searchParams] = useSearchParams();
@@ -29,25 +30,19 @@ const BookPTSession = () => {
         setErrorMessage('');
 
         try {
-            const response = await fetch('/api/forms', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
-            });
+            const response = await axios.post('/api/forms', formData);
 
-            const data = await response.json();
-
-            if (response.ok) {
+            if (response.data.success) {
                 setStatus('success');
                 setFormData({ ...formData, name: '', email: '', phone: '', message: '', date: '' });
             } else {
                 setStatus('error');
-                setErrorMessage(data.message || 'Something went wrong. Please try again.');
+                setErrorMessage(response.data.message || 'Something went wrong. Please try again.');
             }
         } catch (error) {
             console.error('Error submitting form:', error);
             setStatus('error');
-            setErrorMessage('Network error. Please make sure the server is running.');
+            setErrorMessage(error.response?.data?.message || 'Network error. Please make sure the server is running.');
         }
     };
 

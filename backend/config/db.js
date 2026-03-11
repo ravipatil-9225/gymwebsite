@@ -2,10 +2,10 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
     try {
-        const conn = await mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/gym-website', {
+        const conn = await mongoose.connect('mongodb://127.0.0.1:27017/gym-website', {
             // Options are no longer needed in Mongoose 6+, but keeping connection clean
         });
-        console.log(`MongoDB Connected: ${conn.connection.host}`);
+        console.log(`MongoDB Connected: ${conn.connection.host} (Forced Local)`);
     } catch (error) {
         console.error(`Error connecting to MongoDB: ${error.message}`);
         process.exit(1);

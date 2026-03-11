@@ -51,12 +51,33 @@ const Register = () => {
         }
     };
 
-    const handleGoogleSuccess = (credentialResponse) => {
+    const handleGoogleSuccess = async (credentialResponse) => {
         if (credentialResponse.credential) {
-            const decodedInfo = jwtDecode(credentialResponse.credential);
-            console.log('Google Signup Success! User Info:', decodedInfo);
-            login({ name: decodedInfo.name, email: decodedInfo.email });
-            navigate('/home');
+            setLoading(true);
+            setError('');
+            try {
+                const res = await fetch('/api/auth/google', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ credential: credentialResponse.credential }),
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(data.message || 'Google registration failed');
+                }
+
+                console.log('Google Signup Success! User Info:', data.user);
+                login(data.user, data.token);
+                navigate('/home');
+            } catch (err) {
+                console.error("Google Server Signup Error:", err);
+                setError(err.message);
+                alert("Google registration failed. Please try again.");
+            } finally {
+                setLoading(false);
+            }
         }
     };
 

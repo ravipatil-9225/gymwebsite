@@ -27,6 +27,8 @@ mongodb cluster link = mongodb+srv://ravipatil7512:patil7512@cluster0.3hnawhn.mo
 
 
 
+website link = http://localhost:5173/
+
 
 
 
@@ -43,3 +45,46 @@ BACKEND URL = https://gymwebsite-g5vx.onrender.com
 
 
 GOOGLE CLIENTID = 677200111519-ckd14p5oojhpfv0fn3sq4cf0sb98j3m4.apps.googleusercontent.com
+
+VITE_GOOGLE_CLIENT_ID=677200111519-ckd14p5oojhpfv0fn3sq4cf0sb98j3m4.apps.googleusercontent.com
+
+
+
+///////////////////
+
+currently only 1 model is there where every form submission goes
+separate model for enquiry, book a class, feedback, and all other types of forms 
+
+
+
+
+
+
+
+
+Add a Admin Portal where the specified admin login
+he can see all active/ inactive members and there details : 
+ there enrollment dates
+ there pending payments
+
+he can also see the enquiry 
+
+
+he can change 
+gallery images
+package details
+traner details
+  
+
+now i want to create an admin panel where it shows all end to end data of website without missing any details this admin panel is accessible only for owner not for user and make this in such way that owner can perform all types of crud operations on the whole data of website 
+
+
+
+
+
+
+ai as dietion in app - it can take inputs like height, weight and add other essential parameters to predict the accurate and perfect diet for that particular user and also it should predict the different diets for different users based on the users data 
+
+
+
+ 

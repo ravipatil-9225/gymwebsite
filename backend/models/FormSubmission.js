@@ -33,6 +33,11 @@ const formSubmissionSchema = new mongoose.Schema({
         min: 1,
         max: 5
     },
+    status: {
+        type: String,
+        default: 'pending',
+        enum: ['pending', 'resolved']
+    },
     createdAt: {
         type: Date,
         default: Date.now

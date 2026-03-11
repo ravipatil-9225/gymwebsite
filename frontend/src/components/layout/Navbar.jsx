@@ -52,6 +52,15 @@ const Navbar = () => {
                                     <span className={`absolute bottom-6 left-0 w-full h-0.5 bg-primary transform origin-left transition-transform duration-300 ${location.pathname === item.path ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'}`}></span>
                                 </Link>
                             ))}
+                            {user?.role === 'admin' && (
+                                <Link
+                                    to="/admin"
+                                    className={`nav-link py-8 text-sm relative group overflow-hidden text-yellow-400`}
+                                >
+                                    <span className="relative z-10 whitespace-nowrap font-bold">ADMIN PANEL</span>
+                                    <span className={`absolute bottom-6 left-0 w-full h-0.5 bg-yellow-400 transform origin-left transition-transform duration-300 ${location.pathname.startsWith('/admin') ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'}`}></span>
+                                </Link>
+                            )}
                         </div>
                     )}
 
@@ -97,6 +106,18 @@ const Navbar = () => {
                                 </Link>
                             </div>
                         ))}
+
+                        {user?.role === 'admin' && (
+                            <div className="border-b border-white/5 last:border-0 pb-2">
+                                <Link
+                                    to="/admin"
+                                    onClick={() => setIsOpen(false)}
+                                    className={`block px-2 py-3 font-display font-bold tracking-widest transition-colors text-yellow-400`}
+                                >
+                                    ADMIN PANEL
+                                </Link>
+                            </div>
+                        )}
 
                         <div className="pt-6 pb-4">
                             <Link

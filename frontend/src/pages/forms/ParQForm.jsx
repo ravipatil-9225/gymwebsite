@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import SignatureCanvas from 'react-signature-canvas';
 import { CheckCircle, User, Mail, Phone, Target, Calendar, Trash2 } from 'lucide-react';
+import axios from 'axios';
 
 const SignaturePad = ({ label, sigRef }) => {
     const [isEmpty, setIsEmpty] = useState(true);
@@ -68,28 +69,23 @@ const ParQForm = () => {
         setErrorMessage('');
 
         try {
-            const response = await fetch('/api/forms', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: formData.type,
-                    name: formData.name,
-                    email: formData.email,
-                    phone: formData.phone,
-                    message: `DOB: ${formData.dob} | Inquiry For: ${formData.inquiryFor} | Q1:${formData.q1} | Q2:${formData.q2} | Q3:${formData.q3} | Q4:${formData.q4} | Q5:${formData.q5} | Q6:${formData.q6} | Q7:${formData.q7} | Comments: ${formData.comment}`
-                }),
+            const response = await axios.post('/api/forms', {
+                type: formData.type,
+                name: formData.name,
+                email: formData.email,
+                phone: formData.phone,
+                message: `DOB: ${formData.dob} | Inquiry For: ${formData.inquiryFor} | Q1:${formData.q1} | Q2:${formData.q2} | Q3:${formData.q3} | Q4:${formData.q4} | Q5:${formData.q5} | Q6:${formData.q6} | Q7:${formData.q7} | Comments: ${formData.comment}`
             });
 
-            const data = await response.json();
-            if (response.ok) {
+            if (response.data.success) {
                 setStatus('success');
             } else {
                 setStatus('error');
-                setErrorMessage(data.message || 'Something went wrong. Please try again.');
+                setErrorMessage(response.data.message || 'Something went wrong. Please try again.');
             }
         } catch (error) {
             setStatus('error');
-            setErrorMessage('Network error. Please make sure the server is running.');
+            setErrorMessage(error.response?.data?.message || 'Network error. Please make sure the server is running.');
         }
     };
 

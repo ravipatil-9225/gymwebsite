@@ -1,0 +1,28 @@
+
+> frontend@0.0.0 build
+> vite build
+
+[36mvite v7.3.1 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32mΓ£ô[39m 2271 modules transformed.
+Γ£ù Build failed in 2.33s
+error during build:
+src/components/layout/AdminLayout.jsx (4:88): "Include" is not exported by "node_modules/lucide-react/dist/esm/lucide-react.js", imported by "src/components/layout/AdminLayout.jsx".
+file: D:/GYM WEBSITE/frontend/src/components/layout/AdminLayout.jsx:4:88
+
+2: import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
+3: import {
+4:     LayoutDashboard, Users, UserCog, Calendar, CalendarClock, PhoneCall, MessageSquare, Include, Image, HandCoins, Fi...
+                                                                                           ^
+5: } from 'lucide-react';
+
+    at getRollupError (file:///D:/GYM%20WEBSITE/frontend/node_modules/rollup/dist/es/shared/parseAst.js:402:41)
+    at error (file:///D:/GYM%20WEBSITE/frontend/node_modules/rollup/dist/es/shared/parseAst.js:398:42)
+    at Module.error (file:///D:/GYM%20WEBSITE/frontend/node_modules/rollup/dist/es/shared/node-entry.js:17040:16)
+    at Module.traceVariable (file:///D:/GYM%20WEBSITE/frontend/node_modules/rollup/dist/es/shared/node-entry.js:17452:29)
+    at ModuleScope.findVariable (file:///D:/GYM%20WEBSITE/frontend/node_modules/rollup/dist/es/shared/node-entry.js:15070:39)
+    at ReturnValueScope.findVariable (file:///D:/GYM%20WEBSITE/frontend/node_modules/rollup/dist/es/shared/node-entry.js:5673:38)
+    at FunctionBodyScope.findVariable (file:///D:/GYM%20WEBSITE/frontend/node_modules/rollup/dist/es/shared/node-entry.js:5673:38)
+    at Identifier.bind (file:///D:/GYM%20WEBSITE/frontend/node_modules/rollup/dist/es/shared/node-entry.js:5447:40)
+    at Property.bind (file:///D:/GYM%20WEBSITE/frontend/node_modules/rollup/dist/es/shared/node-entry.js:2829:23)
+    at ObjectExpression.bind (file:///D:/GYM%20WEBSITE/frontend/node_modules/rollup/dist/es/shared/node-entry.js:2825:28)

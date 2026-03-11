@@ -27,6 +27,18 @@ import PTContractForm from './pages/forms/PTContractForm';
 import GalleryPage from './pages/GalleryPage';
 import MembershipPlans from './pages/MembershipPlans';
 
+// Admin Imports
+import AdminLayout from './components/layout/AdminLayout';
+import AdminRoute from './components/routing/AdminRoute';
+import Dashboard from './pages/admin/Dashboard';
+import UserManagement from './pages/admin/UserManagement';
+import PackagesManager from './pages/admin/PackagesManager';
+import TrainersManager from './pages/admin/TrainersManager';
+import OffersManager from './pages/admin/OffersManager';
+import GalleryManager from './pages/admin/GalleryManager';
+import CMSManager from './pages/admin/CMSManager';
+import { EnquiriesManager, ClassBookingsManager, PTSessionsManager, FeedbackManager, DocumentsManager } from './pages/admin/FormManagers';
+
 function App() {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '677200111519-ckd14p5oojhpfv0fn3sq4cf0sb98j3m4.apps.googleusercontent.com';
 
@@ -73,6 +85,24 @@ function App() {
 
                   {/* Package Routes */}
                   <Route path="/packages/plans" element={<MembershipPlans />} />
+
+                  {/* Admin Routes */}
+                  <Route path="/admin" element={<AdminRoute />}>
+                    <Route element={<AdminLayout />}>
+                      <Route index element={<Dashboard />} />
+                      <Route path="users" element={<UserManagement />} />
+                      <Route path="enquiries" element={<EnquiriesManager />} />
+                      <Route path="classes" element={<ClassBookingsManager />} />
+                      <Route path="pt-sessions" element={<PTSessionsManager />} />
+                      <Route path="packages" element={<PackagesManager />} />
+                      <Route path="trainers" element={<TrainersManager />} />
+                      <Route path="offers" element={<OffersManager />} />
+                      <Route path="gallery" element={<GalleryManager />} />
+                      <Route path="feedback" element={<FeedbackManager />} />
+                      <Route path="documents" element={<DocumentsManager />} />
+                      <Route path="cms" element={<CMSManager />} />
+                    </Route>
+                  </Route>
 
                 </Routes>
               </main>

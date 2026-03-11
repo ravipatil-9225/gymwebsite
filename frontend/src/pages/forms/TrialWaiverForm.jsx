@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import SignatureCanvas from 'react-signature-canvas';
 import { CheckCircle, User, Mail, Phone, Target, Trash2 } from 'lucide-react';
+import axios from 'axios';
 
 const SignaturePad = ({ label, sigRef, onEnd }) => {
     const [isEmpty, setIsEmpty] = useState(true);
@@ -92,30 +93,24 @@ const TrialWaiverForm = () => {
         }
 
         try {
-            const response = await fetch('/api/forms', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: formData.type,
-                    name: formData.name,
-                    email: formData.email,
-                    phone: formData.phone,
-                    message: `Inquiry For: ${formData.inquiryFor} | Client Signed: Yes (${formData.clientDate}) | Parent Signed: ${parentSig ? 'Yes' : 'No'} (${formData.parentDate}) | Witness Signed: Yes (${formData.witnessDate})`,
-                }),
+            const response = await axios.post('/api/forms', {
+                type: formData.type,
+                name: formData.name,
+                email: formData.email,
+                phone: formData.phone,
+                message: `Inquiry For: ${formData.inquiryFor} | Client Signed: Yes (${formData.clientDate}) | Parent Signed: ${parentSig ? 'Yes' : 'No'} (${formData.parentDate}) | Witness Signed: Yes (${formData.witnessDate})`,
             });
 
-            const data = await response.json();
-
-            if (response.ok) {
+            if (response.data.success) {
                 setStatus('success');
             } else {
                 setStatus('error');
-                setErrorMessage(data.message || 'Something went wrong. Please try again.');
+                setErrorMessage(response.data.message || 'Something went wrong. Please try again.');
             }
         } catch (error) {
             console.error('Error submitting form:', error);
             setStatus('error');
-            setErrorMessage('Network error. Please make sure the server is running.');
+            setErrorMessage(error.response?.data?.message || 'Network error. Please make sure the server is running.');
         }
     };
 
