@@ -8,16 +8,18 @@ import { AuthContext } from '../context/AuthContext';
 
 const Login = () => {
     const navigate = useNavigate();
-    const { login } = useContext(AuthContext);
+    const { login, backendReady, checkingBackend } = useContext(AuthContext);
     const [formData, setFormData] = useState({ email: '', password: '' });
     const [error, setError] = useState('');
     const [notFound, setNotFound] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [oauthError, setOauthError] = useState(null);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
         setError('');
         setNotFound(false);
+        setOauthError(null);
     };
 
     const handleSubmit = async (e) => {
@@ -48,6 +50,7 @@ const Login = () => {
         if (credentialResponse.credential) {
             setLoading(true);
             setError('');
+            setOauthError(null);
             try {
                 const res = await fetch('/api/auth/google', {
                     method: 'POST',
@@ -66,13 +69,26 @@ const Login = () => {
                 navigate('/home');
             } catch (err) {
                 console.error("Google Server Login Error:", err);
-                setError(err.message);
-                alert("Google authentication failed. Please try again.");
+                setError(err.message || "Server authentication failed.");
             } finally {
                 setLoading(false);
             }
         }
     };
+
+    const handleGoogleError = (error) => {
+        console.error('Google Login Error Details:', error);
+        
+        // This is where we catch the "origin_mismatch" or other Google-side issues
+        setOauthError({
+            type: 'origin_mismatch',
+            title: 'Google Login Mismatch',
+            message: `Google does not recognize this URL. You need to authorize http://${window.location.hostname}:5173 in the Google Cloud Console.`
+        });
+        setError("Google authentication failed. See troubleshooting guide below.");
+    };
+
+    const getHelpOrigin = () => `http://${window.location.hostname}:5173`;
 
     return (
         <div className="min-h-[85vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative bg-dark">
@@ -93,6 +109,16 @@ const Login = () => {
                     <h2 className="text-primary tracking-[0.2em] font-sans font-semibold text-xs mb-2 uppercase">Welcome Back</h2>
                     <h1 className="text-white text-3xl font-display font-bold uppercase tracking-wider">Member Login</h1>
                 </div>
+
+                {!backendReady && !checkingBackend && (
+                    <div className="mb-6 bg-amber-500/10 border border-amber-500/30 rounded-lg px-4 py-3 text-amber-500 text-sm">
+                        <div className="flex items-center gap-2 font-semibold">
+                            <Loader size={16} className="animate-spin" />
+                            Waiting for backend server...
+                        </div>
+                        <p className="mt-1 text-xs opacity-80 text-gray-400">Please ensure the backend is running on port 5000.</p>
+                    </div>
+                )}
 
                 <form className="space-y-6" onSubmit={handleSubmit}>
 
@@ -165,11 +191,36 @@ const Login = () => {
                         </div>
                     )}
 
+                    {oauthError && (
+                         <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mb-4">
+                            <h3 className="text-white font-semibold text-sm flex items-center gap-2 mb-2">
+                                <AlertCircle size={14} className="text-primary" />
+                                {oauthError.title}
+                            </h3>
+                            <p className="text-gray-400 text-xs leading-relaxed mb-3">
+                                {oauthError.message}
+                            </p>
+                            <div className="space-y-2">
+                                <a 
+                                    href="https://console.cloud.google.com/apis/credentials" 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="block w-full text-center py-2 px-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded text-[10px] font-semibold text-white transition-colors uppercase tracking-wider"
+                                >
+                                    Open Google Console
+                                </a>
+                                <p className="text-[10px] text-gray-500 text-center italic">
+                                    Add <strong>{getHelpOrigin()}</strong> to "Authorized JavaScript origins"
+                                </p>
+                            </div>
+                         </div>
+                    )}
+
                     <div>
                         <button
                             type="submit"
-                            disabled={loading}
-                            className="group relative w-full flex justify-center py-4 px-4 border border-transparent text-sm font-semibold rounded-lg text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all shadow-[0_0_15px_rgba(227,74,41,0.3)] tracking-wider disabled:opacity-60"
+                            disabled={loading || !backendReady}
+                            className="group relative w-full flex justify-center py-4 px-4 border border-transparent text-sm font-semibold rounded-lg text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all shadow-[0_0_15px_rgba(227,74,41,0.3)] tracking-wider disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                             {loading ? <Loader size={18} className="animate-spin" /> : 'SIGN IN'}
                             {!loading && <ArrowRight className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 group-hover:translate-x-1 transition-transform" />}
@@ -185,19 +236,30 @@ const Login = () => {
                         </div>
                     </div>
 
-                    <div className="flex justify-center flex-col items-center max-w-full overflow-hidden rounded-lg border border-white/10 bg-white/5 p-1 pt-1.5 hover:bg-white/10 transition-colors">
+                    <div className={`flex justify-center flex-col items-center max-w-full overflow-hidden rounded-lg border border-white/10 bg-white/5 p-1 pt-1.5 hover:bg-white/10 transition-colors ${!backendReady ? 'opacity-50 pointer-events-none' : ''}`}>
                         <GoogleLogin
                             onSuccess={handleGoogleSuccess}
-                            onError={() => {
-                                console.log('Login Failed');
-                                alert("Google authentication failed. Please try again.");
-                            }}
+                            onError={handleGoogleError}
                             theme="filled_black"
                             shape="rectangular"
                             size="large"
                             text="continue_with"
                             width="300"
                         />
+                    </div>
+
+                    <div className="text-center mt-2">
+                        <button 
+                            type="button"
+                            onClick={() => setOauthError({
+                                type: 'origin_mismatch',
+                                title: 'Google Login Help',
+                                message: `If you see an "origin_mismatch" error, it means ${getHelpOrigin()} is not authorized in your Google Cloud Console.`
+                            })}
+                            className="text-[10px] text-gray-500 hover:text-primary transition-colors underline underline-offset-4"
+                        >
+                            Google Login not working? click for help
+                        </button>
                     </div>
                 </form>
 

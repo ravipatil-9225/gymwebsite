@@ -80,6 +80,9 @@ const TrainersManager = () => {
             specialization: trainer.specialization,
             experience: trainer.experience || '',
             certifications: trainer.certifications || '',
+            description: trainer.description || '',
+            instagramId: trainer.instagramId || '',
+            contact: trainer.contact || '',
             photo: trainer.photo || ''
         });
         setEditingId(trainer._id);
@@ -87,7 +90,7 @@ const TrainersManager = () => {
     };
 
     const openCreateModal = () => {
-        setFormData({ name: '', specialization: '', experience: '', certifications: '', photo: '' });
+        setFormData({ name: '', specialization: '', experience: '', certifications: '', description: '', instagramId: '', contact: '', photo: '' });
         setEditingId(null);
         setShowModal(true);
     };
@@ -95,7 +98,7 @@ const TrainersManager = () => {
     const closeModal = () => {
         setShowModal(false);
         setEditingId(null);
-        setFormData({ name: '', specialization: '', experience: '', certifications: '', photo: '' });
+        setFormData({ name: '', specialization: '', experience: '', certifications: '', description: '', instagramId: '', contact: '', photo: '' });
     };
 
     const handlePhotoUpload = (e) => {
@@ -115,7 +118,7 @@ const TrainersManager = () => {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold text-gray-900">Trainers Management</h1>
-                <button onClick={openCreateModal} className="bg-brand-primary text-white px-4 py-2 rounded-lg flex items-center hover:bg-brand-secondary transition">
+                <button onClick={openCreateModal} className="bg-primary text-white px-4 py-2 rounded-lg flex items-center hover:bg-primary-hover transition">
                     <Plus className="w-4 h-4 mr-2" /> Add Trainer
                 </button>
             </div>
@@ -134,7 +137,7 @@ const TrainersManager = () => {
                         </div>
                         <div className="p-4 flex-1">
                             <h3 className="text-lg font-bold">{trainer.name}</h3>
-                            <p className="text-sm text-brand-primary font-medium">{trainer.specialization}</p>
+                            <p className="text-sm text-primary font-medium">{trainer.specialization}</p>
                             <p className="text-sm text-gray-500 mt-2"><strong>Exp:</strong> {trainer.experience}</p>
                         </div>
                         <div className="p-4 border-t border-gray-100 flex justify-end space-x-2">
@@ -157,8 +160,13 @@ const TrainersManager = () => {
                         <form onSubmit={handleCreateOrUpdate} className="space-y-4">
                             <input required type="text" placeholder="Name" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full p-2 border border-gray-300 rounded" />
                             <input required type="text" placeholder="Specialization (e.g. Weightlifting)" value={formData.specialization} onChange={e => setFormData({ ...formData, specialization: e.target.value })} className="w-full p-2 border border-gray-300 rounded" />
-                            <input type="text" placeholder="Experience (e.g. 5 Years)" value={formData.experience} onChange={e => setFormData({ ...formData, experience: e.target.value })} className="w-full p-2 border border-gray-300 rounded" />
+                            <div className="grid grid-cols-2 gap-4">
+                                <input type="text" placeholder="Experience (e.g. 5 Years)" value={formData.experience} onChange={e => setFormData({ ...formData, experience: e.target.value })} className="w-full p-2 border border-gray-300 rounded" />
+                                <input type="text" placeholder="Contact Info" value={formData.contact} onChange={e => setFormData({ ...formData, contact: e.target.value })} className="w-full p-2 border border-gray-300 rounded" />
+                            </div>
+                            <input type="text" placeholder="Instagram ID or Profile Link" value={formData.instagramId} onChange={e => setFormData({ ...formData, instagramId: e.target.value })} className="w-full p-2 border border-gray-300 rounded" />
                             <input type="text" placeholder="Certifications" value={formData.certifications} onChange={e => setFormData({ ...formData, certifications: e.target.value })} className="w-full p-2 border border-gray-300 rounded" />
+                            <textarea placeholder="Description / Bio" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full p-2 border border-gray-300 rounded h-24" />
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Profile Photo (Base64)</label>
@@ -173,7 +181,7 @@ const TrainersManager = () => {
 
                             <div className="flex justify-end space-x-2 pt-4">
                                 <button type="button" onClick={closeModal} className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded">Cancel</button>
-                                <button type="submit" className="px-4 py-2 bg-brand-primary text-white rounded hover:bg-brand-secondary">{editingId ? 'Update Trainer' : 'Save Trainer'}</button>
+                                <button type="submit" className="px-4 py-2 bg-primary text-white rounded hover:bg-primary-hover">{editingId ? 'Update Trainer' : 'Save Trainer'}</button>
                             </div>
                         </form>
                     </div>

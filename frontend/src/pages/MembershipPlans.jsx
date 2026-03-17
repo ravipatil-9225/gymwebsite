@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Dumbbell, Activity, Target, Zap, Shield, Crown, X, Loader, CheckCircle, Mail, User } from 'lucide-react';
+import { Check, Dumbbell, Activity, Target, Zap, Shield, Crown, X, Loader, CheckCircle, Mail, User, Image as ImageIcon, Hash, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
@@ -138,32 +138,58 @@ const MembershipPlans = () => {
     const [form, setForm] = useState({ name: '', email: '' });
     const [status, setStatus] = useState('idle'); // idle | submitting | success | error
     const [errMsg, setErrMsg] = useState('');
+    const [verifyMsg, setVerifyMsg] = useState('');
+    const [verifyStatus, setVerifyStatus] = useState('');
 
     const openModal = (plan) => {
         setSelected(plan);
-        setForm({ name: user?.name || '', email: user?.email || '' });
+        setForm({ name: user?.name || '', email: user?.email || '', transactionId: '', screenshotUrl: '' });
         setStatus('idle');
         setErrMsg('');
+        setVerifyMsg('');
+        setVerifyStatus('');
     };
 
     const closeModal = () => { setSelected(null); setStatus('idle'); };
 
+    const handlePhotoUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setForm(f => ({ ...f, screenshotUrl: reader.result }));
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     const handleChoose = async (e) => {
         e.preventDefault();
+        if (!form.screenshotUrl || !form.transactionId) {
+            setErrMsg('Please enter Transaction ID and upload screenshot');
+            setStatus('error');
+            return;
+        }
+
         setStatus('submitting');
         try {
-            const res = await fetch('/api/plan-interest', {
+            const res = await fetch('/api/payments/verify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    name: form.name,
+                    userName: form.name,
                     email: form.email,
                     planName: selected.name,
                     planPrice: selected.price,
+                    transactionId: form.transactionId,
+                    screenshotUrl: form.screenshotUrl
                 }),
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.message || 'Failed to submit');
+            if (!res.ok) throw new Error(data.message || 'Verification Failed');
+            
+            setVerifyMsg(data.message);
+            setVerifyStatus(data.payment.verificationStatus);
             setStatus('success');
         } catch (err) {
             setErrMsg(err.message);
@@ -309,11 +335,15 @@ const MembershipPlans = () => {
 
                             {status === 'success' ? (
                                 <div className="text-center py-4">
-                                    <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                                        <CheckCircle className="w-8 h-8 text-green-400" />
+                                    <div className={`w-16 h-16 ${verifyStatus === 'auto_verified' ? 'bg-green-500/20' : 'bg-yellow-500/20'} rounded-full flex items-center justify-center mx-auto mb-4`}>
+                                        {verifyStatus === 'auto_verified' ? <CheckCircle className="w-8 h-8 text-green-400" /> : <AlertTriangle className="w-8 h-8 text-yellow-400" />}
                                     </div>
-                                    <h3 className="text-xl font-display font-bold text-white mb-2">Request Received!</h3>
-                                    <p className="text-gray-400 text-sm">We've sent a confirmation to <strong className="text-white">{form.email}</strong>. Our team will contact you shortly.</p>
+                                    <h3 className="text-xl font-display font-bold text-white mb-2">{verifyMsg}</h3>
+                                    <p className="text-gray-400 text-sm">
+                                        {verifyStatus === 'auto_verified' 
+                                            ? "Your payment was automatically verified successfully. We will confirm your membership details shortly." 
+                                            : "Our team will manually review your transaction screenshot. We'll update you as soon as possible."}
+                                    </p>
                                     <button onClick={closeModal} className="mt-6 px-6 py-2.5 bg-primary hover:bg-primary-hover rounded-xl text-white font-semibold text-sm transition-colors">Done</button>
                                 </div>
                             ) : (
@@ -340,15 +370,64 @@ const MembershipPlans = () => {
                                                 className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 focus:border-primary rounded-xl text-white placeholder-gray-500 focus:outline-none text-sm" />
                                         </div>
 
+                                        <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-4">
+                                            <div className="flex flex-col items-center mb-4">
+                                                <p className="text-sm font-semibold text-white mb-3">Scan to Pay ₹{selected.price}</p>
+                                                <div className="bg-white p-2 rounded-lg mb-3 flex items-center justify-center overflow-hidden h-64 w-64 md:h-72 md:w-72 shadow-xl border border-gray-200">
+                                                    <img src="/qr.jpeg" alt="UPI QR Code" className="w-full h-full object-cover rounded-md" />
+                                                </div>
+                                                <p className="text-xs text-gray-400 mb-2">UPI ID: <span className="text-white font-mono sel">ravipatil7512@oksbi</span></p>
+                                                
+                                                {/* UPI Apps Intent Buttons */}
+                                                <p className="text-xs text-gray-500 mb-2">Or open directly in app:</p>
+                                                <div className="flex gap-2 w-full mt-1">
+                                                    <a href={`tez://upi/pay?pa=ravipatil7512@oksbi&pn=Ravi%20Patil&am=${selected.price}&cu=INR`}
+                                                        className="flex-1 text-center py-2 bg-white hover:bg-gray-100 rounded-lg text-xs font-semibold text-gray-800 transition-colors shadow flex justify-center items-center gap-1">
+                                                        <img src="https://upload.wikimedia.org/wikipedia/commons/f/f2/Google_Pay_Logo.svg" alt="GPay" className="h-3" />
+                                                    </a>
+                                                    <a href={`phonepe://pay?pa=ravipatil7512@oksbi&pn=Ravi%20Patil&am=${selected.price}&cu=INR`}
+                                                        className="flex-1 text-center py-2 bg-[#5f259f] hover:bg-[#4f1f85] rounded-lg text-xs font-semibold text-white transition-colors shadow flex justify-center items-center gap-1">
+                                                        PhonePe
+                                                    </a>
+                                                    <a href={`paytmmp://pay?pa=ravipatil7512@oksbi&pn=Ravi%20Patil&am=${selected.price}&cu=INR`}
+                                                        className="flex-1 text-center py-2 bg-[#00baf2] hover:bg-[#00a3d9] rounded-lg text-xs font-semibold text-white transition-colors shadow flex justify-center items-center gap-1">
+                                                        Paytm
+                                                    </a>
+                                                </div>
+                                            </div>
+                                            
+                                            <hr className="border-white/10 mb-4" />
+                                            <p className="text-xs text-center text-gray-400 mb-3">After payment, enter your Transaction ID and upload screenshot below.</p>
+                                            
+                                            <div className="relative mb-3">
+                                                <Hash size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                                <input required type="text" placeholder="UPI Transaction ID *" value={form.transactionId}
+                                                    onChange={e => setForm(f => ({ ...f, transactionId: e.target.value }))}
+                                                    className="w-full pl-10 pr-4 py-3 bg-dark border border-white/10 focus:border-primary rounded-xl text-white placeholder-gray-500 focus:outline-none text-sm" />
+                                            </div>
+
+                                            <div className="relative flex items-center bg-dark border border-white/10 rounded-xl text-sm overflow-hidden">
+                                                <div className="px-3 bg-white/5 border-r border-white/10 flex items-center justify-center h-full py-3">
+                                                    <ImageIcon size={16} className="text-gray-400" />
+                                                </div>
+                                                <input required type="file" accept="image/*" onChange={handlePhotoUpload}
+                                                    className="w-full pl-3 pr-4 py-2 text-gray-400 focus:outline-none text-xs file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:bg-primary/20 file:text-primary hover:file:bg-primary/30" />
+                                            </div>
+                                        </div>
+
                                         {status === 'error' && <p className="text-red-400 text-sm bg-red-500/10 px-3 py-2 rounded-lg">{errMsg}</p>}
 
                                         <button type="submit" disabled={status === 'submitting'}
-                                            className="w-full py-3.5 rounded-xl text-white font-bold text-sm tracking-wider transition-all disabled:opacity-60"
+                                            className="w-full py-3.5 rounded-xl text-white font-bold text-sm tracking-wider transition-all disabled:opacity-60 flex justify-center items-center"
                                             style={{ background: selected.accentColor }}
                                         >
-                                            {status === 'submitting' ? <Loader size={18} className="animate-spin mx-auto" /> : 'Confirm Plan Interest'}
+                                            {status === 'submitting' ? (
+                                                <span className="flex items-center gap-2">
+                                                    <Loader size={18} className="animate-spin" /> Verifying Payment...
+                                                </span>
+                                            ) : 'Pay & Verify'}
                                         </button>
-                                        <p className="text-xs text-gray-500 text-center">Our team will contact you to confirm and process payment.</p>
+                                        <p className="text-xs text-gray-500 text-center mt-2">Our AI agent automatically verifies your payment.</p>
                                     </form>
                                 </>
                             )}

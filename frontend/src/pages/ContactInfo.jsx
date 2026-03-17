@@ -65,6 +65,9 @@ const ContactInfo = () => {
                                         <a href="https://www.instagram.com/tara_.parmar?igsh=MWVvcWsyYXlzajBwcg==" target="_blank" rel="noopener noreferrer" className="text-white font-semibold text-lg hover:text-[#E1306C] transition-colors block">
                                             @tara_.parmar
                                         </a>
+                                        <a href="https://www.instagram.com/tara_fitness_centre?igsh=MTRzd3E5c3RlZzJqdA==" target="_blank" rel="noopener noreferrer" className="text-white font-semibold text-lg hover:text-[#E1306C] transition-colors block mt-1">
+                                            @tara_fitness_centre
+                                        </a>
                                     </div>
                                 </div>
                             </div>
@@ -83,7 +86,7 @@ const ContactInfo = () => {
                                     <div>
                                         <p className="text-gray-400 text-sm font-sans mb-1 uppercase tracking-wider">Tara Fitness Center</p>
                                         <a
-                                            href="https://www.google.com/maps/search/?api=1&query=Shop+No+1,+Kalamba+Rd,+opp.+Surveynagar,+Ramkrishna+Nagar,+Survey+Nagar,+Kolhapur,+Maharashtra+416007"
+                                            href="https://maps.app.goo.gl/BANt7yyCSZReYRpw6"
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="text-white leading-relaxed hover:text-primary transition-colors block"

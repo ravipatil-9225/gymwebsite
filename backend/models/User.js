@@ -10,6 +10,7 @@ const userSchema = new mongoose.Schema({
     dob: { type: String, default: '' },
     goal: { type: String, default: '' },
     photo: { type: String, default: '' },  // base64 or URL
+    lastLogin: { type: Date, default: null }
 }, { timestamps: true });
 
 // Hash password before saving (Mongoose 9: async hooks don't use next())

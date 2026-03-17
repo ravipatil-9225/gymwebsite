@@ -113,7 +113,7 @@ const PackagesManager = () => {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold text-gray-900">Packages Management</h1>
-                <button onClick={openCreateModal} className="bg-brand-primary text-white px-4 py-2 rounded-lg flex items-center hover:bg-brand-secondary transition">
+                <button onClick={openCreateModal} className="bg-primary text-white px-4 py-2 rounded-lg flex items-center hover:bg-primary-hover transition">
                     <Plus className="w-4 h-4 mr-2" /> Add Package
                 </button>
             </div>
@@ -179,7 +179,7 @@ const PackagesManager = () => {
                             )}
                             <div className="flex justify-end space-x-2 pt-4">
                                 <button type="button" onClick={closeModal} className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded">Cancel</button>
-                                <button type="submit" className="px-4 py-2 bg-brand-primary text-white rounded hover:bg-brand-secondary">{editingId ? 'Update Package' : 'Save Package'}</button>
+                                <button type="submit" className="px-4 py-2 bg-primary text-white rounded hover:bg-primary-hover">{editingId ? 'Update Package' : 'Save Package'}</button>
                             </div>
                         </form>
                     </div>

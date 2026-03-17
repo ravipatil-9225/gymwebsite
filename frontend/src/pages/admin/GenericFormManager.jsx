@@ -22,19 +22,23 @@ const GenericFormManager = ({ title, type }) => {
     };
 
     useEffect(() => {
+        const onDbChange = () => {
+            console.log(`Socket event received: db_changed (GenericFormManager: ${type})`);
+            fetchFormsSilent();
+        };
+
         fetchForms();
 
-        // Auto-refresh every 5 seconds to show new form submissions immediately
         // Listen for real-time database changes
-        socket.on('db_changed', fetchFormsSilent);
+        socket.on('db_changed', onDbChange);
 
         const intervalId = setInterval(() => {
             fetchFormsSilent();
-        }, 5000);
+        }, 20000);
 
         return () => {
             clearInterval(intervalId);
-            socket.off('db_changed', fetchFormsSilent);
+            socket.off('db_changed', onDbChange);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [type]);

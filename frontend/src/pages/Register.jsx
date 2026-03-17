@@ -73,8 +73,7 @@ const Register = () => {
                 navigate('/home');
             } catch (err) {
                 console.error("Google Server Signup Error:", err);
-                setError(err.message);
-                alert("Google registration failed. Please try again.");
+                setError(err.message || "Server registration failed.");
             } finally {
                 setLoading(false);
             }
@@ -197,7 +196,7 @@ const Register = () => {
                             onSuccess={handleGoogleSuccess}
                             onError={() => {
                                 console.log('Signup Failed');
-                                alert("Google registration failed. Please try again.");
+                                setError("Google setup failed. Please check popup permissions.");
                             }}
                             theme="filled_black"
                             shape="rectangular"

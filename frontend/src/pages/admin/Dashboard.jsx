@@ -29,19 +29,25 @@ const Dashboard = () => {
                 setLoading(false);
             }
         };
+
+        const onDbChange = () => {
+            console.log('Socket event received: db_changed (Dashboard)');
+            fetchAnalyticsSilent();
+        };
+
         fetchAnalytics();
 
         // Listen for real-time database changes
-        socket.on('db_changed', fetchAnalyticsSilent);
+        socket.on('db_changed', onDbChange);
 
-        // Setup background auto-sync just in case sockets fail (every 5 seconds)
+        // Setup background auto-sync just in case sockets fail (every 20 seconds)
         const intervalId = setInterval(() => {
             fetchAnalyticsSilent();
-        }, 5000);
+        }, 20000);
 
         return () => {
             clearInterval(intervalId);
-            socket.off('db_changed', fetchAnalyticsSilent);
+            socket.off('db_changed', onDbChange);
         };
     }, []);
 

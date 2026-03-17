@@ -8,7 +8,10 @@ const Trainer = require('./models/Trainer');
 const Offer = require('./models/Offer');
 const Gallery = require('./models/Gallery');
 const Content = require('./models/Content');
+const Payment = require('./models/Payment');
+const Membership = require('./models/Membership');
 const socket = require('./socket');
+const emailService = require('./services/emailService');
 
 // Protect all admin routes
 router.use(verifyAdmin);
@@ -21,9 +24,23 @@ router.get('/analytics', async (req, res) => {
         const totalUsers = await User.countDocuments();
         const activeMembers = await User.countDocuments({ role: 'user' });
         const totalEnquiries = await FormSubmission.countDocuments({ type: 'enquiry' });
-        const pendingPayments = 0;
+        const pendingPayments = await Payment.countDocuments({ verificationStatus: 'pending' });
+        const failedPayments = await Payment.countDocuments({ verificationStatus: 'failed_verification' });
 
-        const recentActivities = await FormSubmission.find().sort({ createdAt: -1 }).limit(5);
+        const recentForms = await FormSubmission.find().sort({ createdAt: -1 }).limit(10);
+        const recentUsers = await User.find().select('-password').sort({ createdAt: -1 }).limit(10);
+
+        // Merge and sort by date
+        const recentActivities = [...recentForms.map(f => ({ ...f._doc, activityType: 'form' })),
+        ...recentUsers.map(u => ({
+            _id: u._id,
+            name: u.name,
+            type: 'registration',
+            activityType: 'user',
+            createdAt: u.createdAt
+        }))]
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            .slice(0, 10);
 
         // Aggregate Registration Data by Month (e.g., last 6 months)
         const sixMonthsAgo = new Date();
@@ -75,6 +92,7 @@ router.get('/analytics', async (req, res) => {
             activeMembers,
             totalEnquiries,
             pendingPayments,
+            failedPayments,
             recentActivities,
             chartData
         });
@@ -340,6 +358,63 @@ router.put('/content/:section', async (req, res) => {
         socket.getIO().emit('db_changed');
     } catch (err) {
         res.status(500).json({ message: 'Error updating content' });
+    }
+});
+
+// ==========================================
+// PAYMENTS MANAGEMENT
+// ==========================================
+router.get('/payments', async (req, res) => {
+    try {
+        const payments = await Payment.find().sort({ createdAt: -1 });
+        res.json(payments);
+    } catch (err) {
+        res.status(500).json({ message: 'Error fetching payments' });
+    }
+});
+
+router.put('/payments/:id', async (req, res) => {
+    try {
+        const payment = await Payment.findById(req.params.id);
+        if (!payment) return res.status(404).json({ message: 'Payment not found' });
+
+        const wasPending = payment.verificationStatus !== 'success' && payment.verificationStatus !== 'manually_verified';
+        const isApproved = req.body.verificationStatus === 'success' || req.body.verificationStatus === 'manually_verified';
+
+        const updated = await Payment.findByIdAndUpdate(req.params.id, req.body, { new: true });
+
+        if (wasPending && isApproved) {
+            const user = await User.findOne({ email: payment.email });
+            if (user) {
+                const startDate = new Date();
+                const endDate = new Date();
+                endDate.setDate(endDate.getDate() + 30); // Default to 30 days
+
+                await Membership.create({
+                    userId: user._id,
+                    userName: user.name,
+                    userEmail: user.email,
+                    packageName: payment.planName,
+                    amountPaid: payment.planPrice,
+                    startDate,
+                    endDate,
+                });
+
+                emailService.sendPaymentConfirmation({
+                    name: user.name,
+                    email: user.email,
+                    packageName: payment.planName,
+                    amountPaid: payment.planPrice,
+                    startDate,
+                    endDate,
+                }).catch(console.error);
+            }
+        }
+
+        res.json(updated);
+        socket.getIO().emit('db_changed', { type: 'payment_updated', data: updated });
+    } catch (err) {
+        res.status(500).json({ message: 'Error updating payment' });
     }
 });
 

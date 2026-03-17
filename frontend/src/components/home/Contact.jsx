@@ -77,7 +77,7 @@ const Contact = () => {
                         <h3 className="text-white font-display text-xl mb-2 tracking-wide">Location</h3>
                         <p className="text-gray-400 font-sans mb-4">Shop No 1, Kalamba Rd, opp. Surveynagar,<br />Ramkrishna Nagar, Survey Nagar,<br />Kolhapur, Maharashtra 416007</p>
                         <a
-                            href="https://www.google.com/maps/search/?api=1&query=Shop+No+1,+Kalamba+Rd,+opp.+Surveynagar,+Ramkrishna+Nagar,+Survey+Nagar,+Kolhapur,+Maharashtra+416007"
+                            href="https://maps.app.goo.gl/BANt7yyCSZReYRpw6"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-primary hover:text-white transition-colors underline decoration-primary/30 hover:decoration-white underline-offset-4 font-semibold"
@@ -90,15 +90,26 @@ const Contact = () => {
                 {/* Socials / Instagram Highlight */}
                 <div className="mt-16 text-center">
                     <h3 className="text-white font-display text-2xl mb-6 tracking-wide">Follow Our Journey</h3>
-                    <a
-                        href="https://www.instagram.com/tara_.parmar?igsh=MWVvcWsyYXlzajBwcg=="
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center space-x-3 bg-gradient-to-r from-[#833ab4] via-[#fd1d1d] to-[#fcb045] text-white px-8 py-4 rounded-full font-bold tracking-wide hover:opacity-90 transition-opacity shadow-lg shadow-[#fd1d1d]/20 hover:-translate-y-1 transform duration-300"
-                    >
-                        <Instagram size={24} />
-                        <span>@tara_.parmar</span>
-                    </a>
+                    <div className="flex flex-wrap items-center justify-center gap-4">
+                        <a
+                            href="https://www.instagram.com/tara_.parmar?igsh=MWVvcWsyYXlzajBwcg=="
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center space-x-3 bg-gradient-to-r from-[#833ab4] via-[#fd1d1d] to-[#fcb045] text-white px-8 py-4 rounded-full font-bold tracking-wide hover:opacity-90 transition-opacity shadow-lg shadow-[#fd1d1d]/20 hover:-translate-y-1 transform duration-300"
+                        >
+                            <Instagram size={24} />
+                            <span>@tara_.parmar</span>
+                        </a>
+                        <a
+                            href="https://www.instagram.com/tara_fitness_centre?igsh=MTRzd3E5c3RlZzJqdA=="
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center space-x-3 bg-gradient-to-r from-[#833ab4] via-[#fd1d1d] to-[#fcb045] text-white px-8 py-4 rounded-full font-bold tracking-wide hover:opacity-90 transition-opacity shadow-lg shadow-[#fd1d1d]/20 hover:-translate-y-1 transform duration-300"
+                        >
+                            <Instagram size={24} />
+                            <span>@tara_fitness_centre</span>
+                        </a>
+                    </div>
                 </div>
 
             </div>

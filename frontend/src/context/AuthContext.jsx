@@ -5,12 +5,30 @@ export const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(null);
+    const [backendReady, setBackendReady] = useState(false);
+    const [checkingBackend, setCheckingBackend] = useState(true);
 
     useEffect(() => {
         const storedUser = localStorage.getItem('gymUser');
         const storedToken = localStorage.getItem('gymToken');
         if (storedUser) setUser(JSON.parse(storedUser));
         if (storedToken) setToken(storedToken);
+
+        const startupCheck = async () => {
+            try {
+                const res = await fetch('/api/health');
+                if (res.ok) {
+                    setBackendReady(true);
+                }
+            } catch (err) {
+                console.warn('Backend not ready yet:', err.message);
+                setBackendReady(false);
+            } finally {
+                setCheckingBackend(false);
+            }
+        };
+
+        startupCheck();
     }, []);
 
     const login = (userData, authToken) => {
@@ -60,7 +78,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, token, login, logout, updateUser }}>
+        <AuthContext.Provider value={{ user, token, login, logout, updateUser, backendReady, checkingBackend }}>
             {children}
         </AuthContext.Provider>
     );

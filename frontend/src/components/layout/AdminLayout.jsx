@@ -21,10 +21,11 @@ const AdminLayout = () => {
         { name: 'Enquiries', href: '/admin/enquiries', icon: PhoneCall },
         { name: 'Class Bookings', href: '/admin/classes', icon: Calendar },
         { name: 'PT Sessions', href: '/admin/pt-sessions', icon: CalendarClock },
-        { name: 'Packages', href: '/admin/packages', icon: HandCoins },
-        { name: 'Trainers', href: '/admin/trainers', icon: UserCog },
-        { name: 'Offers', href: '/admin/offers', icon: Coins },
-        { name: 'Photo Gallery', href: '/admin/gallery', icon: Image },
+        { name: 'Trainer Management', href: '/admin/trainers', icon: UserCog },
+        { name: 'Payments', href: '/admin/payments', icon: HandCoins },
+        { name: 'Packages Management', href: '/admin/packages', icon: HandCoins },
+        { name: 'Offers Management', href: '/admin/offers', icon: Coins },
+        { name: 'Gallery Management', href: '/admin/gallery', icon: Image },
         { name: 'Feedback', href: '/admin/feedback', icon: MessageSquare },
         { name: 'Documents', href: '/admin/documents', icon: FileText },
         { name: 'Content CMS', href: '/admin/cms', icon: Settings2 },
@@ -55,7 +56,7 @@ const AdminLayout = () => {
                 <div className="flex flex-col h-full w-full">
                     {/* Sidebar Header */}
                     <div className="flex items-center justify-between h-16 px-6 bg-gray-900 text-white">
-                        <span className="text-xl font-bold tracking-wider text-brand-primary">TARA FITNESS</span>
+                        <span className="text-xl font-bold tracking-wider text-primary">TARA FITNESS</span>
                         <button className="lg:hidden text-white hover:text-gray-300" onClick={() => setSidebarOpen(false)}>
                             <X className="w-6 h-6" />
                         </button>
@@ -76,7 +77,7 @@ const AdminLayout = () => {
                                     className={`
                                       flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors
                                       ${isActive(item.href)
-                                            ? 'bg-brand-primary text-white'
+                                            ? 'bg-primary text-white'
                                             : 'hover:bg-gray-800 hover:text-white'
                                         }
                                   `}

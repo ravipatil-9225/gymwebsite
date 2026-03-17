@@ -121,7 +121,7 @@ const CMSManager = () => {
                                 <button
                                     onClick={() => setActiveSection(sec.id)}
                                     className={`w-full text-left px-4 py-3 font-medium transition ${activeSection === sec.id
-                                        ? 'bg-brand-primary bg-opacity-10 text-brand-primary border-l-4 border-brand-primary'
+                                        ? 'bg-primary bg-opacity-10 text-primary border-l-4 border-primary'
                                         : 'text-gray-600 hover:bg-gray-50'
                                         }`}
                                 >
@@ -154,7 +154,7 @@ const CMSManager = () => {
 
                                         {field.type === 'textarea' ? (
                                             <textarea
-                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-brand-primary focus:border-brand-primary outline-none text-gray-800"
+                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary outline-none text-gray-800"
                                                 rows="4"
                                                 value={contentData[field.key] || ''}
                                                 onChange={e => handleFieldChange(field.key, e.target.value)}
@@ -163,7 +163,7 @@ const CMSManager = () => {
                                         ) : (
                                             <input
                                                 type="text"
-                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-brand-primary focus:border-brand-primary outline-none text-gray-800"
+                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-primary focus:border-primary outline-none text-gray-800"
                                                 value={contentData[field.key] || ''}
                                                 onChange={e => handleFieldChange(field.key, e.target.value)}
                                                 placeholder={`Enter ${field.label.toLowerCase()}...`}
@@ -176,7 +176,7 @@ const CMSManager = () => {
                                     <button
                                         type="submit"
                                         disabled={saving}
-                                        className="bg-brand-primary text-white px-6 py-3 rounded-lg flex items-center shadow shadow-brand-primary/30 hover:bg-brand-secondary transition disabled:opacity-50"
+                                        className="bg-primary text-white px-6 py-3 rounded-lg flex items-center shadow shadow-primary/30 hover:bg-primary-hover transition disabled:opacity-50"
                                     >
                                         {saving ? <Loader className="w-5 h-5 mr-2 animate-spin" /> : <Save className="w-5 h-5 mr-2" />}
                                         {saving ? 'Saving...' : 'Publish Changes'}

@@ -87,4 +87,22 @@ ai as dietion in app - it can take inputs like height, weight and add other esse
 
 
 
+
+
+in admin panel there is trainers section move that section whole section into content cms and in the trainers section make a change in such way that the admin can add a new trainer or remove existing trainers with their full details i am adding a screen shot showing which trainers details should be added 
+
+
+
+
+when we add a user through mobile it is added successfully in monogodb database but it is not shown at admin panel it should show in admin panel 
+
+
+
+
+
+
+
+
+when i start the backend and frontend it shows nodeman app crash error in both backend and frontend
+ADMIN PANEL SHOULD FETCH FULL DATABASE WHEN ANY TYPE CHANGES HAPPENS IN DATABASE 
  
