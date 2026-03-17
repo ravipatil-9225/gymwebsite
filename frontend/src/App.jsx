@@ -37,6 +37,7 @@ import TrainersManager from './pages/admin/TrainersManager';
 import OffersManager from './pages/admin/OffersManager';
 import GalleryManager from './pages/admin/GalleryManager';
 import CMSManager from './pages/admin/CMSManager';
+import PaymentsManager from './pages/admin/PaymentsManager';
 import { EnquiriesManager, ClassBookingsManager, PTSessionsManager, FeedbackManager, DocumentsManager } from './pages/admin/FormManagers';
 
 function App() {
@@ -98,6 +99,7 @@ function App() {
                       <Route path="trainers" element={<TrainersManager />} />
                       <Route path="offers" element={<OffersManager />} />
                       <Route path="gallery" element={<GalleryManager />} />
+                      <Route path="payments" element={<PaymentsManager />} />
                       <Route path="feedback" element={<FeedbackManager />} />
                       <Route path="documents" element={<DocumentsManager />} />
                       <Route path="cms" element={<CMSManager />} />
