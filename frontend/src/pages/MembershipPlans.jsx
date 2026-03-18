@@ -8,9 +8,9 @@ const plans = [
     {
         name: 'Starter Trial Pass',
         tagline: 'Trial Access',
-        price: '1',
+        price: '10',
         duration: 'one-day pass',
-        description: 'Try out our gym for just ₹1! Get a full day of access to experience the gym environment, equipment, and our expert team before committing to a full plan.',
+        description: 'Try out our gym for just ₹10! Get a full day of access to experience the gym environment, equipment, and our expert team before committing to a full plan.',
         includes: [
             '1-day full gym access',
             'Basic equipment orientation',
