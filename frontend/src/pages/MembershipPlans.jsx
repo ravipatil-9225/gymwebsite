@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Dumbbell, Activity, Target, Zap, Shield, Crown, X, Loader, CheckCircle, Mail, User, Image as ImageIcon, Hash, AlertTriangle, Banknote, CreditCard, Clock, Flame } from 'lucide-react';
+import { Check, Dumbbell, Activity, Target, Zap, Shield, Crown, X, Loader, CheckCircle, Mail, User, Image as ImageIcon, Hash, AlertTriangle, Banknote, CreditCard, Clock, Flame, Copy, CheckCheck, Smartphone } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
@@ -166,6 +166,16 @@ const MembershipPlans = () => {
     const [errMsg, setErrMsg] = useState('');
     const [verifyMsg, setVerifyMsg] = useState('');
     const [verifyStatus, setVerifyStatus] = useState('');
+    const [upiCopied, setUpiCopied] = useState(false);
+
+    const UPI_ID = 'ravipatil7512@oksbi';
+
+    const copyUpiId = () => {
+        navigator.clipboard.writeText(UPI_ID).then(() => {
+            setUpiCopied(true);
+            setTimeout(() => setUpiCopied(false), 2500);
+        });
+    };
 
     const openModal = (plan) => {
         setSelected(plan);
@@ -443,36 +453,63 @@ const MembershipPlans = () => {
 
                                         {/* ── UPI TAB CONTENT ── */}
                                         {payTab === 'upi' && (
-                                            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                                                <div className="flex flex-col items-center mb-4">
-                                                    <p className="text-sm font-semibold text-white mb-3">Scan to Pay ₹{selected.price}</p>
-                                                    <div className="bg-white p-2 rounded-lg mb-3 flex items-center justify-center overflow-hidden h-56 w-56 shadow-xl border border-gray-200">
+                                            <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-4">
+
+                                                {/* Step 1: QR + UPI Info */}
+                                                <div className="flex flex-col items-center">
+                                                    <p className="text-sm font-semibold text-white mb-1">Step 1: Pay ₹{selected.price} via UPI</p>
+                                                    <p className="text-xs text-gray-400 mb-3 text-center">Scan QR below with your phone camera, or open your UPI app and send to the UPI ID</p>
+
+                                                    {/* QR Code */}
+                                                    <div className="bg-white p-2 rounded-lg mb-3 flex items-center justify-center overflow-hidden h-52 w-52 shadow-xl border border-gray-200">
                                                         <img src="/qr.jpeg" alt="UPI QR Code" className="w-full h-full object-cover rounded-md" />
                                                     </div>
-                                                    <p className="text-xs text-gray-400 mb-2">UPI ID: <span className="text-white font-mono">ravipatil7512@oksbi</span></p>
 
-                                                    {/* UPI Deep-link Buttons — amount is raw number, no commas */}
-                                                    <p className="text-xs text-gray-500 mb-2">Or open directly in app:</p>
-                                                    <div className="flex gap-2 w-full mt-1">
-                                                        <a href={`tez://upi/pay?pa=ravipatil7512@oksbi&pn=Ravi%20Patil&am=${rawPrice(selected.price)}&cu=INR`}
-                                                            className="flex-1 text-center py-2 bg-white hover:bg-gray-100 rounded-lg text-xs font-semibold text-gray-800 transition-colors shadow flex justify-center items-center gap-1">
-                                                            <img src="https://upload.wikimedia.org/wikipedia/commons/f/f2/Google_Pay_Logo.svg" alt="GPay" className="h-3" />
-                                                        </a>
-                                                        <a href={`phonepe://pay?pa=ravipatil7512@oksbi&pn=Ravi%20Patil&am=${rawPrice(selected.price)}&cu=INR`}
-                                                            className="flex-1 text-center py-2 bg-[#5f259f] hover:bg-[#4f1f85] rounded-lg text-xs font-semibold text-white transition-colors shadow flex justify-center items-center gap-1">
-                                                            PhonePe
-                                                        </a>
-                                                        <a href={`paytmmp://pay?pa=ravipatil7512@oksbi&pn=Ravi%20Patil&am=${rawPrice(selected.price)}&cu=INR`}
-                                                            className="flex-1 text-center py-2 bg-[#00baf2] hover:bg-[#00a3d9] rounded-lg text-xs font-semibold text-white transition-colors shadow flex justify-center items-center gap-1">
-                                                            Paytm
-                                                        </a>
+                                                    {/* Copyable UPI ID */}
+                                                    <p className="text-xs text-gray-400 mb-1">UPI ID (tap to copy):</p>
+                                                    <button
+                                                        type="button"
+                                                        onClick={copyUpiId}
+                                                        className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg px-4 py-2 text-white font-mono text-sm transition-all duration-200 group"
+                                                    >
+                                                        <span>{UPI_ID}</span>
+                                                        {upiCopied
+                                                            ? <CheckCheck size={14} className="text-green-400" />
+                                                            : <Copy size={14} className="text-gray-400 group-hover:text-white transition-colors" />
+                                                        }
+                                                    </button>
+                                                    {upiCopied && <p className="text-green-400 text-xs mt-1 font-semibold">✓ Copied to clipboard!</p>}
+                                                </div>
+
+                                                {/* Universal UPI Deep Link */}
+                                                <a
+                                                    href={`upi://pay?pa=${UPI_ID}&pn=Ravi%20Patil&am=${rawPrice(selected.price)}&cu=INR&tn=Tara%20Fitness%20${encodeURIComponent(selected.name)}`}
+                                                    className="flex items-center justify-center gap-2 w-full py-3 bg-primary hover:bg-primary-hover rounded-xl text-white text-sm font-bold tracking-wider transition-all shadow-lg"
+                                                >
+                                                    <Smartphone size={16} />
+                                                    Open in Any UPI App
+                                                </a>
+
+                                                {/* Bank Limit Warning */}
+                                                <div className="bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2.5 flex gap-2">
+                                                    <AlertTriangle size={14} className="text-amber-400 shrink-0 mt-0.5" />
+                                                    <div>
+                                                        <p className="text-amber-300 text-xs font-semibold mb-0.5">Payment failing? Try these:</p>
+                                                        <ul className="text-gray-400 text-xs space-y-0.5">
+                                                            <li>• Open GPay / PhonePe / Paytm directly → send to UPI ID above</li>
+                                                            <li>• If bank limit exceeded — try a different bank account or UPI app</li>
+                                                            <li>• Or switch to <button type="button" onClick={() => { setPayTab('cash'); setStatus('idle'); setErrMsg(''); }} className="text-green-400 underline font-semibold">Cash on Bench</button> — pay at the gym</li>
+                                                        </ul>
                                                     </div>
                                                 </div>
 
-                                                <hr className="border-white/10 mb-4" />
-                                                <p className="text-xs text-center text-gray-400 mb-3">After payment, enter your Transaction ID and upload screenshot below.</p>
+                                                <hr className="border-white/10" />
 
-                                                <div className="relative mb-3">
+                                                {/* Step 2: Upload proof */}
+                                                <p className="text-xs font-semibold text-white">Step 2: After payment, fill in details below</p>
+                                                <p className="text-xs text-gray-400 -mt-2">Enter the UPI Transaction ID from your payment success screen and upload a screenshot.</p>
+
+                                                <div className="relative">
                                                     <Hash size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                                     <input required type="text" placeholder="UPI Transaction ID *" value={form.transactionId}
                                                         onChange={e => setForm(f => ({ ...f, transactionId: e.target.value }))}
