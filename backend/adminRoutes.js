@@ -378,8 +378,8 @@ router.put('/payments/:id', async (req, res) => {
         const payment = await Payment.findById(req.params.id);
         if (!payment) return res.status(404).json({ message: 'Payment not found' });
 
-        const wasPending = payment.verificationStatus !== 'success' && payment.verificationStatus !== 'manually_verified';
-        const isApproved = req.body.verificationStatus === 'success' || req.body.verificationStatus === 'manually_verified';
+        const wasPending = !['manually_verified', 'cash_collected', 'auto_verified'].includes(payment.verificationStatus);
+        const isApproved = ['manually_verified', 'cash_collected'].includes(req.body.verificationStatus);
 
         const updated = await Payment.findByIdAndUpdate(req.params.id, req.body, { new: true });
 
@@ -400,11 +400,23 @@ router.put('/payments/:id', async (req, res) => {
                     endDate,
                 });
 
+                // Send confirmation receipt to user
                 emailService.sendPaymentConfirmation({
                     name: user.name,
                     email: user.email,
                     packageName: payment.planName,
                     amountPaid: payment.planPrice,
+                    startDate,
+                    endDate,
+                }).catch(console.error);
+
+                // Send approval alert to owner
+                emailService.sendPaymentApprovedOwner({
+                    userName: user.name,
+                    email: user.email,
+                    planName: payment.planName,
+                    planPrice: payment.planPrice,
+                    paymentMethod: payment.paymentMethod || 'upi',
                     startDate,
                     endDate,
                 }).catch(console.error);
@@ -414,6 +426,7 @@ router.put('/payments/:id', async (req, res) => {
         res.json(updated);
         socket.getIO().emit('db_changed', { type: 'payment_updated', data: updated });
     } catch (err) {
+        console.error('Admin payment update error:', err);
         res.status(500).json({ message: 'Error updating payment' });
     }
 });

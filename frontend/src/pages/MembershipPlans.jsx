@@ -1,10 +1,30 @@
 import React, { useState, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Dumbbell, Activity, Target, Zap, Shield, Crown, X, Loader, CheckCircle, Mail, User, Image as ImageIcon, Hash, AlertTriangle } from 'lucide-react';
+import { Check, Dumbbell, Activity, Target, Zap, Shield, Crown, X, Loader, CheckCircle, Mail, User, Image as ImageIcon, Hash, AlertTriangle, Banknote, CreditCard, Clock, Flame } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
 const plans = [
+    {
+        name: 'Starter Trial Pass',
+        tagline: 'Trial Access',
+        price: '1',
+        duration: 'one-day pass',
+        description: 'Try out our gym for just ₹1! Get a full day of access to experience the gym environment, equipment, and our expert team before committing to a full plan.',
+        includes: [
+            '1-day full gym access',
+            'Basic equipment orientation',
+            'Guided tour by our team',
+        ],
+        icon: <Flame size={28} className="text-[#ff4b2b]" />,
+        accentColor: '#ff4b2b',
+        popular: false,
+        bestValue: false,
+        trialTag: true,
+        gradient: 'from-[#ff4b2b]/15 to-transparent',
+        border: 'hover:border-[#ff4b2b]/50',
+        badgeBg: 'bg-gradient-to-r from-[#ff4b2b] to-[#ff9068] text-white',
+    },
     {
         name: 'Bronze Beast Plan',
         tagline: null,
@@ -132,10 +152,16 @@ const itemVariants = {
     visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 100, damping: 15 } },
 };
 
+// Strip commas from price string -> plain number string for UPI
+function rawPrice(priceStr) {
+    return String(priceStr).replace(/,/g, '');
+}
+
 const MembershipPlans = () => {
     const { user } = useContext(AuthContext);
-    const [selected, setSelected] = useState(null); // { name, price, accentColor }
-    const [form, setForm] = useState({ name: '', email: '' });
+    const [selected, setSelected] = useState(null);
+    const [payTab, setPayTab] = useState('upi'); // 'upi' | 'cash'
+    const [form, setForm] = useState({ name: '', email: '', transactionId: '', screenshotUrl: '' });
     const [status, setStatus] = useState('idle'); // idle | submitting | success | error
     const [errMsg, setErrMsg] = useState('');
     const [verifyMsg, setVerifyMsg] = useState('');
@@ -143,6 +169,7 @@ const MembershipPlans = () => {
 
     const openModal = (plan) => {
         setSelected(plan);
+        setPayTab('upi');
         setForm({ name: user?.name || '', email: user?.email || '', transactionId: '', screenshotUrl: '' });
         setStatus('idle');
         setErrMsg('');
@@ -163,38 +190,68 @@ const MembershipPlans = () => {
         }
     };
 
-    const handleChoose = async (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!form.screenshotUrl || !form.transactionId) {
-            setErrMsg('Please enter Transaction ID and upload screenshot');
+
+        if (!form.name || !form.email) {
+            setErrMsg('Please enter your name and email.');
+            setStatus('error');
+            return;
+        }
+
+        if (payTab === 'upi' && (!form.screenshotUrl || !form.transactionId)) {
+            setErrMsg('Please enter Transaction ID and upload payment screenshot.');
             setStatus('error');
             return;
         }
 
         setStatus('submitting');
         try {
+            const payload = {
+                userName: form.name,
+                email: form.email,
+                planName: selected.name,
+                planPrice: selected.price,
+                paymentMethod: payTab === 'cash' ? 'cash_on_bench' : 'upi',
+                ...(payTab === 'upi' && {
+                    transactionId: form.transactionId,
+                    screenshotUrl: form.screenshotUrl,
+                }),
+            };
+
             const res = await fetch('/api/payments/verify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    userName: form.name,
-                    email: form.email,
-                    planName: selected.name,
-                    planPrice: selected.price,
-                    transactionId: form.transactionId,
-                    screenshotUrl: form.screenshotUrl
-                }),
+                body: JSON.stringify(payload),
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.message || 'Verification Failed');
-            
+            if (!res.ok) throw new Error(data.message || 'Submission Failed');
+
             setVerifyMsg(data.message);
-            setVerifyStatus(data.payment.verificationStatus);
+            setVerifyStatus(data.payment?.verificationStatus || '');
             setStatus('success');
         } catch (err) {
             setErrMsg(err.message);
             setStatus('error');
         }
+    };
+
+    const getSuccessIcon = () => {
+        if (verifyStatus === 'auto_verified') return <CheckCircle className="w-8 h-8 text-green-400" />;
+        if (verifyStatus === 'cash_pending') return <Clock className="w-8 h-8 text-orange-400" />;
+        return <AlertTriangle className="w-8 h-8 text-yellow-400" />;
+    };
+
+    const getSuccessBg = () => {
+        if (verifyStatus === 'auto_verified') return 'bg-green-500/20';
+        if (verifyStatus === 'cash_pending') return 'bg-orange-500/20';
+        return 'bg-yellow-500/20';
+    };
+
+    const getSuccessDesc = () => {
+        if (verifyStatus === 'auto_verified') return 'Your payment was automatically verified. We will confirm your membership shortly.';
+        if (verifyStatus === 'cash_pending') return 'Your cash payment request has been recorded. Please pay ₹' + selected?.price + ' at the gym reception. Your membership will be activated once the payment is received.';
+        return 'Our team will manually review your transaction screenshot. We\'ll update you as soon as possible.';
     };
 
     return (
@@ -241,16 +298,16 @@ const MembershipPlans = () => {
                         <motion.div
                             key={index}
                             variants={itemVariants}
-                            className={`relative bg-dark-card border ${plan.popular || plan.bestValue ? plan.border : `border-white/5 ${plan.border}`} rounded-2xl p-8 transition-all duration-500 group overflow-hidden shadow-xl flex flex-col`}
-                            style={plan.popular || plan.bestValue ? { boxShadow: `0 0 40px ${plan.accentColor}18` } : {}}
+                            className={`relative bg-dark-card border ${plan.popular || plan.bestValue || plan.trialTag ? plan.border : `border-white/5 ${plan.border}`} rounded-2xl p-8 transition-all duration-500 group overflow-hidden shadow-xl flex flex-col`}
+                            style={plan.popular || plan.bestValue || plan.trialTag ? { boxShadow: `0 0 40px ${plan.accentColor}18` } : {}}
                         >
                             {/* Hover gradient */}
                             <div className={`absolute inset-0 bg-gradient-to-br ${plan.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
 
                             {/* Badge */}
-                            {(plan.popular || plan.bestValue) && (
+                            {(plan.popular || plan.bestValue || plan.trialTag) && (
                                 <div className={`absolute top-0 right-0 ${plan.badgeBg} text-xs font-bold px-4 py-1.5 rounded-bl-xl uppercase tracking-widest`}>
-                                    {plan.popular ? 'Most Popular' : 'Best Value'}
+                                    {plan.popular ? 'Most Popular' : plan.bestValue ? 'Best Value' : 'Trial Access'}
                                 </div>
                             )}
 
@@ -329,26 +386,23 @@ const MembershipPlans = () => {
                     >
                         <motion.div
                             initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-                            className="bg-dark-card border border-white/10 rounded-2xl p-8 w-full max-w-md shadow-2xl relative"
+                            className="bg-dark-card border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl relative overflow-y-auto max-h-[90vh]"
                         >
-                            <button onClick={closeModal} className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"><X size={20} /></button>
+                            <button onClick={closeModal} className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors z-10"><X size={20} /></button>
 
                             {status === 'success' ? (
                                 <div className="text-center py-4">
-                                    <div className={`w-16 h-16 ${verifyStatus === 'auto_verified' ? 'bg-green-500/20' : 'bg-yellow-500/20'} rounded-full flex items-center justify-center mx-auto mb-4`}>
-                                        {verifyStatus === 'auto_verified' ? <CheckCircle className="w-8 h-8 text-green-400" /> : <AlertTriangle className="w-8 h-8 text-yellow-400" />}
+                                    <div className={`w-16 h-16 ${getSuccessBg()} rounded-full flex items-center justify-center mx-auto mb-4`}>
+                                        {getSuccessIcon()}
                                     </div>
                                     <h3 className="text-xl font-display font-bold text-white mb-2">{verifyMsg}</h3>
-                                    <p className="text-gray-400 text-sm">
-                                        {verifyStatus === 'auto_verified' 
-                                            ? "Your payment was automatically verified successfully. We will confirm your membership details shortly." 
-                                            : "Our team will manually review your transaction screenshot. We'll update you as soon as possible."}
-                                    </p>
+                                    <p className="text-gray-400 text-sm">{getSuccessDesc()}</p>
                                     <button onClick={closeModal} className="mt-6 px-6 py-2.5 bg-primary hover:bg-primary-hover rounded-xl text-white font-semibold text-sm transition-colors">Done</button>
                                 </div>
                             ) : (
                                 <>
-                                    <div className="flex items-center gap-3 mb-6">
+                                    {/* Plan Header */}
+                                    <div className="flex items-center gap-3 mb-5">
                                         <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center border border-white/10">{selected.icon}</div>
                                         <div>
                                             <h3 className="text-lg font-display font-bold text-white">{selected.name}</h3>
@@ -356,7 +410,24 @@ const MembershipPlans = () => {
                                         </div>
                                     </div>
 
-                                    <form onSubmit={handleChoose} className="space-y-4">
+                                    {/* Payment Method Tabs */}
+                                    <div className="flex gap-2 mb-5 bg-white/5 rounded-xl p-1">
+                                        <button
+                                            onClick={() => { setPayTab('upi'); setStatus('idle'); setErrMsg(''); }}
+                                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${payTab === 'upi' ? 'bg-primary text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                        >
+                                            <CreditCard size={15} /> UPI / QR Pay
+                                        </button>
+                                        <button
+                                            onClick={() => { setPayTab('cash'); setStatus('idle'); setErrMsg(''); }}
+                                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${payTab === 'cash' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                        >
+                                            <Banknote size={15} /> Cash on Bench
+                                        </button>
+                                    </div>
+
+                                    <form onSubmit={handleSubmit} className="space-y-4">
+                                        {/* Common Fields */}
                                         <div className="relative">
                                             <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                             <input required type="text" placeholder="Your full name *" value={form.name}
@@ -370,64 +441,107 @@ const MembershipPlans = () => {
                                                 className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 focus:border-primary rounded-xl text-white placeholder-gray-500 focus:outline-none text-sm" />
                                         </div>
 
-                                        <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-4">
-                                            <div className="flex flex-col items-center mb-4">
-                                                <p className="text-sm font-semibold text-white mb-3">Scan to Pay ₹{selected.price}</p>
-                                                <div className="bg-white p-2 rounded-lg mb-3 flex items-center justify-center overflow-hidden h-64 w-64 md:h-72 md:w-72 shadow-xl border border-gray-200">
-                                                    <img src="/qr.jpeg" alt="UPI QR Code" className="w-full h-full object-cover rounded-md" />
-                                                </div>
-                                                <p className="text-xs text-gray-400 mb-2">UPI ID: <span className="text-white font-mono sel">ravipatil7512@oksbi</span></p>
-                                                
-                                                {/* UPI Apps Intent Buttons */}
-                                                <p className="text-xs text-gray-500 mb-2">Or open directly in app:</p>
-                                                <div className="flex gap-2 w-full mt-1">
-                                                    <a href={`tez://upi/pay?pa=ravipatil7512@oksbi&pn=Ravi%20Patil&am=${selected.price}&cu=INR`}
-                                                        className="flex-1 text-center py-2 bg-white hover:bg-gray-100 rounded-lg text-xs font-semibold text-gray-800 transition-colors shadow flex justify-center items-center gap-1">
-                                                        <img src="https://upload.wikimedia.org/wikipedia/commons/f/f2/Google_Pay_Logo.svg" alt="GPay" className="h-3" />
-                                                    </a>
-                                                    <a href={`phonepe://pay?pa=ravipatil7512@oksbi&pn=Ravi%20Patil&am=${selected.price}&cu=INR`}
-                                                        className="flex-1 text-center py-2 bg-[#5f259f] hover:bg-[#4f1f85] rounded-lg text-xs font-semibold text-white transition-colors shadow flex justify-center items-center gap-1">
-                                                        PhonePe
-                                                    </a>
-                                                    <a href={`paytmmp://pay?pa=ravipatil7512@oksbi&pn=Ravi%20Patil&am=${selected.price}&cu=INR`}
-                                                        className="flex-1 text-center py-2 bg-[#00baf2] hover:bg-[#00a3d9] rounded-lg text-xs font-semibold text-white transition-colors shadow flex justify-center items-center gap-1">
-                                                        Paytm
-                                                    </a>
-                                                </div>
-                                            </div>
-                                            
-                                            <hr className="border-white/10 mb-4" />
-                                            <p className="text-xs text-center text-gray-400 mb-3">After payment, enter your Transaction ID and upload screenshot below.</p>
-                                            
-                                            <div className="relative mb-3">
-                                                <Hash size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                                <input required type="text" placeholder="UPI Transaction ID *" value={form.transactionId}
-                                                    onChange={e => setForm(f => ({ ...f, transactionId: e.target.value }))}
-                                                    className="w-full pl-10 pr-4 py-3 bg-dark border border-white/10 focus:border-primary rounded-xl text-white placeholder-gray-500 focus:outline-none text-sm" />
-                                            </div>
+                                        {/* ── UPI TAB CONTENT ── */}
+                                        {payTab === 'upi' && (
+                                            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                                                <div className="flex flex-col items-center mb-4">
+                                                    <p className="text-sm font-semibold text-white mb-3">Scan to Pay ₹{selected.price}</p>
+                                                    <div className="bg-white p-2 rounded-lg mb-3 flex items-center justify-center overflow-hidden h-56 w-56 shadow-xl border border-gray-200">
+                                                        <img src="/qr.jpeg" alt="UPI QR Code" className="w-full h-full object-cover rounded-md" />
+                                                    </div>
+                                                    <p className="text-xs text-gray-400 mb-2">UPI ID: <span className="text-white font-mono">ravipatil7512@oksbi</span></p>
 
-                                            <div className="relative flex items-center bg-dark border border-white/10 rounded-xl text-sm overflow-hidden">
-                                                <div className="px-3 bg-white/5 border-r border-white/10 flex items-center justify-center h-full py-3">
-                                                    <ImageIcon size={16} className="text-gray-400" />
+                                                    {/* UPI Deep-link Buttons — amount is raw number, no commas */}
+                                                    <p className="text-xs text-gray-500 mb-2">Or open directly in app:</p>
+                                                    <div className="flex gap-2 w-full mt-1">
+                                                        <a href={`tez://upi/pay?pa=ravipatil7512@oksbi&pn=Ravi%20Patil&am=${rawPrice(selected.price)}&cu=INR`}
+                                                            className="flex-1 text-center py-2 bg-white hover:bg-gray-100 rounded-lg text-xs font-semibold text-gray-800 transition-colors shadow flex justify-center items-center gap-1">
+                                                            <img src="https://upload.wikimedia.org/wikipedia/commons/f/f2/Google_Pay_Logo.svg" alt="GPay" className="h-3" />
+                                                        </a>
+                                                        <a href={`phonepe://pay?pa=ravipatil7512@oksbi&pn=Ravi%20Patil&am=${rawPrice(selected.price)}&cu=INR`}
+                                                            className="flex-1 text-center py-2 bg-[#5f259f] hover:bg-[#4f1f85] rounded-lg text-xs font-semibold text-white transition-colors shadow flex justify-center items-center gap-1">
+                                                            PhonePe
+                                                        </a>
+                                                        <a href={`paytmmp://pay?pa=ravipatil7512@oksbi&pn=Ravi%20Patil&am=${rawPrice(selected.price)}&cu=INR`}
+                                                            className="flex-1 text-center py-2 bg-[#00baf2] hover:bg-[#00a3d9] rounded-lg text-xs font-semibold text-white transition-colors shadow flex justify-center items-center gap-1">
+                                                            Paytm
+                                                        </a>
+                                                    </div>
                                                 </div>
-                                                <input required type="file" accept="image/*" onChange={handlePhotoUpload}
-                                                    className="w-full pl-3 pr-4 py-2 text-gray-400 focus:outline-none text-xs file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:bg-primary/20 file:text-primary hover:file:bg-primary/30" />
+
+                                                <hr className="border-white/10 mb-4" />
+                                                <p className="text-xs text-center text-gray-400 mb-3">After payment, enter your Transaction ID and upload screenshot below.</p>
+
+                                                <div className="relative mb-3">
+                                                    <Hash size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                                    <input required type="text" placeholder="UPI Transaction ID *" value={form.transactionId}
+                                                        onChange={e => setForm(f => ({ ...f, transactionId: e.target.value }))}
+                                                        className="w-full pl-10 pr-4 py-3 bg-dark border border-white/10 focus:border-primary rounded-xl text-white placeholder-gray-500 focus:outline-none text-sm" />
+                                                </div>
+
+                                                <div className="relative flex items-center bg-dark border border-white/10 rounded-xl text-sm overflow-hidden">
+                                                    <div className="px-3 bg-white/5 border-r border-white/10 flex items-center justify-center h-full py-3">
+                                                        <ImageIcon size={16} className="text-gray-400" />
+                                                    </div>
+                                                    <input required type="file" accept="image/*" onChange={handlePhotoUpload}
+                                                        className="w-full pl-3 pr-4 py-2 text-gray-400 focus:outline-none text-xs file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:bg-primary/20 file:text-primary hover:file:bg-primary/30" />
+                                                </div>
                                             </div>
-                                        </div>
+                                        )}
+
+                                        {/* ── CASH ON BENCH TAB CONTENT ── */}
+                                        {payTab === 'cash' && (
+                                            <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-5">
+                                                <div className="flex items-center gap-3 mb-4">
+                                                    <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
+                                                        <Banknote size={20} className="text-green-400" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-white font-semibold text-sm">Pay at the Gym</p>
+                                                        <p className="text-gray-400 text-xs">No online payment required</p>
+                                                    </div>
+                                                </div>
+                                                <ul className="space-y-2 text-sm text-gray-300 mb-4">
+                                                    <li className="flex items-start gap-2.5">
+                                                        <Check size={14} className="text-green-400 mt-0.5 shrink-0" />
+                                                        Submit this form to register your interest.
+                                                    </li>
+                                                    <li className="flex items-start gap-2.5">
+                                                        <Check size={14} className="text-green-400 mt-0.5 shrink-0" />
+                                                        Visit the gym reception and pay <span className="text-white font-semibold ml-1">₹{selected.price}</span> in cash.
+                                                    </li>
+                                                    <li className="flex items-start gap-2.5">
+                                                        <Check size={14} className="text-green-400 mt-0.5 shrink-0" />
+                                                        Our staff will activate your membership on the spot.
+                                                    </li>
+                                                </ul>
+                                                <div className="bg-green-500/10 border border-green-500/20 rounded-lg px-4 py-3 text-center">
+                                                    <p className="text-green-300 text-xs font-medium">Amount to pay at bench</p>
+                                                    <p className="text-white text-2xl font-bold mt-0.5">₹{selected.price}</p>
+                                                    <p className="text-gray-400 text-xs mt-0.5">{selected.duration}</p>
+                                                </div>
+                                            </div>
+                                        )}
 
                                         {status === 'error' && <p className="text-red-400 text-sm bg-red-500/10 px-3 py-2 rounded-lg">{errMsg}</p>}
 
                                         <button type="submit" disabled={status === 'submitting'}
-                                            className="w-full py-3.5 rounded-xl text-white font-bold text-sm tracking-wider transition-all disabled:opacity-60 flex justify-center items-center"
-                                            style={{ background: selected.accentColor }}
+                                            className={`w-full py-3.5 rounded-xl text-white font-bold text-sm tracking-wider transition-all disabled:opacity-60 flex justify-center items-center ${payTab === 'cash' ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                                            style={payTab === 'upi' ? { background: selected.accentColor } : {}}
                                         >
                                             {status === 'submitting' ? (
                                                 <span className="flex items-center gap-2">
-                                                    <Loader size={18} className="animate-spin" /> Verifying Payment...
+                                                    <Loader size={18} className="animate-spin" /> Processing...
                                                 </span>
-                                            ) : 'Pay & Verify'}
+                                            ) : payTab === 'cash' ? (
+                                                <span className="flex items-center gap-2"><Banknote size={18} /> Register Cash Payment</span>
+                                            ) : (
+                                                'Pay & Verify'
+                                            )}
                                         </button>
-                                        <p className="text-xs text-gray-500 text-center mt-2">Our AI agent automatically verifies your payment.</p>
+                                        <p className="text-xs text-gray-500 text-center mt-1">
+                                            {payTab === 'upi' ? 'Our AI agent automatically verifies your payment.' : 'Your membership will be activated after cash is paid at reception.'}
+                                        </p>
                                     </form>
                                 </>
                             )}

@@ -51,8 +51,8 @@ const loginUser = async (req, res) => {
             return res.status(401).json({ message: 'Incorrect email or password. Please try again.' });
         }
 
-        user.lastLogin = new Date();
-        await user.save();
+        // Update lastLogin non-blocking (fire & forget) — don't wait for it
+        User.updateOne({ _id: user._id }, { lastLogin: new Date() }).catch(() => {});
 
         const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '30d' });
 
@@ -78,9 +78,16 @@ const googleAuth = async (req, res) => {
             return res.status(400).json({ message: 'No Google token or credential provided.' });
         }
 
-        // Verify with Google
-        const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
-        const googleUser = await response.json();
+        // Verify with Google (5s timeout to avoid hanging)
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        let response, googleUser;
+        try {
+            response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`, { signal: controller.signal });
+            googleUser = await response.json();
+        } finally {
+            clearTimeout(timeout);
+        }
 
         if (!response.ok || !googleUser.email) {
             return res.status(400).json({ message: 'Invalid or expired Google token.' });
@@ -102,9 +109,10 @@ const googleAuth = async (req, res) => {
         } else {
             if (email === OWNER().toLowerCase() && user.role !== 'admin') {
                 user.role = 'admin';
+                await user.save();
             }
-            user.lastLogin = new Date();
-            await user.save();
+            // Update lastLogin non-blocking — don't await it
+            User.updateOne({ _id: user._id }, { lastLogin: new Date() }).catch(() => {});
         }
 
         const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '30d' });

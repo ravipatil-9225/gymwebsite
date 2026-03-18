@@ -394,6 +394,119 @@ const sendPaymentConfirmation = (data) => send(
     `)
 );
 
+// ─── 9b. UPI PAYMENT SUBMITTED (awaiting verification) ───────────────────
+
+const sendUpiPaymentPendingUser = (data) => send(
+    data.email,
+    `⏳ Payment Under Review — ${data.planName} | Tara Fitness`,
+    emailWrapper(`
+        ${heading('Payment Screenshot Received!')}
+        ${subheading('Under Verification')}
+        ${statusBadge('Awaiting Verification', '#f59e0b')}
+        ${paragraph(`Hi <strong>${data.userName}</strong>, we have received your UPI payment screenshot for the <strong>${data.planName}</strong> plan. Our team is currently verifying your transaction.`)}
+        ${infoCard([
+            ['Plan', data.planName],
+            ['Amount', `₹${data.planPrice}`],
+            ['Transaction ID', data.transactionId || 'N/A'],
+            ['Submitted At', new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })],
+            ['Status', '⏳ Pending Verification'],
+        ])}
+        ${paragraph('Our system will automatically verify your payment. If manual review is needed, we will confirm within a few hours. You will receive another email once verified.')}
+        ${divider()}
+        ${paragraph('<small style="color:#aaa;">If you did not make this payment, please contact us immediately.</small>')}
+    `)
+);
+
+const sendUpiPaymentPendingOwner = (data) => send(
+    OWNER(),
+    `💳 New UPI Payment: ${data.userName} → ${data.planName}`,
+    emailWrapper(`
+        ${heading('New UPI Payment Submitted!')}
+        ${subheading('Payment Verification Required')}
+        ${statusBadge(data.verificationStatus === 'auto_verified' ? 'Auto Verified ✅' : 'Manual Review Needed ⚠️', data.verificationStatus === 'auto_verified' ? '#16a34a' : '#f59e0b')}
+        ${paragraph('A member has submitted a UPI payment screenshot. Please review in the admin panel.')}
+        ${infoCard([
+            ['Member Name', data.userName],
+            ['Email', data.email],
+            ['Plan', data.planName],
+            ['Amount', `₹${data.planPrice}`],
+            ['Transaction ID', data.transactionId || 'N/A'],
+            ['OCR Confidence', data.ocrConfidence ? `${Number(data.ocrConfidence).toFixed(1)}%` : 'N/A'],
+            ['Verification Status', data.verificationStatus],
+            ['Submitted At', new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })],
+        ])}
+        ${ctaButton('Review in Admin Panel', 'http://localhost:5173/admin')}
+    `)
+);
+
+// ─── 9c. CASH ON BENCH SUBMITTED ─────────────────────────────────────────
+
+const sendCashPaymentPendingUser = (data) => send(
+    data.email,
+    `🏦 Cash Payment Registered — ${data.planName} | Tara Fitness`,
+    emailWrapper(`
+        ${heading('Cash Payment Request Recorded! 💵')}
+        ${subheading('Pay at Gym Reception')}
+        ${statusBadge('Cash Pending', '#ea580c')}
+        ${paragraph(`Hi <strong>${data.userName}</strong>, your cash payment request for the <strong>${data.planName}</strong> plan has been recorded. Please visit us to complete the payment.`)}
+        ${infoCard([
+            ['Plan', data.planName],
+            ['Amount to Pay', `₹${data.planPrice}`],
+            ['Payment Method', 'Cash at Reception 🏦'],
+            ['Registered At', new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })],
+            ['Status', '🟠 Pending — Pay at Gym'],
+        ])}
+        ${paragraph('<strong>Next Steps:</strong><br/>1. Visit Tara Fitness Centre reception.<br/>2. Inform the staff about this registration.<br/>3. Pay <strong>₹' + data.planPrice + '</strong> in cash.<br/>4. Your membership will be activated immediately on payment.')}
+        ${ctaButton('View Membership Plans', 'http://localhost:5173/packages/plans')}
+        ${divider()}
+        ${paragraph('<small style="color:#aaa;">Your membership will only be activated after cash payment is received at the gym.</small>')}
+    `)
+);
+
+const sendCashPaymentPendingOwner = (data) => send(
+    OWNER(),
+    `💵 New Cash Payment Request: ${data.userName} → ${data.planName}`,
+    emailWrapper(`
+        ${heading('New Cash on Bench Request!')}
+        ${subheading('Collect Payment at Reception')}
+        ${statusBadge('Cash Pending — Collect at Desk', '#ea580c')}
+        ${paragraph('A member has registered for a cash payment. Please collect the payment at reception and confirm in the admin panel.')}
+        ${infoCard([
+            ['Member Name', data.userName],
+            ['Email', data.email],
+            ['Plan', data.planName],
+            ['Amount to Collect', `₹${data.planPrice}`],
+            ['Payment Method', 'Cash at Reception'],
+            ['Requested At', new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })],
+        ])}
+        ${ctaButton('Go to Admin Panel → Payments', 'http://localhost:5173/admin')}
+        ${paragraph('<strong>Action Required:</strong> Once you have collected the cash, click "Collected" in the Payments section of the admin panel to activate their membership.')}
+    `)
+);
+
+// ─── 9d. PAYMENT APPROVED OWNER ALERT ────────────────────────────────────
+
+const sendPaymentApprovedOwner = (data) => send(
+    OWNER(),
+    `✅ Payment Confirmed: ${data.userName} → ${data.planName}`,
+    emailWrapper(`
+        ${heading('Payment Confirmed & Membership Activated!')}
+        ${subheading('Payment Success Alert')}
+        ${statusBadge('Membership Active ✅', '#16a34a')}
+        ${paragraph('A member\'s payment has been verified and their membership is now active.')}
+        ${infoCard([
+            ['Member Name', data.userName],
+            ['Email', data.email],
+            ['Plan', data.planName],
+            ['Amount Paid', `₹${data.planPrice}`],
+            ['Payment Method', data.paymentMethod === 'cash_on_bench' ? 'Cash at Reception' : 'UPI'],
+            ['Membership Start', new Date(data.startDate).toLocaleDateString('en-IN')],
+            ['Membership End', new Date(data.endDate).toLocaleDateString('en-IN')],
+            ['Confirmed At', new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })],
+        ])}
+    `)
+);
+
 // ─── 10. MEMBERSHIP EXPIRY REMINDERS ─────────────────────────────────────
 
 const sendExpiryReminder = (membership, daysLeft) => {
@@ -617,4 +730,10 @@ module.exports = {
     // Payments & Memberships
     sendPaymentConfirmation,
     sendExpiryReminder,
+    // Payment status emails
+    sendUpiPaymentPendingUser,
+    sendUpiPaymentPendingOwner,
+    sendCashPaymentPendingUser,
+    sendCashPaymentPendingOwner,
+    sendPaymentApprovedOwner,
 };

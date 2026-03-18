@@ -5,8 +5,8 @@ export const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(null);
-    const [backendReady, setBackendReady] = useState(false);
-    const [checkingBackend, setCheckingBackend] = useState(true);
+    const [backendReady, setBackendReady] = useState(true);   // optimistic: assume ready
+    const [checkingBackend, setCheckingBackend] = useState(false);
 
     useEffect(() => {
         const storedUser = localStorage.getItem('gymUser');
@@ -14,17 +14,17 @@ export const AuthProvider = ({ children }) => {
         if (storedUser) setUser(JSON.parse(storedUser));
         if (storedToken) setToken(storedToken);
 
+        // Quick, non-blocking health check — don't gate the UI on it
         const startupCheck = async () => {
             try {
-                const res = await fetch('/api/health');
-                if (res.ok) {
-                    setBackendReady(true);
-                }
-            } catch (err) {
-                console.warn('Backend not ready yet:', err.message);
-                setBackendReady(false);
-            } finally {
-                setCheckingBackend(false);
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 3000); // 3s max
+                const res = await fetch('/api/health', { signal: controller.signal });
+                clearTimeout(timeout);
+                setBackendReady(res.ok);
+            } catch {
+                // If backend is unreachable, still allow UI — actual API calls will fail with proper errors
+                setBackendReady(true);
             }
         };
 

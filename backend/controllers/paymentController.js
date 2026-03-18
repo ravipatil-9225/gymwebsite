@@ -1,17 +1,59 @@
 const Payment = require('../models/Payment');
 const tesseract = require('tesseract.js');
 const socket = require('../socket');
-const fs = require('fs');
 const User = require('../models/User');
 const Membership = require('../models/Membership');
 const emailService = require('../services/emailService');
 
+// Helper: parse price string like "1,200" → 1200
+function parsePrice(price) {
+    if (typeof price === 'number') return price;
+    return parseFloat(String(price).replace(/,/g, '')) || 0;
+}
+
 exports.verifyPayment = async (req, res) => {
     try {
-        const { userName, email, planName, planPrice, transactionId, screenshotUrl } = req.body;
+        const { userName, email, planName, planPrice, transactionId, screenshotUrl, paymentMethod } = req.body;
 
-        if (!userName || !email || !planName || !planPrice || !transactionId || !screenshotUrl) {
+        if (!userName || !email || !planName || !planPrice) {
             return res.status(400).json({ message: 'Missing required fields' });
+        }
+
+        const numericPrice = parsePrice(planPrice);
+        const method = paymentMethod || 'upi';
+
+        // ── CASH ON BENCH FLOW ──────────────────────────────────────────────────
+        if (method === 'cash_on_bench') {
+            const newPayment = await Payment.create({
+                userName,
+                email,
+                planName,
+                planPrice: numericPrice,
+                paymentMethod: 'cash_on_bench',
+                verificationStatus: 'cash_pending',
+            });
+
+            // Send emails to user AND owner (fire & forget)
+            emailService.sendCashPaymentPendingUser({
+                userName, email, planName, planPrice: numericPrice,
+            }).catch(console.error);
+
+            emailService.sendCashPaymentPendingOwner({
+                userName, email, planName, planPrice: numericPrice,
+            }).catch(console.error);
+
+            // Emit socket event for real-time admin update
+            try { socket.getIO().emit('db_changed', { type: 'payment_cash', data: newPayment }); } catch (_) {}
+
+            return res.status(201).json({
+                message: 'Cash Payment Request Received',
+                payment: newPayment,
+            });
+        }
+
+        // ── UPI / SCREENSHOT FLOW ───────────────────────────────────────────────
+        if (!transactionId || !screenshotUrl) {
+            return res.status(400).json({ message: 'Transaction ID and screenshot are required for UPI payment.' });
         }
 
         // Check for duplicate transaction ID
@@ -21,88 +63,101 @@ exports.verifyPayment = async (req, res) => {
         }
 
         console.log(`Starting OCR for ${transactionId}...`);
-        
-        // Extract base64 data correctly (assuming it's formatted as data:image/png;base64,.....)
+
+        // Extract base64 image data
         let imageBuffer;
         if (screenshotUrl.startsWith('data:image')) {
             const base64Data = screenshotUrl.split(',')[1];
             imageBuffer = Buffer.from(base64Data, 'base64');
         } else {
-            // If it's sent as a plain base64 string or an actual file URL
             imageBuffer = Buffer.from(screenshotUrl, 'base64');
         }
 
-        // Run Tesseract
-        const { data: { text, confidence } } = await tesseract.recognize(
-            imageBuffer,
-            'eng'
-        );
+        // Run Tesseract OCR
+        const { data: { text, confidence } } = await tesseract.recognize(imageBuffer, 'eng');
 
         console.log('OCR Result Text:', text);
         console.log('OCR Confidence:', confidence);
 
         // Matching Logic
-        // Normalize text: remove spaces, lowercase to handle OCR anomalies
         const normalizedText = text.replace(/\s+/g, '').toLowerCase();
         const normalizedInputTxn = transactionId.replace(/\s+/g, '').toLowerCase();
 
-        // 1. Check if Transaction ID matches exactly
         const isTxnMatch = normalizedText.includes(normalizedInputTxn);
-
-        // 2. Check if Amount matches (Optional logic if needed, but required by user prompts)
-        // Usually amount looks like rs 1000 or ₹1000 or 1,000. Let's look for the amount string simply
-        const isAmountMatch = normalizedText.includes(planPrice.toString()) || text.includes(planPrice.toString());
+        const priceStr = numericPrice.toString();
+        const isAmountMatch = normalizedText.includes(priceStr.replace(/,/g, '')) || text.includes(priceStr);
 
         let status = 'failed_verification';
         let extractedTxnId = null;
 
         if (isTxnMatch && isAmountMatch) {
             status = 'auto_verified';
-            extractedTxnId = transactionId; // Since it was verified true, we use it as extracted
+            extractedTxnId = transactionId;
         } else {
             status = 'failed_verification';
-            // We could try to extract something that looks like a txn id, e.g. a 12 digit number
             const match12 = text.match(/\d{12}/);
-            if (match12) {
-                extractedTxnId = match12[0];
-            }
+            if (match12) extractedTxnId = match12[0];
         }
 
         const newPayment = await Payment.create({
             userName,
             email,
             planName,
-            planPrice,
+            planPrice: numericPrice,
+            paymentMethod: 'upi',
             transactionId,
             extractedTransactionId: extractedTxnId,
             verificationStatus: status,
-            screenshotUrl, // Storing as base64 in DB (fine for simple setups)
-            ocrConfidence: confidence
+            screenshotUrl,
+            ocrConfidence: confidence,
         });
 
-        // Activate membership if verified
+        // ── Notify user (payment pending/review) ────────────────────────────────
+        emailService.sendUpiPaymentPendingUser({
+            userName, email, planName, planPrice: numericPrice, transactionId,
+        }).catch(console.error);
+
+        // ── Notify owner with full OCR details ──────────────────────────────────
+        emailService.sendUpiPaymentPendingOwner({
+            userName, email, planName, planPrice: numericPrice,
+            transactionId, ocrConfidence: confidence, verificationStatus: status,
+        }).catch(console.error);
+
+        // ── Activate membership if auto-verified ─────────────────────────────────
         if (status === 'auto_verified') {
             const user = await User.findOne({ email });
             if (user) {
                 const startDate = new Date();
                 const endDate = new Date();
-                endDate.setDate(endDate.getDate() + 30); // Default to 30 days
+                endDate.setDate(endDate.getDate() + 30);
 
                 await Membership.create({
                     userId: user._id,
                     userName: user.name,
                     userEmail: user.email,
                     packageName: planName,
-                    amountPaid: planPrice,
+                    amountPaid: numericPrice,
                     startDate,
                     endDate,
                 });
 
+                // User gets full confirmation receipt
                 emailService.sendPaymentConfirmation({
                     name: user.name,
                     email: user.email,
                     packageName: planName,
-                    amountPaid: planPrice,
+                    amountPaid: numericPrice,
+                    startDate,
+                    endDate,
+                }).catch(console.error);
+
+                // Owner gets approval alert
+                emailService.sendPaymentApprovedOwner({
+                    userName: user.name,
+                    email: user.email,
+                    planName,
+                    planPrice: numericPrice,
+                    paymentMethod: 'upi',
                     startDate,
                     endDate,
                 }).catch(console.error);
@@ -110,11 +165,13 @@ exports.verifyPayment = async (req, res) => {
         }
 
         // Emit socket event for real-time admin update
-        socket.getIO().emit('db_changed', { type: 'payment_verified', data: newPayment });
+        try { socket.getIO().emit('db_changed', { type: 'payment_verified', data: newPayment }); } catch (_) {}
 
         res.status(201).json({
-            message: status === 'auto_verified' ? 'Payment Verified Automatically' : 'Verification Failed - Awaiting Admin Review',
-            payment: newPayment
+            message: status === 'auto_verified'
+                ? 'Payment Verified Automatically'
+                : 'Verification Failed - Awaiting Admin Review',
+            payment: newPayment,
         });
 
     } catch (err) {
