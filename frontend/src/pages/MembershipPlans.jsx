@@ -490,18 +490,6 @@ const MembershipPlans = () => {
                                                     Open in Any UPI App
                                                 </a>
 
-                                                {/* Bank Limit Warning */}
-                                                <div className="bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2.5 flex gap-2">
-                                                    <AlertTriangle size={14} className="text-amber-400 shrink-0 mt-0.5" />
-                                                    <div>
-                                                        <p className="text-amber-300 text-xs font-semibold mb-0.5">Payment failing? Try these:</p>
-                                                        <ul className="text-gray-400 text-xs space-y-0.5">
-                                                            <li>• Open GPay / PhonePe / Paytm directly → send to UPI ID above</li>
-                                                            <li>• If bank limit exceeded — try a different bank account or UPI app</li>
-                                                            <li>• Or switch to <button type="button" onClick={() => { setPayTab('cash'); setStatus('idle'); setErrMsg(''); }} className="text-green-400 underline font-semibold">Cash on Bench</button> — pay at the gym</li>
-                                                        </ul>
-                                                    </div>
-                                                </div>
 
                                                 <hr className="border-white/10" />
 
