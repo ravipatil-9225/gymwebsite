@@ -483,7 +483,7 @@ const MembershipPlans = () => {
 
                                                 {/* Universal UPI Deep Link */}
                                                 <a
-                                                    href={`upi://pay?pa=${UPI_ID}&pn=Ravi%20Patil&am=${rawPrice(selected.price)}&cu=INR&tn=Tara%20Fitness%20${encodeURIComponent(selected.name)}`}
+                                                    href={`upi://pay?pa=${UPI_ID}&pn=Uddhav%20Borgalli&am=${rawPrice(selected.price)}&cu=INR&tn=Tara%20Fitness%20${encodeURIComponent(selected.name)}`}
                                                     className="flex items-center justify-center gap-2 w-full py-3 bg-primary hover:bg-primary-hover rounded-xl text-white text-sm font-bold tracking-wider transition-all shadow-lg"
                                                 >
                                                     <Smartphone size={16} />
