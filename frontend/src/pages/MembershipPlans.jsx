@@ -168,7 +168,7 @@ const MembershipPlans = () => {
     const [verifyStatus, setVerifyStatus] = useState('');
     const [upiCopied, setUpiCopied] = useState(false);
 
-    const UPI_ID = 'ravipatil7512@oksbi';
+    const UPI_ID = 'uddhavb9561-1@okaxis';
 
     const copyUpiId = () => {
         navigator.clipboard.writeText(UPI_ID).then(() => {
