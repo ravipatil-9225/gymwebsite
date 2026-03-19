@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Dumbbell, Activity, Target, Zap, Shield, Crown, X, Loader, CheckCircle, Mail, User, Image as ImageIcon, Hash, AlertTriangle, Banknote, CreditCard, Clock, Flame, Copy, CheckCheck, Smartphone } from 'lucide-react';
+import { Check, Dumbbell, Activity, Target, Zap, Shield, Crown, X, Loader, CheckCircle, Mail, User, Image as ImageIcon, Hash, AlertTriangle, Banknote, CreditCard, Clock, Flame, Copy, CheckCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
@@ -480,16 +480,6 @@ const MembershipPlans = () => {
                                                     </button>
                                                     {upiCopied && <p className="text-green-400 text-xs mt-1 font-semibold">✓ Copied to clipboard!</p>}
                                                 </div>
-
-                                                {/* Universal UPI Deep Link */}
-                                                <a
-                                                    href={`upi://pay?pa=${UPI_ID}&pn=Uddhav%20Borgalli&am=${rawPrice(selected.price)}&cu=INR&tn=Tara%20Fitness%20${encodeURIComponent(selected.name)}`}
-                                                    className="flex items-center justify-center gap-2 w-full py-3 bg-primary hover:bg-primary-hover rounded-xl text-white text-sm font-bold tracking-wider transition-all shadow-lg"
-                                                >
-                                                    <Smartphone size={16} />
-                                                    Open in Any UPI App
-                                                </a>
-
 
                                                 <hr className="border-white/10" />
 
