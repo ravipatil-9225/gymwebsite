@@ -1,7 +1,8 @@
-import React, { useState, useContext } from 'react';
-import { Menu, X, Dumbbell } from 'lucide-react';
+import React, { useState, useContext, useEffect } from 'react';
+import { Menu, X, Dumbbell, Zap } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const navItems = [
     { title: 'HOME', path: '/home' },
@@ -10,127 +11,170 @@ const navItems = [
     { title: 'TRAINERS', path: '/trainers' },
     { title: 'MEDIA', path: '/media' },
     { title: 'CONTACT', path: '/contact' },
-    { title: 'MEMBER PORTAL', path: '/portal' },
+    { title: 'PORTAL', path: '/portal' },
     { title: 'SETTINGS', path: '/settings' },
 ];
 
 const Navbar = () => {
     const [isOpen, setIsOpen] = useState(false);
+    const [scrolled, setScrolled] = useState(false);
     const location = useLocation();
     const { user } = useContext(AuthContext);
 
-    // Check if the current route is Login or Register
     const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
 
-    return (
-        <nav className="bg-dark backdrop-blur-md border-b border-white/5 top-0 w-full z-40 sticky">
-            <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8">
-                <div className={`flex items-stretch h-20 ${isAuthPage ? 'justify-center' : 'justify-between'}`}>
+    useEffect(() => {
+        const onScroll = () => setScrolled(window.scrollY > 20);
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
 
-                    {/* Logo Section */}
+    // Close mobile menu on route change
+    useEffect(() => { setIsOpen(false); }, [location.pathname]);
+
+    return (
+        <nav
+            className={`top-0 w-full z-50 sticky transition-all duration-500 ${
+                scrolled
+                    ? 'bg-[#050505]/95 backdrop-blur-xl border-b border-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.5)]'
+                    : 'bg-transparent border-b border-transparent'
+            }`}
+        >
+            <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-10">
+                <div className={`flex items-stretch h-[72px] ${isAuthPage ? 'justify-center' : 'justify-between'}`}>
+
+                    {/* Logo */}
                     <div className="flex items-center">
-                        <Link to={isAuthPage ? "#" : "/home"} onClick={() => setIsOpen(false)} className="flex items-center gap-2">
-                            <div className="text-primary flex items-center justify-center">
-                                <Dumbbell size={36} strokeWidth={2.5} />
+                        <Link to={isAuthPage ? '#' : '/home'} className="flex items-center gap-2.5 group">
+                            <div className="relative">
+                                <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center shadow-[0_0_20px_rgba(227,74,41,0.5)] group-hover:shadow-[0_0_30px_rgba(227,74,41,0.7)] transition-all duration-300">
+                                    <Dumbbell size={20} strokeWidth={2.5} className="text-white" />
+                                </div>
                             </div>
-                            <span className="font-display font-bold text-2xl md:text-3xl tracking-widest text-white mt-1">
-                                TARA <span className="text-primary font-light">FITNESS</span>
+                            <span className="font-display font-bold text-2xl tracking-widest text-white">
+                                TARA <span className="text-primary">FITNESS</span>
                             </span>
                         </Link>
                     </div>
 
-                    {/* Desktop Menu - Hidden on Auth Pages */}
+                    {/* Desktop Nav */}
                     {!isAuthPage && (
-                        <div className="hidden xl:flex items-center space-x-5">
-                            {navItems.map((item, index) => (
-                                <Link
-                                    key={index}
-                                    to={item.path}
-                                    className={`nav-link py-8 text-sm relative group overflow-hidden ${location.pathname === item.path ? 'text-primary' : ''}`}
-                                >
-                                    <span className="relative z-10 whitespace-nowrap">{item.title}</span>
-                                    <span className={`absolute bottom-6 left-0 w-full h-0.5 bg-primary transform origin-left transition-transform duration-300 ${location.pathname === item.path ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'}`}></span>
-                                </Link>
-                            ))}
+                        <div className="hidden xl:flex items-center gap-1">
+                            {navItems.map((item) => {
+                                const isActive = location.pathname === item.path;
+                                return (
+                                    <Link
+                                        key={item.path}
+                                        to={item.path}
+                                        className={`relative px-3 py-2 text-[11px] font-bold tracking-[0.18em] uppercase transition-all duration-200 rounded-md group ${
+                                            isActive
+                                                ? 'text-primary'
+                                                : 'text-white/60 hover:text-white'
+                                        }`}
+                                    >
+                                        <span className="relative z-10">{item.title}</span>
+                                        {isActive && (
+                                            <motion.span
+                                                layoutId="nav-active"
+                                                className="absolute inset-0 rounded-md bg-primary/10"
+                                                style={{ borderBottom: '2px solid #E34A29' }}
+                                            />
+                                        )}
+                                        <span className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-4/5 rounded-full ${isActive ? 'hidden' : ''}`} />
+                                    </Link>
+                                );
+                            })}
                             {user?.role === 'admin' && (
                                 <Link
                                     to="/admin"
-                                    className={`nav-link py-8 text-sm relative group overflow-hidden text-yellow-400`}
+                                    className="relative px-3 py-2 text-[11px] font-bold tracking-[0.18em] uppercase transition-all duration-200 rounded-md text-yellow-400/80 hover:text-yellow-400 group"
                                 >
-                                    <span className="relative z-10 whitespace-nowrap font-bold">ADMIN PANEL</span>
-                                    <span className={`absolute bottom-6 left-0 w-full h-0.5 bg-yellow-400 transform origin-left transition-transform duration-300 ${location.pathname.startsWith('/admin') ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'}`}></span>
+                                    <span className="relative z-10 flex items-center gap-1.5">
+                                        <Zap size={11} className="fill-yellow-400" /> ADMIN
+                                    </span>
+                                    <span className="absolute inset-0 rounded-md bg-yellow-400/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                                 </Link>
                             )}
                         </div>
                     )}
 
-                    {/* CTA & Mobile Toggle - Hidden on Auth Pages */}
+                    {/* CTA + Mobile Toggle */}
                     {!isAuthPage && (
-                        <div className="flex items-stretch">
-                            {user ? (
-                                <Link to="/join" className="hidden xl:flex items-center bg-primary hover:bg-primary-hover text-white font-display font-bold px-8 tracking-[0.2em] transition-colors h-full text-lg shadow-[0_0_20px_rgba(227,74,41,0.3)] whitespace-nowrap">
-                                    JOIN US TODAY
-                                </Link>
-                            ) : (
-                                <Link to="/join" className="hidden xl:flex items-center bg-primary hover:bg-primary-hover text-white font-display font-bold px-8 tracking-[0.2em] transition-colors h-full text-lg shadow-[0_0_20px_rgba(227,74,41,0.3)] whitespace-nowrap">
-                                    JOIN US TODAY
-                                </Link>
-                            )}
-                            <div className="flex items-center xl:hidden px-4">
-                                <button
-                                    onClick={() => setIsOpen(!isOpen)}
-                                    className="text-white hover:text-primary p-2 focus:outline-none transition-colors border border-white/10 rounded-lg"
-                                >
-                                    {isOpen ? <X size={24} /> : <Menu size={24} />}
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                </div>
-            </div>
-
-            {/* Mobile Menu - Hidden on Auth Pages */}
-            {!isAuthPage && isOpen && (
-                <div className="xl:hidden bg-dark-card border-t border-white/5 max-h-[calc(100vh-80px)] overflow-y-auto">
-                    <div className="px-4 py-6 space-y-2">
-                        {/* Navigation Links */}
-                        {navItems.map((item, index) => (
-                            <div key={index} className="border-b border-white/5 last:border-0 pb-2">
-                                <Link
-                                    to={item.path}
-                                    onClick={() => setIsOpen(false)}
-                                    className={`block px-2 py-3 font-display font-medium tracking-widest transition-colors ${location.pathname === item.path ? 'text-primary' : 'text-white hover:text-primary'}`}
-                                >
-                                    {item.title}
-                                </Link>
-                            </div>
-                        ))}
-
-                        {user?.role === 'admin' && (
-                            <div className="border-b border-white/5 last:border-0 pb-2">
-                                <Link
-                                    to="/admin"
-                                    onClick={() => setIsOpen(false)}
-                                    className={`block px-2 py-3 font-display font-bold tracking-widest transition-colors text-yellow-400`}
-                                >
-                                    ADMIN PANEL
-                                </Link>
-                            </div>
-                        )}
-
-                        <div className="pt-6 pb-4">
+                        <div className="flex items-center gap-3">
                             <Link
                                 to="/join"
-                                onClick={() => setIsOpen(false)}
-                                className="block w-full py-4 text-center bg-primary hover:bg-primary-hover text-white font-display font-bold tracking-[0.2em] text-lg rounded-sm shadow-[0_0_15px_rgba(227,74,41,0.3)] transition-colors"
+                                className="hidden xl:flex items-center gap-2 bg-primary hover:bg-primary-hover text-white font-bold text-xs tracking-[0.2em] uppercase px-6 py-2.5 rounded-lg transition-all duration-300 shadow-[0_0_20px_rgba(227,74,41,0.4)] hover:shadow-[0_0_30px_rgba(227,74,41,0.6)] hover:-translate-y-0.5"
                             >
                                 JOIN US TODAY
                             </Link>
+
+                            <button
+                                onClick={() => setIsOpen(!isOpen)}
+                                className="xl:hidden w-10 h-10 flex items-center justify-center text-white/70 hover:text-white border border-white/10 hover:border-white/20 rounded-lg transition-all bg-white/5 hover:bg-white/10"
+                            >
+                                {isOpen ? <X size={20} /> : <Menu size={20} />}
+                            </button>
                         </div>
-                    </div>
+                    )}
                 </div>
-            )}
+            </div>
+
+            {/* Mobile Menu */}
+            <AnimatePresence>
+                {!isAuthPage && isOpen && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3, ease: 'easeInOut' }}
+                        className="xl:hidden overflow-hidden bg-[#080808]/98 backdrop-blur-xl border-t border-white/[0.06]"
+                    >
+                        <div className="px-4 py-6 space-y-1">
+                            {navItems.map((item, index) => {
+                                const isActive = location.pathname === item.path;
+                                return (
+                                    <motion.div
+                                        key={item.path}
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: index * 0.05 }}
+                                    >
+                                        <Link
+                                            to={item.path}
+                                            className={`flex items-center gap-3 px-4 py-3 rounded-xl font-display text-sm tracking-wider transition-all ${
+                                                isActive
+                                                    ? 'bg-primary/15 text-primary border border-primary/20'
+                                                    : 'text-white/60 hover:text-white hover:bg-white/5'
+                                            }`}
+                                        >
+                                            {isActive && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
+                                            {item.title}
+                                        </Link>
+                                    </motion.div>
+                                );
+                            })}
+
+                            {user?.role === 'admin' && (
+                                <Link
+                                    to="/admin"
+                                    className="flex items-center gap-2 px-4 py-3 rounded-xl font-display text-sm tracking-wider text-yellow-400 hover:bg-yellow-400/10 transition-all"
+                                >
+                                    <Zap size={13} className="fill-yellow-400" /> ADMIN PANEL
+                                </Link>
+                            )}
+
+                            <div className="pt-4">
+                                <Link
+                                    to="/join"
+                                    className="block w-full py-4 text-center bg-primary hover:bg-primary-hover text-white font-display font-bold tracking-[0.2em] text-sm rounded-xl shadow-[0_0_20px_rgba(227,74,41,0.3)] transition-all"
+                                >
+                                    JOIN US TODAY
+                                </Link>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </nav>
     );
 };

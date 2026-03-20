@@ -6,7 +6,7 @@ const userSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true },
     role: { type: String, default: 'user', enum: ['user', 'admin'] },
-    phone: { type: String, trim: true, default: '' },
+    phone: { type: String, required: [true, 'Contact number is required'], trim: true, minlength: 10 },
     dob: { type: String, default: '' },
     goal: { type: String, default: '' },
     photo: { type: String, default: '' },  // base64 or URL

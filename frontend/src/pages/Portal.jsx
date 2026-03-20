@@ -2,7 +2,6 @@ import React from 'react';
 import SectionLanding from '../components/shared/SectionLanding';
 
 const portalItems = [
-    { title: 'Client Login', icon: 'LogIn', path: '/login', desc: 'Access your secure member account.' },
     { title: 'Dashboard', icon: 'LayoutDashboard', path: '/dashboard', desc: 'View your progress, bookings, and plans.' }
 ];
 

@@ -11,9 +11,13 @@ const OWNER = () => process.env.OWNER_EMAIL || process.env.EMAIL_USER;
 // @route   POST /api/auth/register
 const registerUser = async (req, res) => {
     try {
-        const { name, email, password } = req.body;
-        if (!name || !email || !password)
-            return res.status(400).json({ message: 'Name, email, and password are required.' });
+        const { name, email, password, phone } = req.body;
+        if (!name || !email || !password || !phone)
+            return res.status(400).json({ message: 'Name, email, password, and contact number are required.' });
+
+        // Validate Indian mobile number format
+        if (!/^[6-9]\d{9}$/.test(phone.replace(/\s/g, '')))
+            return res.status(400).json({ message: 'Please provide a valid 10-digit Indian mobile number.' });
 
         const exists = await User.findOne({ email: email.toLowerCase() });
         if (exists)
@@ -23,7 +27,7 @@ const registerUser = async (req, res) => {
         if (email.toLowerCase() === OWNER().toLowerCase()) {
             role = 'admin';
         }
-        const user = await User.create({ name, email, password, role });
+        const user = await User.create({ name, email, password, role, phone: phone || '' });
         const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '30d' });
 
         emailService.sendWelcomeEmail(user).catch(console.error);

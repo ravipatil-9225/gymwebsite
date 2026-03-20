@@ -461,8 +461,8 @@ const MembershipPlans = () => {
                                                     <p className="text-xs text-gray-400 mb-3 text-center">Scan QR below with your phone camera, or open your UPI app and send to the UPI ID</p>
 
                                                     {/* QR Code */}
-                                                    <div className="bg-white p-2 rounded-lg mb-3 flex items-center justify-center overflow-hidden h-52 w-52 shadow-xl border border-gray-200">
-                                                        <img src="/qr.jpeg" alt="UPI QR Code" className="w-full h-full object-cover rounded-md" />
+                                                    <div className="bg-white p-2 rounded-lg mb-3 flex items-center justify-center h-52 w-52 shadow-xl border border-gray-200">
+                                                        <img src="/qr.jpeg" alt="UPI QR Code" className="w-full h-full object-contain" />
                                                     </div>
 
                                                     {/* Copyable UPI ID */}
@@ -479,6 +479,22 @@ const MembershipPlans = () => {
                                                         }
                                                     </button>
                                                     {upiCopied && <p className="text-green-400 text-xs mt-1 font-semibold">✓ Copied to clipboard!</p>}
+
+                                                    {/* UPI Deep-link Button */}
+                                                    <a
+                                                        href={`upi://pay?pa=${UPI_ID}&pn=Uddhav%20Borgalli&am=${rawPrice(selected.price)}&cu=INR&tn=Gym%20Membership%20${encodeURIComponent(selected.name)}`}
+                                                        className="mt-2 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg px-4 py-2 transition-all duration-200 w-full"
+                                                        onClick={(e) => {
+                                                            // On desktop browsers upi:// won't work; show a helpful message
+                                                            if (!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                                                                e.preventDefault();
+                                                                copyUpiId();
+                                                            }
+                                                        }}
+                                                    >
+                                                        <CreditCard size={14} /> Open UPI App to Pay ₹{selected.price}
+                                                    </a>
+                                                    <p className="text-xs text-gray-500 text-center">Opens GPay / PhonePe / Paytm directly on mobile</p>
                                                 </div>
 
                                                 <hr className="border-white/10" />
