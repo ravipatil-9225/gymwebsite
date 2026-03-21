@@ -23,12 +23,17 @@ router.get('/analytics', async (req, res) => {
     try {
         const totalUsers = await User.countDocuments();
         const activeMembers = await User.countDocuments({ role: 'user' });
-        const totalEnquiries = await FormSubmission.countDocuments({ type: 'enquiry' });
-        const pendingPayments = await Payment.countDocuments({ verificationStatus: 'pending' });
-        const failedPayments = await Payment.countDocuments({ verificationStatus: 'failed_verification' });
+        const totalEnquiries = await FormSubmission.countDocuments({ type: { $in: ['enquiry', 'join'] } });
+        const pendingPayments = await Payment.countDocuments({ 
+            verificationStatus: { $in: ['pending', 'cash_pending'] } 
+        });
+        const failedPayments = await Payment.countDocuments({ 
+            verificationStatus: 'failed_verification' 
+        });
 
         const recentForms = await FormSubmission.find().sort({ createdAt: -1 }).limit(10);
         const recentUsers = await User.find().select('-password').sort({ createdAt: -1 }).limit(10);
+        const recentPayments = await Payment.find().sort({ createdAt: -1 }).limit(10);
 
         // Merge and sort by date
         const recentActivities = [...recentForms.map(f => ({ ...f._doc, activityType: 'form' })),
@@ -38,6 +43,13 @@ router.get('/analytics', async (req, res) => {
             type: 'registration',
             activityType: 'user',
             createdAt: u.createdAt
+        })),
+        ...recentPayments.map(p => ({
+            _id: p._id,
+            name: p.userName,
+            type: p.paymentMethod === 'cash_on_bench' ? 'Cash Payment' : 'UPI Payment',
+            activityType: 'payment',
+            createdAt: p.createdAt
         }))]
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
             .slice(0, 10);
@@ -58,7 +70,7 @@ router.get('/analytics', async (req, res) => {
         ]);
 
         const enquiriesByMonth = await FormSubmission.aggregate([
-            { $match: { type: 'enquiry', createdAt: { $gte: sixMonthsAgo } } },
+            { $match: { type: { $in: ['enquiry', 'join'] }, createdAt: { $gte: sixMonthsAgo } } },
             {
                 $group: {
                     _id: { $month: "$createdAt" },
@@ -139,7 +151,11 @@ router.delete('/users/:id', async (req, res) => {
 // ==========================================
 router.get('/forms/:type', async (req, res) => {
     try {
-        const forms = await FormSubmission.find({ type: req.params.type }).sort({ createdAt: -1 });
+        let query = { type: req.params.type };
+        if (req.params.type === 'enquiry') {
+            query = { type: { $in: ['enquiry', 'join'] } };
+        }
+        const forms = await FormSubmission.find(query).sort({ createdAt: -1 });
         res.json(forms);
     } catch (err) {
         res.status(500).json({ message: 'Error fetching form submissions' });

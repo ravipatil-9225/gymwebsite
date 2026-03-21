@@ -1,7 +1,7 @@
 import { io } from 'socket.io-client';
 
 // Use production backend URL if deployed, otherwise fallback to local
-const url = import.meta.env.PROD || process.env.NODE_ENV === 'production'
+const url = import.meta.env.PROD
     ? 'https://gymwebsite-g5vx.onrender.com'
     : `http://${window.location.hostname}:5000`;
 

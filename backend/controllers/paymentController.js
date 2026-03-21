@@ -73,11 +73,19 @@ exports.verifyPayment = async (req, res) => {
             imageBuffer = Buffer.from(screenshotUrl, 'base64');
         }
 
-        // Run Tesseract OCR
-        const { data: { text, confidence } } = await tesseract.recognize(imageBuffer, 'eng');
-
-        console.log('OCR Result Text:', text);
-        console.log('OCR Confidence:', confidence);
+        // Run Tesseract OCR (with fallback if OCR crashes)
+        let text = '';
+        let confidence = 0;
+        try {
+            const result = await tesseract.recognize(imageBuffer, 'eng');
+            text = result.data.text || '';
+            confidence = result.data.confidence || 0;
+            console.log('OCR Result Text:', text);
+            console.log('OCR Confidence:', confidence);
+        } catch (ocrErr) {
+            console.error('Tesseract OCR failed, falling back to manual verification:', ocrErr.message);
+            // Default to empty text so it falls back to failed_verification for manual review
+        }
 
         // Matching Logic
         const normalizedText = text.replace(/\s+/g, '').toLowerCase();
