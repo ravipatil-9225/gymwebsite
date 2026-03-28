@@ -61,7 +61,21 @@ connectDB().then(async () => {
             { imageUrl: '/gallery/gym5.jpg', title: 'Our Facility', description: 'Tara Fitness Centre – Building Exterior' }
         ];
 
+        const ptPlans = [
+            { name: 'ONLY STRENGTH', category: 'PERSONAL TRAINING', description: 'Dedicated personal training focusing solely on high-intensity strength and muscle building.', price: 3000, duration: '1 Month', features: ['1-on-1 Personal Trainer', 'Custom Strength Routine', 'Progress Tracking'], isActive: true },
+            { name: 'STRENGTH + FITNESS', category: 'PERSONAL TRAINING', description: 'Comprehensive personal training combining intense strength workouts with cardio endurance.', price: 5000, duration: '1 Month', features: ['1-on-1 Personal Trainer', 'Strength & Cardio Plan', 'Dietary Guidelines'], isActive: true },
+            { name: 'ONLY STRENGTH', category: 'PERSONAL TRAINING', description: 'Our 3-month strength program gives you the structured personal coaching you need for visible muscle growth.', price: 7500, duration: '3 Months', features: ['1-on-1 Personal Trainer', 'Advanced Strength Routine', 'Form Correction'], isActive: true },
+            { name: 'STRENGTH + FITNESS', category: 'PERSONAL TRAINING', description: 'The ultimate 3-month transformation package. Dedicated coaching for full-body strength and peak cardiovascular fitness.', price: 12000, duration: '3 Months', features: ['1-on-1 Personal Trainer', 'Complete Transformation Plan', 'Diet & Lifestyle Coaching'], isActive: true }
+        ];
+
+        const steamPlans = [
+            { name: 'STEAM MAX. 30 MIN = 1 BATH', category: 'STEAM BATH', description: 'A single, refreshing 30-minute steam bath session to relax your muscles.', price: 150, duration: '1 Session', features: ['30 Minutes Max', 'Single Session', 'Muscle Relaxation'], isActive: true },
+            { name: 'MONTHLY 4 BATHS', category: 'STEAM BATH', description: 'A monthly package including 4 dedicated steam bath sessions for a weekly routine.', price: 500, duration: '1 Month', features: ['4 Steam Bath Sessions', 'Valid for 1 Month', 'Excellent Value'], isActive: true }
+        ];
+
         if (await Package.countDocuments({ category: 'BASIC TRAINING PACKAGES' }) === 0) await Package.insertMany(legacyPlans);
+        if (await Package.countDocuments({ category: 'PERSONAL TRAINING' }) === 0) await Package.insertMany(ptPlans);
+        if (await Package.countDocuments({ category: 'STEAM BATH' }) === 0) await Package.insertMany(steamPlans);
         if (await Trainer.countDocuments() === 0) await Trainer.insertMany(legacyTrainers);
         if (await Gallery.countDocuments() === 0) await Gallery.insertMany(legacyGallery);
     } catch (e) { console.error('Auto-seed error:', e); }

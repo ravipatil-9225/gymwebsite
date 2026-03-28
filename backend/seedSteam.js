@@ -1,44 +1,45 @@
+require('dotenv').config();
 const mongoose = require('mongoose');
 const Package = require('./models/Package');
-require('dotenv').config();
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/gym-website';
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI;
 
-mongoose.connect(MONGO_URI)
-    .then(async () => {
-        console.log('Connected to DB');
-        
-        const packages = [
-            {
-                name: "1 BATH",
-                category: "STEAM BATH",
-                description: "Single Steam Bath Session (Max. 30 Min)",
-                price: 150,
-                duration: "Other", // So it shows under "Other Plans" if not exactly 1 Day etc. Or I can use '1 Day'
-                features: ["1 Steam Bath Session", "Max 30 Minutes"],
-                isActive: true
-            },
-            {
-                name: "MONTHLY 4 BATHS",
-                category: "STEAM BATH",
-                description: "4 Steam Bath Sessions in a Month (Max. 30 Min each)",
-                price: 500,
-                duration: "1 Month",
-                features: ["4 Steam Bath Sessions", "Max 30 Minutes per session", "Valid for 1 Month"],
-                isActive: true
-            }
-        ];
+const steamPlans = [
+    {
+        name: 'STEAM MAX. 30 MIN = 1 BATH',
+        category: 'STEAM BATH',
+        description: 'A single, refreshing 30-minute steam bath session to relax your muscles and rejuvenate your skin after an intense workout.',
+        price: 150,
+        duration: '1 Session',
+        features: ['30 Minutes Max', 'Single Steam Bath Session', 'Muscle Relaxation'],
+        isActive: true
+    },
+    {
+        name: 'MONTHLY 4 BATHS',
+        category: 'STEAM BATH',
+        description: 'A monthly package including 4 dedicated steam bath sessions. Perfect for a weekly relaxation routine.',
+        price: 500,
+        duration: '1 Month',
+        features: ['4 Steam Bath Sessions (30 Min Each)', 'Valid for 1 Month', 'Excellent Value'],
+        isActive: true
+    }
+];
 
-        try {
-            await Package.insertMany(packages);
-            console.log('Inserted steam bath packages successfully!');
-            process.exit(0);
-        } catch (err) {
-            console.error(err);
-            process.exit(1);
-        }
-    })
-    .catch(err => {
-        console.error('DB Connection error:', err);
-        process.exit(1);
-    });
+async function run() {
+    try {
+        await mongoose.connect(MONGO_URI);
+        console.log('✅ Connected to MongoDB');
+
+        // Delete existing STEAM BATH plans just to be safe
+        await Package.deleteMany({ category: 'STEAM BATH' });
+        await Package.insertMany(steamPlans);
+        console.log('✅ Inserted Steam Bath Plans');
+    } catch (err) {
+        console.error('❌ Error restoring Steam Bath data:', err.message);
+    } finally {
+        await mongoose.disconnect();
+        console.log('🔌 Disconnected from MongoDB');
+    }
+}
+
+run();
