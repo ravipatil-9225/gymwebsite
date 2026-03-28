@@ -227,31 +227,35 @@ router.post('/packages', async (req, res) => {
 
 router.post('/packages/seed', async (req, res) => {
     try {
+        const { category } = req.body; // optional: if passed, only seed that category
+
         const presets = [
-            // BASIC TRAINING
-            { name: "FITNESS / WEIGHT TRAINING", category: "BASIC TRAINING PACKAGES", description: "Standard gym access and weight training.", price: 1000, duration: "1 Month", features: ["Gym Access", "Weight Training", "General Trainer Support"], isActive: true },
-            { name: "FITNESS / WEIGHT TRAINING", category: "BASIC TRAINING PACKAGES", description: "Standard gym access and weight training for 3 months.", price: 2500, duration: "3 Months", features: ["Gym Access", "Weight Training", "General Trainer Support", "Diet Plan"], isActive: true },
-            { name: "FITNESS / WEIGHT TRAINING", category: "BASIC TRAINING PACKAGES", description: "Standard gym access and weight training for 6 months.", price: 4500, duration: "6 Months", features: ["Gym Access", "Weight Training", "General Trainer Support", "Diet Plan"], isActive: true },
-            { name: "FITNESS / WEIGHT TRAINING", category: "BASIC TRAINING PACKAGES", description: "Standard gym access and weight training for 1 year.", price: 8000, duration: "1 Year", features: ["Gym Access", "Weight Training", "General Trainer Support", "Diet Plan", "Free Steam Bath (2)"], isActive: true },
-            { name: "CARDIO + FITNESS", category: "BASIC TRAINING PACKAGES", description: "Cardio and standard gym access.", price: 1500, duration: "1 Month", features: ["Gym Access", "Cardio Equipments", "Weight Training", "Diet Plan"], isActive: true },
-            { name: "CARDIO + FITNESS", category: "BASIC TRAINING PACKAGES", description: "Cardio and standard gym access for 3 months.", price: 4000, duration: "3 Months", features: ["Gym Access", "Cardio Equipments", "Weight Training", "Diet Plan"], isActive: true },
-            { name: "CARDIO + FITNESS", category: "BASIC TRAINING PACKAGES", description: "Cardio and standard gym access for 6 months.", price: 7500, duration: "6 Months", features: ["Gym Access", "Cardio Equipments", "Weight Training", "Diet Plan", "Free Steam Bath (2)"], isActive: true },
-            { name: "CARDIO + FITNESS", category: "BASIC TRAINING PACKAGES", description: "Cardio and standard gym access for 1 year.", price: 14000, duration: "1 Year", features: ["Gym Access", "Cardio Equipments", "Weight Training", "Diet Plan", "Free Steam Bath (5)"], isActive: true },
-            { name: "CROSSFIT + CARDIO + FITNESS", category: "BASIC TRAINING PACKAGES", description: "Complete package with Crossfit.", price: 2000, duration: "1 Month", features: ["Gym Access", "Crossfit", "Cardio Equipments", "Weight Training", "Diet Plan"], isActive: true },
-            { name: "CROSSFIT + CARDIO + FITNESS", category: "BASIC TRAINING PACKAGES", description: "Complete package with Crossfit for 3 months.", price: 5500, duration: "3 Months", features: ["Gym Access", "Crossfit", "Cardio Equipments", "Weight Training", "Diet Plan"], isActive: true },
-            { name: "CROSSFIT + CARDIO + FITNESS", category: "BASIC TRAINING PACKAGES", description: "Complete package with Crossfit for 6 months.", price: 10000, duration: "6 Months", features: ["Gym Access", "Crossfit", "Cardio Equipments", "Weight Training", "Diet Plan", "Free Steam Bath (2)"], isActive: true },
-            { name: "CROSSFIT + CARDIO + FITNESS", category: "BASIC TRAINING PACKAGES", description: "Complete package with Crossfit for 1 year.", price: 18000, duration: "1 Year", features: ["Gym Access", "Crossfit", "Cardio Equipments", "Weight Training", "Diet Plan", "Free Steam Bath (5)"], isActive: true },
-            
+            // BASIC TRAINING PACKAGES (new plan structure)
+            { name: 'ONLY STRENGTH',      category: 'BASIC TRAINING PACKAGES', description: 'Daily strength training session.',              price: 75,   duration: '1 Day',    features: ['Gym Access', 'Weight Training', 'Locker Room'], isActive: true },
+            { name: 'ONLY FITNESS',       category: 'BASIC TRAINING PACKAGES', description: 'Daily fitness & cardio session.',               price: 75,   duration: '1 Day',    features: ['Gym Access', 'Cardio Equipment', 'Locker Room'], isActive: true },
+            { name: 'STRENGTH + FITNESS', category: 'BASIC TRAINING PACKAGES', description: 'Daily combined strength and fitness session.',  price: 150,  duration: '1 Day',    features: ['Gym Access', 'Weight Training', 'Cardio Equipment', 'Locker Room'], isActive: true },
+
+            { name: 'ONLY STRENGTH',      category: 'BASIC TRAINING PACKAGES', description: '1 Month strength training membership.',         price: 1000, duration: '1 Month',  features: ['Gym Access', 'Weight Training', 'General Trainer Support', 'Locker Room'], isActive: true },
+            { name: 'STRENGTH + FITNESS', category: 'BASIC TRAINING PACKAGES', description: '1 Month combined strength and fitness.',        price: 1500, duration: '1 Month',  features: ['Gym Access', 'Weight Training', 'Cardio Equipment', 'General Trainer Support', 'Locker Room'], isActive: true },
+
+            { name: 'ONLY STRENGTH',      category: 'BASIC TRAINING PACKAGES', description: '3 Months strength training membership.',        price: 2500, duration: '3 Months', features: ['Gym Access', 'Weight Training', 'General Trainer Support', 'Diet Plan', 'Locker Room'], isActive: true },
+            { name: 'STRENGTH + FITNESS', category: 'BASIC TRAINING PACKAGES', description: '3 Months combined strength and fitness.',       price: 3000, duration: '3 Months', features: ['Gym Access', 'Weight Training', 'Cardio Equipment', 'General Trainer Support', 'Diet Plan', 'Locker Room'], isActive: true },
+
+            { name: 'ONLY STRENGTH',      category: 'BASIC TRAINING PACKAGES', description: '6 Months strength training membership.',        price: 4000, duration: '6 Months', features: ['Gym Access', 'Weight Training', 'General Trainer Support', 'Diet Plan', 'Locker Room'], isActive: true },
+            { name: 'STRENGTH + FITNESS', category: 'BASIC TRAINING PACKAGES', description: '6 Months combined strength and fitness.',       price: 5000, duration: '6 Months', features: ['Gym Access', 'Weight Training', 'Cardio Equipment', 'General Trainer Support', 'Diet Plan', 'Locker Room'], isActive: true },
+
+            { name: 'ONLY STRENGTH',      category: 'BASIC TRAINING PACKAGES', description: '1 Year strength training membership.',          price: 7000, duration: '1 Year',   features: ['Gym Access', 'Weight Training', 'General Trainer Support', 'Diet Plan', 'Free Steam Bath (2)', 'Locker Room'], isActive: true },
+            { name: 'STRENGTH + FITNESS', category: 'BASIC TRAINING PACKAGES', description: '1 Year combined strength and fitness.',         price: 9000, duration: '1 Year',   features: ['Gym Access', 'Weight Training', 'Cardio Equipment', 'General Trainer Support', 'Diet Plan', 'Free Steam Bath (5)', 'Locker Room'], isActive: true },
+
             // PERSONAL TRAINING
-            { name: "ONLY STRENGTH", category: "PERSONAL TRAINING", description: "1 Month Personal Training - Only Strength", price: 3000, duration: "1 Month", features: ["Personalized Strength Training", "Equipment Guidance", "Form Correction"], isActive: true },
-            { name: "STRENGTH + FITNESS", category: "PERSONAL TRAINING", description: "1 Month Personal Training - Strength & Fitness", price: 5000, duration: "1 Month", features: ["Strength Training", "Cardio & Fitness", "Equipment Guidance", "Form Correction", "Diet Tips"], isActive: true },
-            { name: "ONLY STRENGTH", category: "PERSONAL TRAINING", description: "3 Months Personal Training - Only Strength", price: 7500, duration: "3 Months", features: ["Personalized Strength Training", "Equipment Guidance", "Form Correction", "Progress Tracking"], isActive: true },
-            { name: "STRENGTH + FITNESS", category: "PERSONAL TRAINING", description: "3 Months Personal Training - Strength & Fitness", price: 12000, duration: "3 Months", features: ["Strength Training", "Cardio & Fitness", "Equipment Guidance", "Form Correction", "Diet Tips", "Progress Tracking"], isActive: true },
-            
+            { name: 'ONLY STRENGTH',      category: 'PERSONAL TRAINING', description: '1 Month Personal Training - Only Strength',           price: 3000,  duration: '1 Month',  features: ['Personalized Strength Training', 'Equipment Guidance', 'Form Correction'], isActive: true },
+            { name: 'STRENGTH + FITNESS', category: 'PERSONAL TRAINING', description: '1 Month Personal Training - Strength & Fitness',      price: 5000,  duration: '1 Month',  features: ['Strength Training', 'Cardio & Fitness', 'Equipment Guidance', 'Form Correction', 'Diet Tips'], isActive: true },
+            { name: 'ONLY STRENGTH',      category: 'PERSONAL TRAINING', description: '3 Months Personal Training - Only Strength',          price: 7500,  duration: '3 Months', features: ['Personalized Strength Training', 'Equipment Guidance', 'Form Correction', 'Progress Tracking'], isActive: true },
+            { name: 'STRENGTH + FITNESS', category: 'PERSONAL TRAINING', description: '3 Months Personal Training - Strength & Fitness',     price: 12000, duration: '3 Months', features: ['Strength Training', 'Cardio & Fitness', 'Equipment Guidance', 'Form Correction', 'Diet Tips', 'Progress Tracking'], isActive: true },
+
             // STEAM BATH
-            { name: "STEAM BATH", category: "STEAM BATH", description: "Single session of Steam Bath", price: 200, duration: "1 Day", features: ["1 Steam Bath Session", "Locker Room Access", "Shower Access"], isActive: true },
-            { name: "STEAM BATH", category: "STEAM BATH", description: "4 Days/Month Steam Bath limit 4 Sessions", price: 500, duration: "1 Month", features: ["4 Steam Bath Sessions", "Locker Room Access", "Shower Access", "Valid for 30 Days"], isActive: true },
-            { name: "STEAM BATH", category: "STEAM BATH", description: "8 Days/Month Steam Bath limit 8 Sessions", price: 800, duration: "1 Month", features: ["8 Steam Bath Sessions", "Locker Room Access", "Shower Access", "Flexible Days"], isActive: true }
+            { name: '1 BATH',          category: 'STEAM BATH', description: 'Single Steam Bath session — max 30 minutes.',            price: 150, duration: '1 Day',   features: ['1 Steam Bath Session', 'Max 30 Minutes', 'Locker Room Access', 'Shower Access'], isActive: true },
+            { name: 'MONTHLY 4 BATHS', category: 'STEAM BATH', description: 'Monthly Steam Bath pack — 4 sessions, max 30 min each.', price: 500, duration: '1 Month', features: ['4 Steam Bath Sessions', 'Max 30 Minutes Each', 'Locker Room Access', 'Shower Access', 'Valid for 30 Days'], isActive: true }
         ];
 
         let addedCount = 0;
@@ -267,6 +271,51 @@ router.post('/packages/seed', async (req, res) => {
     } catch (err) {
         console.error('Seed error:', err);
         res.status(500).json({ message: 'Error seeding default packages' });
+    }
+});
+
+// Reset a specific category: delete all plans in that category, then re-seed from official list
+router.post('/packages/reset-category', async (req, res) => {
+    try {
+        const { category } = req.body;
+        if (!category) return res.status(400).json({ message: 'category is required' });
+
+        const OFFICIAL_PLANS = {
+            'BASIC TRAINING PACKAGES': [
+                { name: 'ONLY STRENGTH',      description: 'Daily strength training session.',             price: 75,   duration: '1 Day',    features: ['Gym Access', 'Weight Training', 'Locker Room'] },
+                { name: 'ONLY FITNESS',       description: 'Daily fitness & cardio session.',              price: 75,   duration: '1 Day',    features: ['Gym Access', 'Cardio Equipment', 'Locker Room'] },
+                { name: 'STRENGTH + FITNESS', description: 'Daily combined strength and fitness session.', price: 150,  duration: '1 Day',    features: ['Gym Access', 'Weight Training', 'Cardio Equipment', 'Locker Room'] },
+                { name: 'ONLY STRENGTH',      description: '1 Month strength training membership.',        price: 1000, duration: '1 Month',  features: ['Gym Access', 'Weight Training', 'General Trainer Support', 'Locker Room'] },
+                { name: 'STRENGTH + FITNESS', description: '1 Month combined strength and fitness.',       price: 1500, duration: '1 Month',  features: ['Gym Access', 'Weight Training', 'Cardio Equipment', 'General Trainer Support', 'Locker Room'] },
+                { name: 'ONLY STRENGTH',      description: '3 Months strength training membership.',       price: 2500, duration: '3 Months', features: ['Gym Access', 'Weight Training', 'General Trainer Support', 'Diet Plan', 'Locker Room'] },
+                { name: 'STRENGTH + FITNESS', description: '3 Months combined strength and fitness.',      price: 3000, duration: '3 Months', features: ['Gym Access', 'Weight Training', 'Cardio Equipment', 'General Trainer Support', 'Diet Plan', 'Locker Room'] },
+                { name: 'ONLY STRENGTH',      description: '6 Months strength training membership.',       price: 4000, duration: '6 Months', features: ['Gym Access', 'Weight Training', 'General Trainer Support', 'Diet Plan', 'Locker Room'] },
+                { name: 'STRENGTH + FITNESS', description: '6 Months combined strength and fitness.',      price: 5000, duration: '6 Months', features: ['Gym Access', 'Weight Training', 'Cardio Equipment', 'General Trainer Support', 'Diet Plan', 'Locker Room'] },
+                { name: 'ONLY STRENGTH',      description: '1 Year strength training membership.',         price: 7000, duration: '1 Year',   features: ['Gym Access', 'Weight Training', 'General Trainer Support', 'Diet Plan', 'Free Steam Bath (2)', 'Locker Room'] },
+                { name: 'STRENGTH + FITNESS', description: '1 Year combined strength and fitness.',        price: 9000, duration: '1 Year',   features: ['Gym Access', 'Weight Training', 'Cardio Equipment', 'General Trainer Support', 'Diet Plan', 'Free Steam Bath (5)', 'Locker Room'] },
+            ],
+            'PERSONAL TRAINING': [
+                { name: 'ONLY STRENGTH',      description: '1 Month Personal Training - Only Strength',       price: 3000,  duration: '1 Month',  features: ['Personalized Strength Training', 'Equipment Guidance', 'Form Correction', 'Progress Tracking'] },
+                { name: 'STRENGTH + FITNESS', description: '1 Month Personal Training - Strength & Fitness',  price: 5000,  duration: '1 Month',  features: ['Strength Training', 'Cardio & Fitness', 'Equipment Guidance', 'Form Correction', 'Diet Tips', 'Progress Tracking'] },
+                { name: 'ONLY STRENGTH',      description: '3 Months Personal Training - Only Strength',      price: 7500,  duration: '3 Months', features: ['Personalized Strength Training', 'Equipment Guidance', 'Form Correction', 'Progress Tracking', 'Diet Plan'] },
+                { name: 'STRENGTH + FITNESS', description: '3 Months Personal Training - Strength & Fitness', price: 12000, duration: '3 Months', features: ['Strength Training', 'Cardio & Fitness', 'Equipment Guidance', 'Form Correction', 'Diet Tips', 'Progress Tracking', 'Diet Plan'] },
+            ],
+            'STEAM BATH': [
+                { name: '1 BATH',          description: 'Single Steam Bath session — max 30 minutes.',            price: 150, duration: '1 Day',   features: ['1 Steam Bath Session', 'Max 30 Minutes', 'Locker Room Access', 'Shower Access'] },
+                { name: 'MONTHLY 4 BATHS', description: 'Monthly Steam Bath pack — 4 sessions, max 30 min each.', price: 500, duration: '1 Month', features: ['4 Steam Bath Sessions', 'Max 30 Minutes Each', 'Locker Room Access', 'Shower Access', 'Valid for 30 Days'] },
+            ]
+        };
+
+        const plans = OFFICIAL_PLANS[category];
+        if (!plans) return res.status(400).json({ message: `No official plans defined for: ${category}` });
+
+        const deleted = await Package.deleteMany({ category });
+        const inserted = await Package.insertMany(plans.map(p => ({ ...p, category, isActive: true })));
+        res.json({ message: `Reset complete! Deleted ${deleted.deletedCount}, inserted ${inserted.length} plans for "${category}".` });
+        socket.getIO().emit('db_changed');
+    } catch (err) {
+        console.error('Reset category error:', err);
+        res.status(500).json({ message: 'Error resetting category' });
     }
 });
 
