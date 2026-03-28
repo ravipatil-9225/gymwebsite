@@ -8,7 +8,7 @@ const OffersManager = () => {
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editingId, setEditingId] = useState(null);
-    const [formData, setFormData] = useState({ title: '', description: '', discountPercentage: '', validUntil: '' });
+    const [formData, setFormData] = useState({ title: '', description: '', image: '', discount: '', expiryDate: '' });
 
     const fetchOffers = async () => {
         try {
@@ -74,6 +74,20 @@ const OffersManager = () => {
         }
     };
 
+    const handleLoadDefaults = async () => {
+        if (!window.confirm('Add default offers (existing ones are kept)?')) return;
+        try {
+            const token = localStorage.getItem('gymToken');
+            const { data } = await axios.post('/api/admin/offers/seed', {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            alert(data.message);
+            fetchOffers();
+        } catch {
+            alert('Error loading defaults');
+        }
+    };
+
     const openEditModal = (offer) => {
         setFormData({
             title: offer.title,
@@ -115,9 +129,14 @@ const OffersManager = () => {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold text-gray-900">Offers Management</h1>
-                <button onClick={openCreateModal} className="bg-primary text-white px-4 py-2 rounded-lg flex items-center hover:bg-primary-hover transition">
-                    <Plus className="w-4 h-4 mr-2" /> Add Offer
-                </button>
+                <div className="flex gap-2">
+                    <button onClick={handleLoadDefaults} className="bg-gray-700 text-white px-4 py-2 text-sm rounded-lg hover:bg-gray-600 transition">
+                        Load Defaults
+                    </button>
+                    <button onClick={openCreateModal} className="bg-primary text-white px-4 py-2 text-sm rounded-lg flex items-center shadow shadow-primary/20 hover:bg-primary-hover hover:shadow-primary/40 transition">
+                        <Plus className="w-4 h-4 mr-2" /> Add Offer
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
