@@ -225,6 +225,51 @@ router.post('/packages', async (req, res) => {
     }
 });
 
+router.post('/packages/seed', async (req, res) => {
+    try {
+        const presets = [
+            // BASIC TRAINING
+            { name: "FITNESS / WEIGHT TRAINING", category: "BASIC TRAINING PACKAGES", description: "Standard gym access and weight training.", price: 1000, duration: "1 Month", features: ["Gym Access", "Weight Training", "General Trainer Support"], isActive: true },
+            { name: "FITNESS / WEIGHT TRAINING", category: "BASIC TRAINING PACKAGES", description: "Standard gym access and weight training for 3 months.", price: 2500, duration: "3 Months", features: ["Gym Access", "Weight Training", "General Trainer Support", "Diet Plan"], isActive: true },
+            { name: "FITNESS / WEIGHT TRAINING", category: "BASIC TRAINING PACKAGES", description: "Standard gym access and weight training for 6 months.", price: 4500, duration: "6 Months", features: ["Gym Access", "Weight Training", "General Trainer Support", "Diet Plan"], isActive: true },
+            { name: "FITNESS / WEIGHT TRAINING", category: "BASIC TRAINING PACKAGES", description: "Standard gym access and weight training for 1 year.", price: 8000, duration: "1 Year", features: ["Gym Access", "Weight Training", "General Trainer Support", "Diet Plan", "Free Steam Bath (2)"], isActive: true },
+            { name: "CARDIO + FITNESS", category: "BASIC TRAINING PACKAGES", description: "Cardio and standard gym access.", price: 1500, duration: "1 Month", features: ["Gym Access", "Cardio Equipments", "Weight Training", "Diet Plan"], isActive: true },
+            { name: "CARDIO + FITNESS", category: "BASIC TRAINING PACKAGES", description: "Cardio and standard gym access for 3 months.", price: 4000, duration: "3 Months", features: ["Gym Access", "Cardio Equipments", "Weight Training", "Diet Plan"], isActive: true },
+            { name: "CARDIO + FITNESS", category: "BASIC TRAINING PACKAGES", description: "Cardio and standard gym access for 6 months.", price: 7500, duration: "6 Months", features: ["Gym Access", "Cardio Equipments", "Weight Training", "Diet Plan", "Free Steam Bath (2)"], isActive: true },
+            { name: "CARDIO + FITNESS", category: "BASIC TRAINING PACKAGES", description: "Cardio and standard gym access for 1 year.", price: 14000, duration: "1 Year", features: ["Gym Access", "Cardio Equipments", "Weight Training", "Diet Plan", "Free Steam Bath (5)"], isActive: true },
+            { name: "CROSSFIT + CARDIO + FITNESS", category: "BASIC TRAINING PACKAGES", description: "Complete package with Crossfit.", price: 2000, duration: "1 Month", features: ["Gym Access", "Crossfit", "Cardio Equipments", "Weight Training", "Diet Plan"], isActive: true },
+            { name: "CROSSFIT + CARDIO + FITNESS", category: "BASIC TRAINING PACKAGES", description: "Complete package with Crossfit for 3 months.", price: 5500, duration: "3 Months", features: ["Gym Access", "Crossfit", "Cardio Equipments", "Weight Training", "Diet Plan"], isActive: true },
+            { name: "CROSSFIT + CARDIO + FITNESS", category: "BASIC TRAINING PACKAGES", description: "Complete package with Crossfit for 6 months.", price: 10000, duration: "6 Months", features: ["Gym Access", "Crossfit", "Cardio Equipments", "Weight Training", "Diet Plan", "Free Steam Bath (2)"], isActive: true },
+            { name: "CROSSFIT + CARDIO + FITNESS", category: "BASIC TRAINING PACKAGES", description: "Complete package with Crossfit for 1 year.", price: 18000, duration: "1 Year", features: ["Gym Access", "Crossfit", "Cardio Equipments", "Weight Training", "Diet Plan", "Free Steam Bath (5)"], isActive: true },
+            
+            // PERSONAL TRAINING
+            { name: "ONLY STRENGTH", category: "PERSONAL TRAINING", description: "1 Month Personal Training - Only Strength", price: 3000, duration: "1 Month", features: ["Personalized Strength Training", "Equipment Guidance", "Form Correction"], isActive: true },
+            { name: "STRENGTH + FITNESS", category: "PERSONAL TRAINING", description: "1 Month Personal Training - Strength & Fitness", price: 5000, duration: "1 Month", features: ["Strength Training", "Cardio & Fitness", "Equipment Guidance", "Form Correction", "Diet Tips"], isActive: true },
+            { name: "ONLY STRENGTH", category: "PERSONAL TRAINING", description: "3 Months Personal Training - Only Strength", price: 7500, duration: "3 Months", features: ["Personalized Strength Training", "Equipment Guidance", "Form Correction", "Progress Tracking"], isActive: true },
+            { name: "STRENGTH + FITNESS", category: "PERSONAL TRAINING", description: "3 Months Personal Training - Strength & Fitness", price: 12000, duration: "3 Months", features: ["Strength Training", "Cardio & Fitness", "Equipment Guidance", "Form Correction", "Diet Tips", "Progress Tracking"], isActive: true },
+            
+            // STEAM BATH
+            { name: "STEAM BATH", category: "STEAM BATH", description: "Single session of Steam Bath", price: 200, duration: "1 Day", features: ["1 Steam Bath Session", "Locker Room Access", "Shower Access"], isActive: true },
+            { name: "STEAM BATH", category: "STEAM BATH", description: "4 Days/Month Steam Bath limit 4 Sessions", price: 500, duration: "1 Month", features: ["4 Steam Bath Sessions", "Locker Room Access", "Shower Access", "Valid for 30 Days"], isActive: true },
+            { name: "STEAM BATH", category: "STEAM BATH", description: "8 Days/Month Steam Bath limit 8 Sessions", price: 800, duration: "1 Month", features: ["8 Steam Bath Sessions", "Locker Room Access", "Shower Access", "Flexible Days"], isActive: true }
+        ];
+
+        let addedCount = 0;
+        for (const p of presets) {
+            const exists = await Package.findOne({ name: p.name, duration: p.duration, category: p.category });
+            if (!exists) {
+                await Package.create(p);
+                addedCount++;
+            }
+        }
+        res.json({ message: `Successfully loaded ${addedCount} default packages!` });
+        socket.getIO().emit('db_changed');
+    } catch (err) {
+        console.error('Seed error:', err);
+        res.status(500).json({ message: 'Error seeding default packages' });
+    }
+});
+
 router.put('/packages/:id', async (req, res) => {
     try {
         const updated = await Package.findByIdAndUpdate(req.params.id, req.body, { new: true });

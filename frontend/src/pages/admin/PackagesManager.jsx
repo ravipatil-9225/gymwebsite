@@ -114,9 +114,22 @@ const PackagesManager = () => {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold text-gray-900">Packages Management</h1>
-                <button onClick={openCreateModal} className="bg-primary text-white px-4 py-2 rounded-lg flex items-center hover:bg-primary-hover transition">
-                    <Plus className="w-4 h-4 mr-2" /> Add Package
-                </button>
+                <div className="flex gap-3">
+                    <button onClick={async () => {
+                        if (!window.confirm('This will load missing default packages (Basic, Personal Training, Steam Bath). Continue?')) return;
+                        try {
+                            const token = localStorage.getItem('gymToken');
+                            const { data } = await axios.post('/api/admin/packages/seed', {}, { headers: { Authorization: `Bearer ${token}` } });
+                            alert(data.message);
+                            fetchPackages();
+                        } catch (err) { alert('Error loading default packages'); }
+                    }} className="bg-gray-800 text-white px-4 py-2 text-sm rounded-lg flex items-center hover:bg-gray-700 transition">
+                        Load Defaults
+                    </button>
+                    <button onClick={openCreateModal} className="bg-primary text-white px-4 py-2 text-sm rounded-lg flex items-center hover:bg-primary-hover transition">
+                        <Plus className="w-4 h-4 mr-2" /> Add Package
+                    </button>
+                </div>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
