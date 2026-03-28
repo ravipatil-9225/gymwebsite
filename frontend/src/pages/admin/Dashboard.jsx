@@ -74,7 +74,26 @@ const Dashboard = () => {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
+            <div className="flex justify-between items-center bg-indigo-50 border border-indigo-100 p-4 rounded-xl shadow-sm">
+                <div>
+                    <h1 className="text-2xl font-bold text-indigo-900">Dashboard Overview</h1>
+                    <p className="text-indigo-600 text-sm mt-1">Manage and monitor your gym website</p>
+                </div>
+                <button 
+                    onClick={async () => {
+                        if(window.confirm('Are you running this on the Live Server? This will instantly populate the database with your original Plans, Trainers, and Gallery photos. Continue?')) {
+                            try {
+                                const t = localStorage.getItem('gymToken');
+                                const {data} = await axios.post('/api/admin/system/restore-legacy', {}, { headers: { Authorization: `Bearer ${t}` } });
+                                alert(data.message);
+                            } catch(err) { alert('Error restoring legacy data'); }
+                        }
+                    }}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg shadow-md hover:shadow-lg transition-all text-sm font-bold flex items-center gap-2"
+                >
+                    <Activity className="w-4 h-4" /> Initialize Live Data
+                </button>
+            </div>
 
             {/* Stat Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
