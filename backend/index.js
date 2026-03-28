@@ -38,14 +38,18 @@ const PORT = process.env.PORT || 5000;
 // Connect to MongoDB & Auto-Initialize Deployed Empty Databases
 connectDB().then(async () => {
     try {
-        const legacyPlans = [
-            { name: 'Starter Trial Pass', category: 'BASIC TRAINING PACKAGES', description: 'Try out our gym for just ₹10! Get a full day of access to experience the gym environment, equipment, and our expert team before committing to a full plan.', price: 10, duration: '1 Day', features: ['1-day full gym access', 'Basic equipment orientation', 'Guided tour by our team'], isActive: true },
-            { name: 'Bronze Beast Plan', category: 'BASIC TRAINING PACKAGES', description: 'Perfect for beginners starting their fitness journey. Get full access to hardcore strength training equipment and build your base strength.', price: 1000, duration: '1 Month', features: ['Hardcore workout area access', 'Strength training equipment', 'Gym environment & guidance'], isActive: true },
-            { name: 'Silver Cardio Burn', category: 'BASIC TRAINING PACKAGES', description: 'Designed for people who want strength + fat burning workouts. Combine hardcore training with intense cardio sessions.', price: 1200, duration: '1 Month', features: ['Hardcore workout training', 'Cardio machines (treadmill, cycling, etc.)', 'Fat burning workout support'], isActive: true },
-            { name: 'Gold Transformation Plan', category: 'BASIC TRAINING PACKAGES', description: 'A complete fitness experience with personal training guidance. Ideal for fast results and a fully structured workout plan.', price: 1500, duration: '1 Month', features: ['Hardcore training', 'Cardio training', 'Personal Trainer guidance', 'Personalized workout routine'], isActive: true },
-            { name: 'Beast Mode', category: 'BASIC TRAINING PACKAGES', description: 'Commit to your fitness goals with a 3-month transformation program. Build consistency and noticeable results.', price: 3000, duration: '3 Months', features: ['Full gym access', 'Hardcore + Cardio training', 'Progress monitoring'], isActive: true },
-            { name: 'Titan Strength Plan', category: 'BASIC TRAINING PACKAGES', description: 'For serious fitness enthusiasts ready for long-term muscle growth and endurance building.', price: 6000, duration: '6 Months', features: ['Full gym access', 'Strength & cardio training', 'Long-term fitness progress'], isActive: true },
-            { name: 'Platinum Champion Plan', category: 'BASIC TRAINING PACKAGES', description: 'The ultimate fitness package for those who want complete body transformation and year-long commitment to health and strength.', price: 9000, duration: '1 Year', features: ['Unlimited gym access', 'Hardcore + Cardio training', 'Best value yearly membership'], isActive: true }
+        const newBasicPlans = [
+            { name: 'ONLY STRENGTH', category: 'BASIC TRAINING PACKAGES', description: 'Daily access to all strength training equipment.', price: 75, duration: '1 Day', features: ['Daily gym access', 'Strength equipment only', 'Basic guidance'], isActive: true },
+            { name: 'ONLY FITNESS', category: 'BASIC TRAINING PACKAGES', description: 'Daily access to all cardiovascular and fitness equipment.', price: 75, duration: '1 Day', features: ['Daily gym access', 'Cardio equipment only', 'Basic guidance'], isActive: true },
+            { name: 'STRENGTH + FITNESS', category: 'BASIC TRAINING PACKAGES', description: 'Full daily access to both strength and cardiovascular training areas.', price: 150, duration: '1 Day', features: ['Full gym access', 'Strength & Cardio equipment', 'Basic guidance'], isActive: true },
+            { name: 'ONLY STRENGTH', category: 'BASIC TRAINING PACKAGES', description: 'Monthly access focusing on building muscle and strength.', price: 1000, duration: '1 Month', features: ['1 Month gym access', 'Strength equipment only', 'General gym support'], isActive: true },
+            { name: 'STRENGTH + FITNESS', category: 'BASIC TRAINING PACKAGES', description: 'Comprehensive monthly plan for total body fitness.', price: 1500, duration: '1 Month', features: ['1 Month complete access', 'Strength & Cardio training', 'General gym support'], isActive: true },
+            { name: 'ONLY STRENGTH', category: 'BASIC TRAINING PACKAGES', description: '3-Month strength program to see huge physical improvements.', price: 2500, duration: '3 Months', features: ['3 Months gym access', 'Strength equipment only', 'Progress tracking'], isActive: true },
+            { name: 'STRENGTH + FITNESS', category: 'BASIC TRAINING PACKAGES', description: '3-Month complete fitness program for best results.', price: 3000, duration: '3 Months', features: ['3 Months complete access', 'Strength & Cardio training', 'Progress tracking'], isActive: true },
+            { name: 'ONLY STRENGTH', category: 'BASIC TRAINING PACKAGES', description: 'Half-year dedicated strength program.', price: 4000, duration: '6 Months', features: ['6 Months gym access', 'Strength equipment only', 'Long-term dedication'], isActive: true },
+            { name: 'STRENGTH + FITNESS', category: 'BASIC TRAINING PACKAGES', description: 'Half-year ultimate health and fitness transformation.', price: 5000, duration: '6 Months', features: ['6 Months complete access', 'Strength & Cardio training', 'Long-term dedication'], isActive: true },
+            { name: 'ONLY STRENGTH', category: 'BASIC TRAINING PACKAGES', description: 'Full year of unlimited strength building.', price: 7000, duration: '1 Year', features: ['1 Year gym access', 'Strength equipment only', 'Best Value plan'], isActive: true },
+            { name: 'STRENGTH + FITNESS', category: 'BASIC TRAINING PACKAGES', description: 'A full year of unlimited access to transform your entire life.', price: 9000, duration: '1 Year', features: ['1 Year complete access', 'Strength & Cardio training', 'Ultimate Value plan'], isActive: true }
         ];
 
         const legacyTrainers = [
@@ -73,7 +77,11 @@ connectDB().then(async () => {
             { name: 'MONTHLY 4 BATHS', category: 'STEAM BATH', description: 'A monthly package including 4 dedicated steam bath sessions for a weekly routine.', price: 500, duration: '1 Month', features: ['4 Steam Bath Sessions', 'Valid for 1 Month', 'Excellent Value'], isActive: true }
         ];
 
-        if (await Package.countDocuments({ category: 'BASIC TRAINING PACKAGES' }) === 0) await Package.insertMany(legacyPlans);
+        if (await Package.findOne({ name: 'Starter Trial Pass' })) {
+            await Package.deleteMany({ category: 'BASIC TRAINING PACKAGES' });
+        }
+
+        if (await Package.countDocuments({ category: 'BASIC TRAINING PACKAGES' }) === 0) await Package.insertMany(newBasicPlans);
         if (await Package.countDocuments({ category: 'PERSONAL TRAINING' }) === 0) await Package.insertMany(ptPlans);
         if (await Package.countDocuments({ category: 'STEAM BATH' }) === 0) await Package.insertMany(steamPlans);
         if (await Trainer.countDocuments() === 0) await Trainer.insertMany(legacyTrainers);
