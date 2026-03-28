@@ -12,6 +12,7 @@ const Payment = require('./models/Payment');
 const Membership = require('./models/Membership');
 const socket = require('./socket');
 const emailService = require('./services/emailService');
+const whatsappService = require('./services/whatsappService');
 
 // Protect all admin routes
 router.use(verifyAdmin);
@@ -471,6 +472,15 @@ router.put('/payments/:id', async (req, res) => {
 
                 // Send confirmation receipt to user
                 emailService.sendPaymentConfirmation({
+                    name: user.name,
+                    email: user.email,
+                    packageName: payment.planName,
+                    amountPaid: payment.planPrice,
+                    startDate,
+                    endDate,
+                }).catch(console.error);
+
+                whatsappService.sendPaymentConfirmation({
                     name: user.name,
                     email: user.email,
                     packageName: payment.planName,

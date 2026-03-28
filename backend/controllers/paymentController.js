@@ -5,6 +5,7 @@ const socket = require('../socket');
 const User = require('../models/User');
 const Membership = require('../models/Membership');
 const emailService = require('../services/emailService');
+const whatsappService = require('../services/whatsappService');
 
 // Helper: parse price string like "1,200" → 1200
 function parsePrice(price) {
@@ -53,6 +54,11 @@ exports.verifyPayment = async (req, res) => {
 
             // Send emails to user AND owner (fire & forget)
             emailService.sendCashPaymentPendingUser({
+                userName, email, planName, planPrice: numericPrice,
+            }).catch(console.error);
+
+            // Send WhatsApp
+            whatsappService.sendCashPaymentPendingUser({
                 userName, email, planName, planPrice: numericPrice,
             }).catch(console.error);
 
@@ -143,6 +149,10 @@ exports.verifyPayment = async (req, res) => {
             userName, email, planName, planPrice: numericPrice, transactionId,
         }).catch(console.error);
 
+        whatsappService.sendUpiPaymentPendingUser({
+            userName, email, planName, planPrice: numericPrice, transactionId,
+        }).catch(console.error);
+
         // ── Notify owner with full OCR details ──────────────────────────────────
         emailService.sendUpiPaymentPendingOwner({
             userName, email, planName, planPrice: numericPrice,
@@ -174,6 +184,15 @@ exports.verifyPayment = async (req, res) => {
 
                 // User gets full confirmation receipt
                 emailService.sendPaymentConfirmation({
+                    name: user.name,
+                    email: user.email,
+                    packageName: planName,
+                    amountPaid: numericPrice,
+                    startDate,
+                    endDate,
+                }).catch(console.error);
+
+                whatsappService.sendPaymentConfirmation({
                     name: user.name,
                     email: user.email,
                     packageName: planName,

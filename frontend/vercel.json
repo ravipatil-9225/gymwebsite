@@ -2,7 +2,7 @@
     "routes": [
         {
             "src": "/api/(.*)",
-            "dest": "https://gymwebsite-g5vx.onrender.com/api/$1"
+            "dest": "https://gymwebsite-1-kj55.onrender.com"
         },
         {
             "handle": "filesystem"
