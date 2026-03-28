@@ -48,7 +48,8 @@ const CategoryPlans = () => {
                     { icon: <Zap size={28} className="text-[#ed8936]" />, color: '#ed8936', popular: false, bestValue: false, trialTag: false, gradient: 'from-[#ed8936]/15 to-transparent', border: 'hover:border-[#ed8936]/50', badgeBg: 'bg-[#ed8936]' },
                     { icon: <Activity size={28} className="text-[#9e9e9e]" />, color: '#9e9e9e', popular: false, bestValue: false, trialTag: false, gradient: 'from-[#9e9e9e]/15 to-transparent', border: 'hover:border-[#9e9e9e]/50', badgeBg: 'bg-[#9e9e9e]' },
                 ];
-                const mapped = data.filter(p => p.isActive && p.category === categoryName).map((p, idx) => {
+                const decodedCategory = decodeURIComponent(categoryName);
+                const mapped = data.filter(p => p.isActive && p.category === decodedCategory).map((p, idx) => {
                     const st = styles[idx % styles.length];
                     return {
                         id: p._id, name: p.name, price: p.price.toString(), duration: p.duration, description: p.description,
