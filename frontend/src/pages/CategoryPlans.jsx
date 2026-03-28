@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Dumbbell, Activity, Target, Zap, Shield, Crown, X, Loader, CheckCircle, Mail, User, Image as ImageIcon, Hash, AlertTriangle, Banknote, CreditCard, Clock, Flame, Copy, CheckCheck, Package } from 'lucide-react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import socket from '../utils/socket';
 import { AuthContext } from '../context/AuthContext';
@@ -24,6 +24,7 @@ function rawPrice(priceStr) {
 const CategoryPlans = () => {
     const { categoryName } = useParams();
     const { user } = useContext(AuthContext);
+    const navigate = useNavigate();
     const [selected, setSelected] = useState(null);
     const [payTab, setPayTab] = useState('upi'); // 'upi' | 'cash'
     const [form, setForm] = useState({ name: '', email: '', transactionId: '', screenshotUrl: '' });
@@ -83,6 +84,11 @@ const CategoryPlans = () => {
     };
 
     const openModal = (plan) => {
+        if (!user) {
+            alert('Please log in to purchase a membership plan.');
+            navigate('/login');
+            return;
+        }
         setSelected(plan);
         setPayTab('upi');
         setForm({ name: user?.name || '', email: user?.email || '', transactionId: '', screenshotUrl: '' });
