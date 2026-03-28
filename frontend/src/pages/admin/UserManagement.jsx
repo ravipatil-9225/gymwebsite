@@ -363,7 +363,7 @@ const UserManagement = () => {
                                                     <td className="px-4 py-3 text-xs">
                                                         <span className={isActive ? 'text-gray-700' : 'text-red-500 font-medium'}>{fmt(m.endDate)}</span>
                                                     </td>
-                                                    <td className="px-4 py-3 text-gray-700 font-medium">₹{m.amountPaid?.toLocaleString('en-IN')}</td>
+                                                    <td className="px-4 py-3 text-gray-700 font-medium">₹{m.amountPaid?.toseString('en-IN')}</td>
                                                     <td className="px-4 py-3">
                                                         <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
                                                             isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'

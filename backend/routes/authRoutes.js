@@ -5,7 +5,8 @@ const {
     googleAuth, 
     getProfile, 
     updateProfile, 
-    resetPassword 
+    resetPassword,
+    forgotPassword
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -16,6 +17,7 @@ router.post('/login', loginUser);
 router.post('/google', googleAuth);
 router.get('/profile', protect, getProfile);
 router.put('/profile', protect, updateProfile);
+router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
 
 module.exports = router;

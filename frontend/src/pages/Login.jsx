@@ -112,7 +112,7 @@ const Login = () => {
                             />
                             <span className="text-xs text-gray-500">Remember me</span>
                         </label>
-                        <Link to="/reset-password" className="text-xs font-semibold text-primary hover:text-white transition-colors">
+                        <Link to="/forgot-password" className="text-xs font-semibold text-primary hover:text-white transition-colors">
                             Forgot password?
                         </Link>
                     </div>

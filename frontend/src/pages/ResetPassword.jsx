@@ -1,15 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Lock, ArrowRight, ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Lock, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
 
 const ResetPassword = () => {
-    const [email, setEmail] = useState('');
+    const [searchParams] = useSearchParams();
+    const token = searchParams.get('token');
+    const id = searchParams.get('id');
+
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+
+    if (!token || !id) {
+        return (
+            <div className="min-h-[85vh] flex items-center justify-center p-4 bg-dark">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="max-w-md w-full glass-card p-8 rounded-2xl relative z-10 shadow-2xl border-white/10 text-center"
+                >
+                    <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <AlertCircle className="h-8 w-8 text-red-500" />
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">Invalid or Expired Link</h3>
+                    <p className="text-gray-400 text-sm mb-8">
+                        The password reset link seems to be missing or broken. Please request a new one.
+                    </p>
+                    <Link
+                        to="/forgot-password"
+                        className="inline-block py-3 px-8 rounded-lg bg-primary text-white font-semibold hover:bg-primary-hover transition-colors shadow-[0_0_15px_rgba(227,74,41,0.3)]"
+                    >
+                        Request New Link
+                    </Link>
+                </motion.div>
+            </div>
+        );
+    }
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -22,12 +51,12 @@ const ResetPassword = () => {
 
         setLoading(true);
         try {
-            const response = await fetch('/api/users/reset-password', {
+            const response = await fetch('/api/auth/reset-password', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email, newPassword }),
+                body: JSON.stringify({ id, token, newPassword }),
             });
 
             const data = await response.json();
@@ -66,7 +95,7 @@ const ResetPassword = () => {
                 {!isSubmitted ? (
                     <form className="space-y-6" onSubmit={handleSubmit}>
                         <p className="text-gray-400 text-sm mb-6">
-                            Enter your email and new password to update your account.
+                            Enter your new password to securely update your account.
                         </p>
 
                         {error && (
@@ -74,21 +103,6 @@ const ResetPassword = () => {
                                 {error}
                             </div>
                         )}
-
-                        <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <Mail className="h-5 w-5 text-gray-400" />
-                            </div>
-                            <input
-                                name="email"
-                                type="email"
-                                required
-                                className="appearance-none rounded-lg relative block w-full pl-10 px-3 py-4 border border-white/10 bg-dark text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm transition-colors"
-                                placeholder="Email Address"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                            />
-                        </div>
 
                         <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">

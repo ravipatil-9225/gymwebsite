@@ -589,6 +589,19 @@ const sendPasswordResetConfirmation = (user) => send(
     `)
 );
 
+const sendPasswordResetLink = (user, resetLink) => send(
+    user.email,
+    '🔒 Action Required: Reset Your Password — Tara Fitness',
+    emailWrapper(`
+        ${heading('Password Reset Request')}
+        ${subheading('Security Alert')}
+        ${paragraph(`Hi <strong>${user.name || 'Member'}</strong>, we received a request to reset the password for your Tara Fitness account.`)}
+        ${paragraph('Click the button below to securely set a new password. This link is valid for 15 minutes.')}
+        ${ctaButton('Reset Password', resetLink)}
+        ${paragraph('If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged.')}
+    `)
+);
+
 // ─── 13. PAR-Q FORM ──────────────────────────────────────────────────────
 
 const sendParQConfirmation = (data) => send(
@@ -707,6 +720,7 @@ module.exports = {
     sendGoogleWelcomeEmail,
     sendAdminGoogleUserAlert,
     sendPasswordResetConfirmation,
+    sendPasswordResetLink,
     // Forms
     sendEnquiryConfirmation,
     sendAdminEnquiryAlert,

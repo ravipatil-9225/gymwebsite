@@ -105,7 +105,7 @@ const googleAuth = async (req, res) => {
 
         if (!user) {
             const password = Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10);
-            user = await User.create({ name: googleUser.name, email, password, role, photo: googleUser.picture, lastLogin: new Date() });
+            user = await User.create({ name: googleUser.name, email, password, role, photo: googleUser.picture, lastLogin: new Date(), phone: '0000000000' });
 
             emailService.sendGoogleWelcomeEmail(user).catch(console.error);
             emailService.sendAdminGoogleUserAlert(user).catch(console.error);
@@ -169,17 +169,60 @@ const updateProfile = async (req, res) => {
     }
 };
 
-// @desc    Reset password
-// @route   POST /api/users/reset-password
-const resetPassword = async (req, res) => {
+// @desc    Forgot password
+// @route   POST /api/auth/forgot-password
+const forgotPassword = async (req, res) => {
     try {
-        const { email, newPassword } = req.body;
-        const user = await User.findOne({ email });
+        const { email } = req.body;
+        const user = await User.findOne({ email: email.toLowerCase() });
 
         if (!user) {
             return res.status(404).json({ message: 'No account found with this email address' });
         }
 
+        // Create a one-time use token 
+        const secret = JWT_SECRET + user.password;
+        const payload = { email: user.email, id: user._id };
+        const token = jwt.sign(payload, secret, { expiresIn: '15m' });
+
+        const origin = req.headers.origin || 'http://localhost:5173';
+        const link = `${origin}/reset-password?id=${user._id}&token=${token}`;
+
+        emailService.sendPasswordResetLink(user, link).catch(console.error);
+
+        res.status(200).json({ message: 'Password reset link sent to your email.' });
+    } catch (error) {
+        console.error('Forgot password error:', error);
+        res.status(500).json({ message: 'Server error while sending reset link.' });
+    }
+};
+
+// @desc    Reset password
+// @route   POST /api/auth/reset-password
+const resetPassword = async (req, res) => {
+    try {
+        const { id, token, newPassword } = req.body;
+
+        if (!id || !token || !newPassword) {
+             return res.status(400).json({ message: 'Invalid request payload.' });
+        }
+
+        const user = await User.findById(id);
+
+        if (!user) {
+            return res.status(404).json({ message: 'Invalid or expired reset link.' });
+        }
+
+        const secret = JWT_SECRET + user.password;
+        try {
+            jwt.verify(token, secret);
+        } catch (err) {
+            return res.status(400).json({ message: 'Your link has expired or is invalid.' });
+        }
+
+        if (!user.phone) {
+            user.phone = '0000000000'; // Fallback for older accounts
+        }
         user.password = newPassword;
         await user.save();
 
@@ -199,5 +242,6 @@ module.exports = {
     googleAuth,
     getProfile,
     updateProfile,
-    resetPassword
+    resetPassword,
+    forgotPassword
 };

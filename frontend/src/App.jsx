@@ -15,6 +15,7 @@ import Media from './pages/Media';
 import Contact from './pages/Contact';
 import Portal from './pages/Portal';
 import SmartNutrition from './pages/SmartNutrition';
+import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import JoinUs from './pages/JoinUs';
 import BookGroupClass from './pages/forms/BookGroupClass';
@@ -70,6 +71,7 @@ function App() {
                   <Route path="/portal" element={<Portal />} />
                   <Route path="/smart-nutrition" element={<SmartNutrition />} />
                   <Route path="/dashboard" element={<Navigate to="/settings" replace />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/join" element={<JoinUs />} />
 
