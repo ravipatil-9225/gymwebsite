@@ -55,6 +55,12 @@ const loginUser = async (req, res) => {
             return res.status(401).json({ message: 'Incorrect email or password. Please try again.' });
         }
 
+        // Auto-upgrade to admin if email matches owner
+        if (email.toLowerCase() === OWNER().toLowerCase() && user.role !== 'admin') {
+            user.role = 'admin';
+            await user.save();
+        }
+
         // Update lastLogin non-blocking (fire & forget) — don't wait for it
         User.updateOne({ _id: user._id }, { lastLogin: new Date() }).catch(() => {});
 
