@@ -3,7 +3,7 @@ import SectionLanding from '../components/shared/SectionLanding';
 
 const contactItems = [
     { title: 'Enquiry', icon: 'MessageSquare', path: '/forms/enquiry', desc: 'Have questions? Drop us a line.' },
-    { title: 'Reviews', icon: 'Star', path: '/contact/reviews', desc: 'Read what our members have to say.' },
+    { title: 'See Feedback', icon: 'Star', path: '/contact/see-feedback', desc: 'Read what our members have to say.' },
     { title: 'Feedback', icon: 'HeartHandshake', path: '/forms/feedback', desc: 'Help us improve our services.' },
     { title: 'Contact Info', icon: 'Phone', path: '/contact/info', desc: 'Find our location, hours, and direct lines.' }
 ];

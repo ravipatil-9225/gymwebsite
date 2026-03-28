@@ -1,4 +1,5 @@
 const Payment = require('../models/Payment');
+const Package = require('../models/Package');
 const tesseract = require('tesseract.js');
 const socket = require('../socket');
 const User = require('../models/User');
@@ -9,6 +10,23 @@ const emailService = require('../services/emailService');
 function parsePrice(price) {
     if (typeof price === 'number') return price;
     return parseFloat(String(price).replace(/,/g, '')) || 0;
+}
+
+// Helper: parse plan duration string into days
+async function getPlanDurationDays(planName) {
+    const parse = (str = '') => {
+        const s = str.toLowerCase();
+        if (s.includes('year'))  { const m = s.match(/(\d+)\s*year/);  return (m ? +m[1] : 1) * 365; }
+        if (s.includes('month')) { const m = s.match(/(\d+)\s*month/); return (m ? +m[1] : 1) * 30;  }
+        if (s.includes('week'))  { const m = s.match(/(\d+)\s*week/);  return (m ? +m[1] : 1) * 7;   }
+        if (s.includes('day'))   { const m = s.match(/(\d+)\s*day/);   return m ? +m[1] : 30;         }
+        return 30;
+    };
+    try {
+        const pkg = await Package.findOne({ name: planName });
+        if (pkg?.duration) return parse(pkg.duration);
+    } catch (_) {}
+    return parse(planName);
 }
 
 exports.verifyPayment = async (req, res) => {
@@ -135,19 +153,24 @@ exports.verifyPayment = async (req, res) => {
         if (status === 'auto_verified') {
             const user = await User.findOne({ email });
             if (user) {
+                const planDuration = await getPlanDurationDays(planName);
                 const startDate = new Date();
                 const endDate = new Date();
-                endDate.setDate(endDate.getDate() + 30);
+                endDate.setDate(endDate.getDate() + planDuration);
 
                 await Membership.create({
                     userId: user._id,
                     userName: user.name,
                     userEmail: user.email,
                     packageName: planName,
+                    planDuration,
                     amountPaid: numericPrice,
                     startDate,
                     endDate,
                 });
+
+                // Emit AFTER membership is created so admin sees it instantly
+                try { socket.getIO().emit('db_changed', { type: 'membership_created', userId: user._id }); } catch (_) {}
 
                 // User gets full confirmation receipt
                 emailService.sendPaymentConfirmation({
@@ -172,7 +195,7 @@ exports.verifyPayment = async (req, res) => {
             }
         }
 
-        // Emit socket event for real-time admin update
+        // For non-auto-verified: emit so admin sees the pending payment
         try { socket.getIO().emit('db_changed', { type: 'payment_verified', data: newPayment }); } catch (_) {}
 
         res.status(201).json({

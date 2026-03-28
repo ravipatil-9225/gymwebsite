@@ -1,17 +1,26 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import socket from '../utils/socket';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, ZoomIn, Images } from 'lucide-react';
 
-const photos = [
-    { id: 1, src: '/gallery/gym1.jpg', alt: 'Tara Fitness Centre – Aerial View', caption: 'Aerial View' },
-    { id: 2, src: '/gallery/gym2.jpg', alt: 'Tara Fitness Centre – Active Floor', caption: 'Active Training Floor' },
-    { id: 3, src: '/gallery/gym3.jpg', alt: 'Tara Fitness Centre – Equipment', caption: 'State-of-the-Art Equipment' },
-    { id: 4, src: '/gallery/gym4.jpg', alt: 'Tara Fitness Centre – Interior', caption: 'Full Gym Interior' },
-    { id: 5, src: '/gallery/gym5.jpg', alt: 'Tara Fitness Centre – Building Exterior', caption: 'Our Facility' },
-];
-
 const GalleryPage = () => {
     const [lightboxIdx, setLightboxIdx] = useState(null);
+    const [photos, setPhotos] = useState([]);
+
+    useEffect(() => {
+        const fetchGallery = async () => {
+            try {
+                const { data } = await axios.get('/api/public/gallery');
+                setPhotos(data.filter(g => g.isActive).map((g, i) => ({
+                    id: g._id || i, src: g.imageUrl, alt: g.title || 'Gym Facility', caption: g.title || g.category || 'Gym Facility'
+                })));
+            } catch(e) { console.error(e) }
+        };
+        fetchGallery();
+        socket.on('db_changed', fetchGallery);
+        return () => socket.off('db_changed', fetchGallery);
+    }, []);
 
     const openLightbox = (idx) => setLightboxIdx(idx);
     const closeLightbox = () => setLightboxIdx(null);

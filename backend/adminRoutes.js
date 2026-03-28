@@ -119,9 +119,29 @@ router.get('/analytics', async (req, res) => {
 // ==========================================
 router.get('/users', async (req, res) => {
     try {
-        const users = await User.find().select('-password').sort({ createdAt: -1 });
+        const users = await User.aggregate([
+            { $sort: { createdAt: -1 } },
+            { $project: { password: 0 } },
+            {
+                $lookup: {
+                    from: 'memberships',
+                    let: { uid: '$_id' },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$userId', '$$uid'] } } },
+                        { $sort: { createdAt: -1 } }
+                    ],
+                    as: 'allMemberships'
+                }
+            },
+            {
+                $addFields: {
+                    latestMembership: { $arrayElemAt: ['$allMemberships', 0] }
+                }
+            }
+        ]);
         res.json(users);
     } catch (err) {
+        console.error(err);
         res.status(500).json({ message: 'Error fetching users' });
     }
 });
@@ -402,15 +422,48 @@ router.put('/payments/:id', async (req, res) => {
         if (wasPending && isApproved) {
             const user = await User.findOne({ email: payment.email });
             if (user) {
+                // Parse duration in days from planName / package
+                const parseDurationDays = (name = '') => {
+                    const n = name.toLowerCase();
+                    if (n.includes('year')) {
+                        const m = n.match(/(\d+)\s*year/);
+                        return (m ? parseInt(m[1]) : 1) * 365;
+                    } else if (n.includes('month')) {
+                        const m = n.match(/(\d+)\s*month/);
+                        return (m ? parseInt(m[1]) : 1) * 30;
+                    } else if (n.includes('week')) {
+                        const m = n.match(/(\d+)\s*week/);
+                        return (m ? parseInt(m[1]) : 1) * 7;
+                    } else if (n.includes('day')) {
+                        const m = n.match(/(\d+)\s*day/);
+                        return m ? parseInt(m[1]) : 30;
+                    }
+                    // Try to get duration from Package model
+                    return 30;
+                };
+
+                let planDuration = 30;
+                try {
+                    const pkg = await Package.findOne({ name: payment.planName });
+                    if (pkg && pkg.duration) {
+                        planDuration = parseDurationDays(pkg.duration);
+                    } else {
+                        planDuration = parseDurationDays(payment.planName);
+                    }
+                } catch (e) {
+                    planDuration = parseDurationDays(payment.planName);
+                }
+
                 const startDate = new Date();
                 const endDate = new Date();
-                endDate.setDate(endDate.getDate() + 30); // Default to 30 days
+                endDate.setDate(endDate.getDate() + planDuration);
 
                 await Membership.create({
                     userId: user._id,
                     userName: user.name,
                     userEmail: user.email,
                     packageName: payment.planName,
+                    planDuration,
                     amountPaid: payment.planPrice,
                     startDate,
                     endDate,
@@ -440,7 +493,8 @@ router.put('/payments/:id', async (req, res) => {
         }
 
         res.json(updated);
-        socket.getIO().emit('db_changed', { type: 'payment_updated', data: updated });
+        // Emit after membership creation so User Management reflects immediately
+        socket.getIO().emit('db_changed', { type: 'membership_created' });
     } catch (err) {
         console.error('Admin payment update error:', err);
         res.status(500).json({ message: 'Error updating payment' });

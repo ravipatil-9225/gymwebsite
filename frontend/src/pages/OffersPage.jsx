@@ -2,24 +2,38 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Tag, Calendar, Clock, Image as ImageIcon } from 'lucide-react';
 import axios from 'axios';
+import socket from '../utils/socket';
 
 const OffersPage = () => {
     const [offers, setOffers] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const fetchOffers = async () => {
+        const fetchOffers = async (isSilent = false) => {
             try {
                 const { data } = await axios.get('/api/public/offers');
-                const activeOffers = data.filter(offer => offer.isActive && new Date(offer.expiryDate) > new Date());
+                const activeOffers = data.filter(offer => {
+                    if (offer.isActive === false) return false;
+                    if (!offer.expiryDate) return true;
+                    const expiry = new Date(offer.expiryDate);
+                    expiry.setHours(23, 59, 59, 999);
+                    return expiry >= new Date();
+                });
                 setOffers(activeOffers);
             } catch (err) {
                 console.error("Failed to fetch offers", err);
             } finally {
-                setLoading(false);
+                if (!isSilent) setLoading(false);
             }
         };
         fetchOffers();
+
+        const fetchOffersSilent = () => fetchOffers(true);
+        socket.on('db_changed', fetchOffersSilent);
+
+        return () => {
+            socket.off('db_changed', fetchOffersSilent);
+        };
     }, []);
 
     if (loading) {

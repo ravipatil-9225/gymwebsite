@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Mail, Star, MessageSquare, ArrowRight, CheckCircle } from 'lucide-react';
+import { User, Mail, Star, MessageSquare, ArrowRight, CheckCircle, MessageSquareQuote } from 'lucide-react';
 import axios from 'axios';
+import socket from '../../utils/socket';
 
 const FeedbackForm = () => {
+    const [feedbacks, setFeedbacks] = useState([]);
     const [formData, setFormData] = useState({
         type: 'feedback',
         name: '',
@@ -13,6 +15,19 @@ const FeedbackForm = () => {
     });
     const [status, setStatus] = useState('idle');
     const [errorMessage, setErrorMessage] = useState('');
+
+    useEffect(() => {
+        const fetchFeedbacks = async () => {
+            try {
+                const { data } = await axios.get('/api/public/all-feedbacks');
+                setFeedbacks(data);
+            } catch (err) { }
+        };
+
+        fetchFeedbacks();
+        socket.on('db_changed', fetchFeedbacks);
+        return () => socket.off('db_changed', fetchFeedbacks);
+    }, []);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -41,7 +56,8 @@ const FeedbackForm = () => {
     };
 
     return (
-        <div className="min-h-[85vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative bg-dark">
+        <>
+        <div className="min-h-[85vh] flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative bg-dark">
             <div className="absolute inset-0 z-0 overflow-hidden">
                 <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 rounded-full bg-primary/5 blur-[100px]" />
                 <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-96 h-96 rounded-full bg-primary/5 blur-[100px]" />
@@ -51,7 +67,7 @@ const FeedbackForm = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="max-w-2xl w-full glass-card p-8 md:p-12 rounded-2xl relative z-10 shadow-2xl border-white/10"
+                className="max-w-4xl max-w-2xl mx-auto w-full glass-card p-8 md:p-12 rounded-2xl relative z-10 shadow-2xl border-white/10"
             >
                 {status === 'success' ? (
                     <div className="text-center py-8">
@@ -160,6 +176,72 @@ const FeedbackForm = () => {
                 )}
             </motion.div>
         </div>
+
+        {/* Public Feedback Section Below the Form - always shown */}
+        <div className="w-full bg-[#030303] py-24 relative border-t border-white/5 z-10" id="see-feedback">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+                <div className="text-center mb-16">
+                    <motion.h2
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        className="text-white text-3xl md:text-4xl font-display font-black uppercase tracking-tight"
+                    >
+                        See <span className="text-primary">All Feedback</span>
+                    </motion.h2>
+                    <div className="h-1 bg-gradient-to-r from-primary to-transparent mx-auto mt-6 w-16" />
+                    <p className="text-gray-500 mt-4 text-sm font-sans">Live feedback from all our gym members</p>
+                </div>
+
+                {feedbacks.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500 font-sans">
+                        No feedback yet. Be the first to share your experience!
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {feedbacks.map((fb, idx) => (
+                            <motion.div
+                                key={fb._id}
+                                initial={{ opacity: 0, y: 30 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: idx * 0.05 }}
+                                className="bg-dark-card border border-white/5 p-8 rounded-2xl relative shadow-2xl group flex flex-col"
+                            >
+                                <MessageSquareQuote className="absolute top-6 right-6 w-8 h-8 text-white/[0.03] group-hover:text-primary/10 transition-colors duration-500" />
+                                
+                                <div className="flex items-center gap-1 mb-6">
+                                    {[...Array(5)].map((_, i) => (
+                                        <Star 
+                                            key={i} 
+                                            size={16} 
+                                            className={i < fb.rating ? "text-yellow-500 fill-yellow-500" : "text-gray-700"} 
+                                        />
+                                    ))}
+                                </div>
+
+                                <p className="text-gray-300 font-sans text-sm leading-relaxed mb-8 flex-grow italic">
+                                    "{fb.message}"
+                                </p>
+
+                                <div className="flex items-center gap-4 mt-auto pt-6 border-t border-white/5">
+                                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+                                        <User size={16} className="text-primary" />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-white font-display font-bold text-sm tracking-wide capitalize">{fb.name}</h4>
+                                        <p className="text-gray-500 text-xs font-sans">
+                                            {new Date(fb.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                        </p>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+        </>
     );
 };
 

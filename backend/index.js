@@ -14,6 +14,7 @@ const Trainer = require('./models/Trainer');
 const Package = require('./models/Package');
 const Offer = require('./models/Offer');
 const Gallery = require('./models/Gallery');
+const Content = require('./models/Content');
 
 // Routes
 const authRoutes = require('./routes/authRoutes');
@@ -21,6 +22,7 @@ const enquiryRoutes = require('./routes/enquiryRoutes');
 const formRoutes = require('./routes/formRoutes');
 const adminRoutes = require('./adminRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const nutritionRoutes = require('./routes/nutritionRoutes');
 
 // Services
 const emailService = require('./services/emailService');
@@ -52,6 +54,7 @@ app.use('/api', enquiryRoutes);    // /api/plan-interest, /api/join
 app.use('/api/forms', formRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/nutrition', nutritionRoutes);
 
 // ── PUBLIC CONTENT ROUTES ──
 app.get('/api/public/trainers', async (req, res) => {
@@ -87,6 +90,39 @@ app.get('/api/public/gallery', async (req, res) => {
         res.json(gallery);
     } catch (err) {
         res.status(500).json({ message: 'Error fetching gallery' });
+    }
+});
+
+app.get('/api/public/content/:section', async (req, res) => {
+    try {
+        const content = await Content.findOne({ section: req.params.section });
+        res.json(content || { data: {} });
+    } catch (err) {
+        res.status(500).json({ message: 'Error fetching content' });
+    }
+});
+
+app.get('/api/public/reviews', async (req, res) => {
+    try {
+        const FormSubmission = require('./models/FormSubmission');
+        const reviews = await FormSubmission.find({ 
+            type: 'feedback', 
+            rating: { $gte: 4 } 
+        }).sort({ createdAt: -1 }).limit(50);
+        res.json(reviews);
+    } catch (err) {
+        res.status(500).json({ message: 'Error fetching reviews' });
+    }
+});
+
+app.get('/api/public/all-feedbacks', async (req, res) => {
+    try {
+        const FormSubmission = require('./models/FormSubmission');
+        const feedbacks = await FormSubmission.find({ type: 'feedback' })
+            .sort({ createdAt: -1 });
+        res.json(feedbacks);
+    } catch (err) {
+        res.status(500).json({ message: 'Error fetching feedbacks' });
     }
 });
 
@@ -133,3 +169,4 @@ httpServer.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     startMembershipReminderCron();
 });
+// trigger restart

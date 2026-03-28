@@ -1,38 +1,40 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import socket from '../utils/socket';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Instagram, Award, CalendarClock, ArrowRight } from 'lucide-react';
 
-const trainersData = [
-    {
-        id: 1,
-        name: 'Tara Parmar',
-        role: 'Founder & Head Coach',
-        image: '/owner.jpg',
-        bio: 'With over a decade of experience in strength training and body conditioning, Tara leads our gym with a passion for helping people achieve their absolute best.',
-        specialties: ['Strength & Conditioning', 'Bodybuilding', 'Nutrition Planning'],
-        social: {
-            instagram: 'https://www.instagram.com/tara_.parmar?igsh=MWVvcWsyYXlzajBwcg==',
-        },
-        accentColor: '#E34A29',
-        accentGlow: 'rgba(227,74,41,0.2)',
-    },
-    {
-        id: 2,
-        name: 'Atharva Chavan',
-        role: 'Elite Personal Trainer',
-        image: '/atharva.jpg',
-        bio: 'Atharva specializes in high-intensity interval training, functional movement, and mobility. His dynamic approach keeps workouts challenging and highly effective.',
-        specialties: ['HIIT', 'Functional Training', 'Mobility & Flexibility'],
-        social: {
-            instagram: 'https://www.instagram.com/_atharvachavan_?igsh=eW5oazR1ajBudzEy',
-        },
-        accentColor: '#4299e1',
-        accentGlow: 'rgba(66,153,225,0.2)',
-    }
-];
-
 const Trainers = () => {
+    const [trainersData, setTrainersData] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchTrainers = async (isSilent = false) => {
+            try {
+                const { data } = await axios.get('/api/public/trainers');
+                const colors = [
+                    { c: '#E34A29', g: 'rgba(227,74,41,0.2)' },
+                    { c: '#4299e1', g: 'rgba(66,153,225,0.2)' },
+                    { c: '#a78bfa', g: 'rgba(167,139,250,0.2)' },
+                    { c: '#ed8936', g: 'rgba(237,137,54,0.2)' }
+                ];
+                setTrainersData(data.map((t, i) => ({
+                    id: t._id, name: t.name, role: t.specialization,
+                    image: t.photo || '', bio: t.description || t.experience || '',
+                    specialties: t.certifications ? t.certifications.split(',').map(s=>s.trim()) : [],
+                    social: { instagram: t.instagram || t.instagramId || '' },
+                    accentColor: colors[i % colors.length].c, accentGlow: colors[i % colors.length].g
+                })));
+            } catch (err) { console.error(err); } finally { if (!isSilent) setLoading(false); }
+        };
+        fetchTrainers();
+        const onDbChange = () => fetchTrainers(true);
+        socket.on('db_changed', onDbChange);
+        return () => socket.off('db_changed', onDbChange);
+    }, []);
+
+    if (loading && trainersData.length === 0) return <div className="min-h-[calc(100vh-80px)] bg-dark flex justify-center items-center"><div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
     return (
         <section className="py-28 min-h-[calc(100vh-72px)] relative overflow-hidden">
             {/* Background */}

@@ -3,7 +3,7 @@ import SectionLanding from '../components/shared/SectionLanding';
 
 const packageItems = [
     { title: 'Membership Plans', icon: 'CreditCard', path: '/packages/plans', desc: 'Explore our standard and premium membership packages.' },
-    { title: 'Offers', icon: 'Tag', path: '#offers', desc: 'View current seasonal offers and discounts.' }
+    { title: 'Offers', icon: 'Tag', path: '/offers', desc: 'View current seasonal offers and discounts.' }
 ];
 
 const Packages = () => {

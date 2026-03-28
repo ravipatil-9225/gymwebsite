@@ -1,7 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronDown } from 'lucide-react';
+import axios from 'axios';
+import socket from '../../utils/socket';
 
 const stats = [
     { value: '500+', label: 'Members' },
@@ -11,6 +13,42 @@ const stats = [
 ];
 
 const Hero = () => {
+    const [cmsData, setCmsData] = useState({
+        title: 'Obtain FITNESS Goal',
+        subtitle: "Transform your body. Elevate your mind. Kolhapur's most dedicated fitness centre.",
+        buttonText: "View Memberships"
+    });
+
+    useEffect(() => {
+        const fetchHero = async () => {
+            try {
+                const { data } = await axios.get('/api/public/content/hero');
+                if (data && data.data && Object.keys(data.data).length > 0) {
+                    setCmsData({
+                        title: data.data.title || 'Obtain FITNESS Goal',
+                        subtitle: data.data.subtitle || "Transform your body. Elevate your mind. Kolhapur's most dedicated fitness centre.",
+                        buttonText: data.data.buttonText || 'View Memberships'
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to fetch hero content");
+            }
+        };
+
+        fetchHero();
+
+        socket.on('db_changed', fetchHero);
+
+        return () => {
+            socket.off('db_changed', fetchHero);
+        };
+    }, []);
+
+    const titleParts = cmsData.title.split(' ');
+    const topWord = titleParts[0] || 'Obtain';
+    const mainWord = titleParts[1] || 'FITNESS';
+    const bottomWord = titleParts.slice(2).join(' ') || 'Goal';
+
     return (
         <div className="relative w-full min-h-[92vh] flex flex-col items-center justify-center overflow-hidden bg-[#050505]">
 
@@ -66,7 +104,7 @@ const Hero = () => {
                         className="text-white/20 font-display text-[13vw] md:text-[9vw] font-bold uppercase tracking-wide select-none"
                         style={{ WebkitTextStroke: '1px rgba(255,255,255,0.2)' }}
                     >
-                        Obtain
+                        {topWord}
                     </h2>
 
                     <h1
@@ -79,14 +117,14 @@ const Hero = () => {
                             filter: 'drop-shadow(0 0 40px rgba(227,74,41,0.35))',
                         }}
                     >
-                        FITNESS
+                        {mainWord}
                     </h1>
 
                     <div className="flex items-center justify-end w-full max-w-6xl pr-4 md:pr-20 -mt-4 md:-mt-10">
                         <h2
                             className="text-primary font-display text-[15vw] md:text-[11vw] font-bold uppercase tracking-wide glow-text"
                         >
-                            Goal
+                            {bottomWord}
                         </h2>
                     </div>
                 </motion.div>
@@ -98,7 +136,7 @@ const Hero = () => {
                     transition={{ duration: 0.8, delay: 0.6 }}
                     className="text-gray-400 font-sans text-sm md:text-base max-w-md mt-6 leading-relaxed tracking-wide"
                 >
-                    Transform your body. Elevate your mind. Kolhapur's most dedicated fitness centre.
+                    {cmsData.subtitle}
                 </motion.p>
 
                 {/* CTA Buttons */}
@@ -112,7 +150,7 @@ const Hero = () => {
                         to="/packages"
                         className="group flex items-center gap-2 bg-primary hover:bg-primary-hover text-white font-bold text-sm tracking-[0.15em] uppercase px-8 py-4 rounded-xl transition-all duration-300 shadow-[0_0_30px_rgba(227,74,41,0.45)] hover:shadow-[0_0_50px_rgba(227,74,41,0.65)] hover:-translate-y-1"
                     >
-                        View Memberships
+                        {cmsData.buttonText}
                         <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                     </Link>
                     <Link

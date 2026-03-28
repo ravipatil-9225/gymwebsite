@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { Menu, X, Dumbbell, Zap } from 'lucide-react';
+import { Menu, X, Zap } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,6 +12,7 @@ const navItems = [
     { title: 'MEDIA', path: '/media' },
     { title: 'CONTACT', path: '/contact' },
     { title: 'PORTAL', path: '/portal' },
+    { title: 'SMARTNUTRITION HUB', path: '/smart-nutrition' },
     { title: 'SETTINGS', path: '/settings' },
 ];
 
@@ -41,19 +42,21 @@ const Navbar = () => {
             }`}
         >
             <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-10">
-                <div className={`flex items-stretch h-[72px] ${isAuthPage ? 'justify-center' : 'justify-between'}`}>
+                <div className={`flex items-stretch transition-all duration-500 ${isAuthPage ? 'h-[140px] justify-center pt-8' : 'h-[96px] justify-between'}`}>
 
                     {/* Logo */}
                     <div className="flex items-center">
-                        <Link to={isAuthPage ? '#' : '/home'} className="flex items-center gap-2.5 group">
-                            <div className="relative">
-                                <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center shadow-[0_0_20px_rgba(227,74,41,0.5)] group-hover:shadow-[0_0_30px_rgba(227,74,41,0.7)] transition-all duration-300">
-                                    <Dumbbell size={20} strokeWidth={2.5} className="text-white" />
-                                </div>
+                        <Link to={isAuthPage ? '#' : '/home'} className="flex items-center group">
+                            <div
+                                style={{ height: isAuthPage ? '135px' : '85px', width: isAuthPage ? '135px' : '85px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}
+                                className="drop-shadow-[0_0_12px_rgba(212,175,55,0.6)] group-hover:drop-shadow-[0_0_24px_rgba(212,175,55,0.9)] transition-all duration-300 group-hover:scale-105"
+                            >
+                                <img
+                                    src="/logo.png"
+                                    alt="Tara Fitness Center"
+                                    style={{ height: '100%', width: '100%', objectFit: 'cover', display: 'block' }}
+                                />
                             </div>
-                            <span className="font-display font-bold text-2xl tracking-widest text-white">
-                                TARA <span className="text-primary">FITNESS</span>
-                            </span>
                         </Link>
                     </div>
 

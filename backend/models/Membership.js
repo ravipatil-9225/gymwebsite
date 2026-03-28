@@ -9,6 +9,7 @@ const membershipSchema = new mongoose.Schema({
     userName: { type: String, required: true },
     userEmail: { type: String, required: true },
     packageName: { type: String, required: true },
+    planDuration: { type: Number, default: 30 }, // duration in days
     amountPaid: { type: Number, required: true },
     startDate: { type: Date, required: true, default: Date.now },
     endDate: { type: Date, required: true },

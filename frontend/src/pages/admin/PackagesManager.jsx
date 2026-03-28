@@ -8,7 +8,7 @@ const PackagesManager = () => {
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editingId, setEditingId] = useState(null);
-    const [formData, setFormData] = useState({ name: '', description: '', price: '', duration: '', features: '', isActive: true });
+    const [formData, setFormData] = useState({ name: '', category: 'BASIC TRAINING PACKAGES', description: '', price: '', duration: '', features: '', isActive: true });
 
     const fetchPackages = async () => {
         try {
@@ -85,6 +85,7 @@ const PackagesManager = () => {
     const openEditModal = (pkg) => {
         setFormData({
             name: pkg.name,
+            category: pkg.category || 'BASIC TRAINING PACKAGES',
             description: pkg.description,
             price: pkg.price,
             duration: pkg.duration,
@@ -96,7 +97,7 @@ const PackagesManager = () => {
     };
 
     const openCreateModal = () => {
-        setFormData({ name: '', description: '', price: '', duration: '', features: '', isActive: true });
+        setFormData({ name: '', category: 'BASIC TRAINING PACKAGES', description: '', price: '', duration: '', features: '', isActive: true });
         setEditingId(null);
         setShowModal(true);
     };
@@ -104,7 +105,7 @@ const PackagesManager = () => {
     const closeModal = () => {
         setShowModal(false);
         setEditingId(null);
-        setFormData({ name: '', description: '', price: '', duration: '', features: '', isActive: true });
+        setFormData({ name: '', category: 'BASIC TRAINING PACKAGES', description: '', price: '', duration: '', features: '', isActive: true });
     };
 
     if (loading) return <div className="p-8">Loading packages...</div>;
@@ -124,6 +125,7 @@ const PackagesManager = () => {
                         <thead>
                             <tr className="bg-gray-50 text-gray-500 text-sm">
                                 <th className="px-6 py-4 font-medium text-xs uppercase tracking-wider">Name</th>
+                                <th className="px-6 py-4 font-medium text-xs uppercase tracking-wider">Category</th>
                                 <th className="px-6 py-4 font-medium text-xs uppercase tracking-wider">Price (₹)</th>
                                 <th className="px-6 py-4 font-medium text-xs uppercase tracking-wider">Duration</th>
                                 <th className="px-6 py-4 font-medium text-xs uppercase tracking-wider">Status</th>
@@ -134,6 +136,7 @@ const PackagesManager = () => {
                             {packages.map((pkg) => (
                                 <tr key={pkg._id} className="hover:bg-gray-50">
                                     <td className="px-6 py-4 font-medium text-gray-900">{pkg.name}</td>
+                                    <td className="px-6 py-4 text-xs font-semibold text-primary">{pkg.category || '—'}</td>
                                     <td className="px-6 py-4 text-gray-500">{pkg.price}</td>
                                     <td className="px-6 py-4 text-gray-500">{pkg.duration}</td>
                                     <td className="px-6 py-4">
@@ -167,6 +170,7 @@ const PackagesManager = () => {
                         <h2 className="text-xl font-bold mb-4">{editingId ? 'Edit Package' : 'Add Package'}</h2>
                         <form onSubmit={handleCreateOrUpdate} className="space-y-4">
                             <input required type="text" placeholder="Name (e.g. Hardcore)" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full p-2 border border-gray-300 rounded" />
+                            <input required type="text" placeholder="Category (e.g. BASIC TRAINING PACKAGES)" value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} className="w-full p-2 border border-gray-300 rounded font-semibold text-primary" />
                             <input required type="text" placeholder="Description" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full p-2 border border-gray-300 rounded" />
                             <input required type="number" placeholder="Price (₹)" value={formData.price} onChange={e => setFormData({ ...formData, price: e.target.value })} className="w-full p-2 border border-gray-300 rounded" />
                             <input required type="text" placeholder="Duration (e.g. 3 Months)" value={formData.duration} onChange={e => setFormData({ ...formData, duration: e.target.value })} className="w-full p-2 border border-gray-300 rounded" />

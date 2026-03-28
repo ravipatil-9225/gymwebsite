@@ -14,6 +14,7 @@ import Trainers from './pages/Trainers';
 import Media from './pages/Media';
 import Contact from './pages/Contact';
 import Portal from './pages/Portal';
+import SmartNutrition from './pages/SmartNutrition';
 import ResetPassword from './pages/ResetPassword';
 import JoinUs from './pages/JoinUs';
 import BookGroupClass from './pages/forms/BookGroupClass';
@@ -26,6 +27,9 @@ import TrialWaiverForm from './pages/forms/TrialWaiverForm';
 import PTContractForm from './pages/forms/PTContractForm';
 import GalleryPage from './pages/GalleryPage';
 import MembershipPlans from './pages/MembershipPlans';
+import CategoryPlans from './pages/CategoryPlans';
+import OffersPage from './pages/OffersPage';
+import SeeFeedbackPage from './pages/SeeFeedbackPage';
 
 // Admin Imports
 import AdminLayout from './components/layout/AdminLayout';
@@ -64,6 +68,7 @@ function App() {
                   <Route path="/media" element={<Media />} />
                   <Route path="/contact" element={<Contact />} />
                   <Route path="/portal" element={<Portal />} />
+                  <Route path="/smart-nutrition" element={<SmartNutrition />} />
                   <Route path="/dashboard" element={<Navigate to="/settings" replace />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/join" element={<JoinUs />} />
@@ -83,9 +88,12 @@ function App() {
 
                   {/* Contact Routes */}
                   <Route path="/contact/info" element={<ContactInfo />} />
+                  <Route path="/contact/see-feedback" element={<SeeFeedbackPage />} />
 
                   {/* Package Routes */}
                   <Route path="/packages/plans" element={<MembershipPlans />} />
+                  <Route path="/packages/plans/:categoryName" element={<CategoryPlans />} />
+                  <Route path="/offers" element={<OffersPage />} />
 
                   {/* Admin Routes */}
                   <Route path="/admin" element={<AdminRoute />}>

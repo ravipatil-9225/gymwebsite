@@ -1,8 +1,38 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Phone, MapPin, Instagram, ExternalLink, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import axios from 'axios';
+import socket from '../../utils/socket';
 
 const Contact = () => {
+    const [cmsData, setCmsData] = useState({
+        phone: "+91 99605 52750",
+        address: "Shop No 1, Kalamba Rd, opp. Surveynagar,\nRamkrishna Nagar, Kolhapur, Maharashtra 416007"
+    });
+
+    useEffect(() => {
+        const fetchFooter = async () => {
+            try {
+                const { data } = await axios.get('/api/public/content/footer');
+                if (data && data.data && Object.keys(data.data).length > 0) {
+                    setCmsData({
+                        phone: data.data.phone || '+91 99605 52750',
+                        address: data.data.address || "Shop No 1, Kalamba Rd, opp. Surveynagar,\nRamkrishna Nagar, Kolhapur, Maharashtra 416007"
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to fetch footer content");
+            }
+        };
+
+        fetchFooter();
+        socket.on('db_changed', fetchFooter);
+
+        return () => {
+            socket.off('db_changed', fetchFooter);
+        };
+    }, []);
+
     return (
         <section className="py-28 relative border-t border-white/[0.04] overflow-hidden" id="contact">
             {/* Background */}
@@ -82,9 +112,9 @@ const Contact = () => {
                             <Phone size={26} className="text-primary" />
                         </div>
                         <span className="section-eyebrow text-[10px] mb-2">Phone / WhatsApp</span>
-                        <p className="text-white font-display text-lg tracking-wide mb-5">+91 99605 52750</p>
+                        <p className="text-white font-display text-lg tracking-wide mb-5">{cmsData.phone}</p>
                         <a
-                            href="https://wa.me/919960552750"
+                            href={`https://wa.me/${cmsData.phone.replace(/\D/g, '')}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="group flex items-center gap-2 bg-[#25D366]/10 hover:bg-[#25D366]/20 border border-[#25D366]/25 text-[#25D366] px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 hover:shadow-[0_0_20px_rgba(37,211,102,0.2)]"
@@ -109,9 +139,8 @@ const Contact = () => {
                         </div>
                         <span className="section-eyebrow text-[10px] mb-2">Location</span>
                         <h3 className="text-white font-display text-xl tracking-wide mb-3">Find Us Here</h3>
-                        <p className="text-gray-500 font-sans text-sm leading-relaxed mb-5">
-                            Shop No 1, Kalamba Rd, opp. Surveynagar,<br />
-                            Ramkrishna Nagar, Kolhapur, Maharashtra 416007
+                        <p className="text-gray-500 font-sans text-sm leading-relaxed mb-5 whitespace-pre-line">
+                            {cmsData.address}
                         </p>
                         <a
                             href="https://maps.app.goo.gl/BANt7yyCSZReYRpw6"

@@ -106,7 +106,8 @@ const ContactInfo = () => {
                                     <div>
                                         <p className="text-gray-400 text-sm font-sans mb-1 uppercase tracking-wider">Opening Hours</p>
                                         <p className="text-white leading-relaxed">
-                                            <span className="block mb-1">Mon - Sat: 5:00 AM - 10:00 PM</span>
+                                            <span className="block mb-1">Mon - Sat: 5:00 AM – 10:00 AM</span>
+                                            <span className="block mb-1">Mon - Sat: 4:00 PM – 9:00 PM</span>
                                             <span className="block text-gray-500">Sunday: Closed</span>
                                         </p>
                                     </div>
