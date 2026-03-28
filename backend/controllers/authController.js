@@ -6,6 +6,12 @@ const socket = require('../socket');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'tara_fitness_secret_2024';
 const OWNER = () => process.env.OWNER_EMAIL || process.env.EMAIL_USER;
+const isAdminEmail = (email) => {
+    if (!email) return false;
+    const e = email.toLowerCase();
+    const ownerObj = OWNER();
+    return e === (ownerObj ? ownerObj.toLowerCase() : '') || e === 'uddhavb9561@gmail.com';
+};
 
 // @desc    Register new user
 // @route   POST /api/auth/register
@@ -24,7 +30,7 @@ const registerUser = async (req, res) => {
             return res.status(409).json({ message: 'An account with this email already exists.' });
 
         let role = 'user';
-        if (email.toLowerCase() === OWNER().toLowerCase()) {
+        if (isAdminEmail(email)) {
             role = 'admin';
         }
         const user = await User.create({ name, email, password, role, phone: phone || '' });
@@ -56,7 +62,7 @@ const loginUser = async (req, res) => {
         }
 
         // Auto-upgrade to admin if email matches owner
-        if (email.toLowerCase() === OWNER().toLowerCase() && user.role !== 'admin') {
+        if (isAdminEmail(email) && user.role !== 'admin') {
             user.role = 'admin';
             await user.save();
         }
@@ -107,7 +113,7 @@ const googleAuth = async (req, res) => {
         let user = await User.findOne({ email });
 
         let role = 'user';
-        if (email === OWNER().toLowerCase()) role = 'admin';
+        if (isAdminEmail(email)) role = 'admin';
 
         if (!user) {
             const password = Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10);
@@ -117,7 +123,7 @@ const googleAuth = async (req, res) => {
             emailService.sendAdminGoogleUserAlert(user).catch(console.error);
 
         } else {
-            if (email === OWNER().toLowerCase() && user.role !== 'admin') {
+            if (isAdminEmail(email) && user.role !== 'admin') {
                 user.role = 'admin';
                 await user.save();
             }
