@@ -23,7 +23,7 @@ function rawPrice(priceStr) {
 
 const CategoryPlans = () => {
     const { categoryName } = useParams();
-    const { user } = useContext(AuthContext);
+    const { user, token } = useContext(AuthContext);
     const navigate = useNavigate();
     const [selected, setSelected] = useState(null);
     const [payTab, setPayTab] = useState('upi'); // 'upi' | 'cash'
@@ -133,7 +133,7 @@ const CategoryPlans = () => {
         try {
             let bodyData;
             let headers = {
-                'Authorization': `Bearer ${user.token}`
+                'Authorization': `Bearer ${token || localStorage.getItem('gymToken')}`
             };
 
             if (payTab === 'upi') {
