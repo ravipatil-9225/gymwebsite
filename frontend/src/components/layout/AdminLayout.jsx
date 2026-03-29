@@ -120,9 +120,31 @@ const AdminLayout = () => {
                 </header>
 
                 {/* Desktop Header */}
-                <header className="hidden lg:flex items-center justify-end h-16 px-8 bg-white border-b border-gray-200">
+                <header className="hidden lg:flex items-center justify-between h-16 px-8 bg-white border-b border-gray-200">
                     <div className="flex items-center gap-4">
-                        <span className="text-sm font-medium text-gray-700 bg-gray-100 px-3 py-1 rounded-full"><span className="w-2 h-2 inline-block bg-green-500 rounded-full mr-2"></span>Admin Active</span>
+                        <span className="text-sm font-medium text-gray-700 bg-gray-100 px-3 py-1 rounded-full text-xs">
+                          <span className="w-2 h-2 inline-block bg-green-500 rounded-full mr-2"></span>Admin Active
+                        </span>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-gray-900">{localStorage.getItem('gymUser') ? JSON.parse(localStorage.getItem('gymUser')).name : 'Admin'}</p>
+                          <p className="text-[10px] text-gray-500 font-sans tracking-wider uppercase">Gym Management</p>
+                        </div>
+                        <Link to="/settings" className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 p-0.5 overflow-hidden hover:scale-105 transition-transform active:scale-95">
+                          {localStorage.getItem('gymUser') && JSON.parse(localStorage.getItem('gymUser')).profileImage?.url ? (
+                            <img 
+                              src={JSON.parse(localStorage.getItem('gymUser')).profileImage.url} 
+                              alt="Profile" 
+                              className="w-full h-full object-cover rounded-full"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-full">
+                              <Users className="w-5 h-5 text-gray-400" />
+                            </div>
+                          )}
+                        </Link>
                     </div>
                 </header>
 

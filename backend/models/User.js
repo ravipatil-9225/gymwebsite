@@ -9,7 +9,10 @@ const userSchema = new mongoose.Schema({
     phone: { type: String, required: [true, 'Contact number is required'], trim: true, minlength: 10 },
     dob: { type: String, default: '' },
     goal: { type: String, default: '' },
-    photo: { type: String, default: '' },  // base64 or URL
+    profileImage: {
+        url: { type: String, default: '' },
+        public_id: { type: String, default: '' }
+    },
     lastLogin: { type: Date, default: null }
 }, { timestamps: true });
 

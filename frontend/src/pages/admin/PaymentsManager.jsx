@@ -26,7 +26,7 @@ const StatusBadge = ({ status }) => {
 const Lightbox = ({ payment, onClose }) => {
     const handleDownload = () => {
         const a = document.createElement('a');
-        a.href = payment.screenshotUrl;
+        a.href = payment.screenshot?.url || '';
         a.download = `payment_${payment.transactionId || payment._id}.jpg`;
         a.click();
     };
@@ -66,7 +66,7 @@ const Lightbox = ({ payment, onClose }) => {
                 {/* Screenshot */}
                 <div className="p-4 bg-gray-50 flex items-center justify-center min-h-[300px]">
                     <img
-                        src={payment.screenshotUrl}
+                        src={payment.screenshot?.url}
                         alt="Payment Screenshot"
                         className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-md"
                     />
@@ -99,7 +99,7 @@ const ScreenshotThumb = ({ payment, onExpand }) => {
     const handleDownload = (e) => {
         e.stopPropagation();
         const a = document.createElement('a');
-        a.href = payment.screenshotUrl;
+        a.href = payment.screenshot?.url || '';
         a.download = `payment_${payment.transactionId || payment._id}.jpg`;
         a.click();
     };
@@ -112,7 +112,7 @@ const ScreenshotThumb = ({ payment, onExpand }) => {
             <div className="relative group w-20 h-20 rounded-lg overflow-hidden border border-gray-200 shadow-sm cursor-pointer bg-gray-50"
                  onClick={onExpand}>
                 <img
-                    src={payment.screenshotUrl}
+                    src={payment.screenshot?.url}
                     alt="Payment proof"
                     className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
                 />
@@ -169,6 +169,20 @@ const PaymentsManager = () => {
             fetchPayments();
         } catch (err) {
             alert('Error updating payment status');
+            console.error(err);
+        }
+    };
+
+    const deletePayment = async (id) => {
+        if (!window.confirm('Are you sure you want to delete this payment record and its screenshot?')) return;
+        try {
+            const token = localStorage.getItem('gymToken');
+            await axios.delete(`/api/admin/payments/${id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            fetchPayments();
+        } catch (err) {
+            alert('Error deleting payment');
             console.error(err);
         }
     };
@@ -301,10 +315,10 @@ const PaymentsManager = () => {
 
                                         {/* ── Screenshot column (UPI only) ── */}
                                         <td className="px-5 py-4">
-                                            {!isCash && payment.screenshotUrl ? (
+                                            {!isCash && (payment.screenshot?.url || payment.screenshotUrl) ? (
                                                 <ScreenshotThumb
-                                                    payment={payment}
-                                                    onExpand={() => setLightbox(payment)}
+                                                    payment={{...payment, screenshotUrl: payment.screenshot?.url || payment.screenshotUrl}}
+                                                    onExpand={() => setLightbox({...payment, screenshotUrl: payment.screenshot?.url || payment.screenshotUrl})}
                                                 />
                                             ) : (
                                                 <span className="text-gray-300 text-xs">—</span>
@@ -320,43 +334,44 @@ const PaymentsManager = () => {
                                         <td className="px-5 py-4 text-right whitespace-nowrap space-x-1">
                                             {/* Cash payment actions */}
                                             {isCash && payment.verificationStatus === 'cash_pending' && (
-                                                <>
-                                                    <button
-                                                        onClick={() => updateStatus(payment._id, 'cash_collected')}
-                                                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs text-green-600 hover:bg-green-50 rounded-lg transition-colors border border-green-200 font-medium"
-                                                        title="Mark Cash Collected"
-                                                    >
-                                                        <CheckCircle className="w-3.5 h-3.5" /> Collected
-                                                    </button>
-                                                    <button
-                                                        onClick={() => updateStatus(payment._id, 'rejected')}
-                                                        className="inline-flex items-center justify-center p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200"
-                                                        title="Reject"
-                                                    >
-                                                        <XCircle className="w-4 h-4" />
-                                                    </button>
-                                                </>
+                                                <button
+                                                    onClick={() => updateStatus(payment._id, 'cash_collected')}
+                                                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs text-green-600 hover:bg-green-50 rounded-lg transition-colors border border-green-200 font-medium"
+                                                    title="Mark Cash Collected"
+                                                >
+                                                    <CheckCircle className="w-3.5 h-3.5" /> Collected
+                                                </button>
                                             )}
 
                                             {/* UPI failed/pending actions */}
                                             {!isCash && (payment.verificationStatus === 'failed_verification' || payment.verificationStatus === 'pending') && (
-                                                <>
-                                                    <button
-                                                        onClick={() => updateStatus(payment._id, 'manually_verified')}
-                                                        className="inline-flex items-center justify-center p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors border border-green-200"
-                                                        title="Approve Manually"
-                                                    >
-                                                        <CheckCircle className="w-4 h-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => updateStatus(payment._id, 'rejected')}
-                                                        className="inline-flex items-center justify-center p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200"
-                                                        title="Reject Payment"
-                                                    >
-                                                        <XCircle className="w-4 h-4" />
-                                                    </button>
-                                                </>
+                                                <button
+                                                    onClick={() => updateStatus(payment._id, 'manually_verified')}
+                                                    className="inline-flex items-center justify-center p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors border border-green-200"
+                                                    title="Approve Manually"
+                                                >
+                                                    <CheckCircle className="w-4 h-4" />
+                                                </button>
                                             )}
+
+                                            {/* Reject/Delete (Shared) */}
+                                            {['pending', 'cash_pending', 'failed_verification'].includes(payment.verificationStatus) && (
+                                                <button
+                                                    onClick={() => updateStatus(payment._id, 'rejected')}
+                                                    className="inline-flex items-center justify-center p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors border border-orange-200"
+                                                    title="Reject"
+                                                >
+                                                    <XCircle className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                            
+                                            <button
+                                                onClick={() => deletePayment(payment._id)}
+                                                className="inline-flex items-center justify-center p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200"
+                                                title="Delete Record"
+                                            >
+                                                <XCircle className="w-4 h-4" />
+                                            </button>
                                         </td>
                                     </tr>
                                 );

@@ -17,7 +17,10 @@ const paymentSchema = new mongoose.Schema({
         enum: ['pending', 'auto_verified', 'failed_verification', 'cash_pending', 'cash_collected', 'manually_verified', 'rejected'], 
         default: 'pending' 
     },
-    screenshotUrl: { type: String },
+    screenshot: {
+        url: { type: String, default: '' },
+        public_id: { type: String, default: '' }
+    },
     ocrConfidence: { type: Number },
     createdAt: { type: Date, default: Date.now }
 });

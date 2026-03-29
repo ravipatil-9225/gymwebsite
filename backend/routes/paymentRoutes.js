@@ -1,8 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const paymentController = require('../controllers/paymentController');
+const upload = require('../middleware/multer');
 
-// POST /api/payments/verify
-router.post('/verify', paymentController.verifyPayment);
+const { protect } = require('../middleware/authMiddleware');
+
+// POST /api/payments/verify-and-upload
+router.post('/verify-and-upload', protect, upload.single('screenshot'), paymentController.verifyAndUpload);
 
 module.exports = router;

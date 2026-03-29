@@ -212,10 +212,23 @@ const UserManagement = () => {
                                     <tr key={user._id} className={`transition-colors ${rowBg}`}>
                                         {/* Name + role */}
                                         <td className="px-4 py-3">
-                                            <div className="font-semibold text-gray-900 leading-tight">{user.name}</div>
-                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-                                                user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'
-                                            }`}>{user.role}</span>
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 overflow-hidden flex-shrink-0">
+                                                    {user.profileImage?.url ? (
+                                                        <img src={user.profileImage.url} alt="" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                                            <User className="w-4 h-4" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <div className="font-semibold text-gray-900 leading-tight">{user.name}</div>
+                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                                                        user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'
+                                                    }`}>{user.role}</span>
+                                                </div>
+                                            </div>
                                         </td>
 
                                         {/* Phone */}

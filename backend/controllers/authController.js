@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const emailService = require('../services/emailService');
 const socket = require('../socket');
+const { compressProfileImage, uploadToCloudinary, deleteFromCloudinary } = require('../utils/imageHandler');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'tara_fitness_secret_2024';
 const OWNER = () => process.env.OWNER_EMAIL || process.env.EMAIL_USER;
@@ -41,7 +42,7 @@ const registerUser = async (req, res) => {
 
         res.status(201).json({
             token,
-            user: { id: user._id, name: user.name, email: user.email, role: user.role, phone: user.phone, dob: user.dob, goal: user.goal, photo: user.photo }
+            user: { id: user._id, name: user.name, email: user.email, role: user.role, phone: user.phone, dob: user.dob, goal: user.goal, profileImage: user.profileImage }
         });
         socket.getIO().emit('db_changed');
     } catch (err) {
@@ -74,7 +75,7 @@ const loginUser = async (req, res) => {
 
         res.json({
             token,
-            user: { id: user._id, name: user.name, email: user.email, role: user.role, phone: user.phone || '', dob: user.dob || '', goal: user.goal || '', photo: user.photo || '' }
+            user: { id: user._id, name: user.name, email: user.email, role: user.role, phone: user.phone || '', dob: user.dob || '', goal: user.goal || '', profileImage: user.profileImage || { url: '', public_id: '' } }
         });
         socket.getIO().emit('db_changed');
     } catch (err) {
@@ -117,7 +118,15 @@ const googleAuth = async (req, res) => {
 
         if (!user) {
             const password = Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10);
-            user = await User.create({ name: googleUser.name, email, password, role, photo: googleUser.picture, lastLogin: new Date(), phone: '0000000000' });
+            user = await User.create({ 
+                name: googleUser.name, 
+                email, 
+                password, 
+                role, 
+                profileImage: { url: googleUser.picture, public_id: '' }, 
+                lastLogin: new Date(), 
+                phone: '0000000000' 
+            });
 
             emailService.sendGoogleWelcomeEmail(user).catch(console.error);
             emailService.sendAdminGoogleUserAlert(user).catch(console.error);
@@ -135,7 +144,7 @@ const googleAuth = async (req, res) => {
 
         res.json({
             token,
-            user: { id: user._id, name: user.name, email: user.email, role: user.role, phone: user.phone || '', dob: user.dob || '', goal: user.goal || '', photo: user.photo || '' }
+            user: { id: user._id, name: user.name, email: user.email, role: user.role, phone: user.phone || '', dob: user.dob || '', goal: user.goal || '', profileImage: user.profileImage || { url: '', public_id: '' } }
         });
         socket.getIO().emit('db_changed');
 
@@ -161,7 +170,7 @@ const getProfile = async (req, res) => {
 // @route   PUT /api/users/profile
 const updateProfile = async (req, res) => {
     try {
-        const { name, email, phone, dob, goal, photo } = req.body;
+        const { name, email, phone, dob, goal } = req.body;
         const user = await User.findById(req.user.id);
         if (!user) return res.status(404).json({ message: 'User not found.' });
 
@@ -170,14 +179,54 @@ const updateProfile = async (req, res) => {
         if (phone !== undefined) user.phone = phone;
         if (dob !== undefined) user.dob = dob;
         if (goal !== undefined) user.goal = goal;
-        if (photo !== undefined) user.photo = photo;
 
         const updated = await user.save();
-        res.json({ id: updated._id, name: updated.name, email: updated.email, phone: updated.phone, dob: updated.dob, goal: updated.goal, photo: updated.photo });
+        res.json({ id: updated._id, name: updated.name, email: updated.email, phone: updated.phone, dob: updated.dob, goal: updated.goal, profileImage: updated.profileImage });
         socket.getIO().emit('db_changed');
     } catch (err) {
         console.error('Profile update error:', err);
         res.status(500).json({ message: 'Failed to update profile.' });
+    }
+};
+
+// @desc    Upload Profile Photo
+// @route   POST /api/auth/upload-photo
+const uploadProfilePhoto = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: 'No file uploaded' });
+        }
+
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        // Delete old image if exists
+        if (user.profileImage && user.profileImage.public_id) {
+            await deleteFromCloudinary(user.profileImage.public_id);
+        }
+
+        // Compress image using Sharp
+        const compressedBuffer = await compressProfileImage(req.file.buffer);
+
+        // Upload to Cloudinary
+        const uploadResult = await uploadToCloudinary(compressedBuffer, 'profile_photos');
+
+        // Update user model
+        user.profileImage = {
+            url: uploadResult.url,
+            public_id: uploadResult.public_id
+        };
+        user.markModified('profileImage');
+        await user.save();
+
+        res.json({ 
+            message: 'Profile photo updated successfully', 
+            profileImage: user.profileImage 
+        });
+        socket.getIO().emit('db_changed');
+    } catch (error) {
+        console.error('Upload photo error:', error);
+        res.status(500).json({ message: 'Failed to upload photo.' });
     }
 };
 
@@ -254,6 +303,7 @@ module.exports = {
     googleAuth,
     getProfile,
     updateProfile,
+    uploadProfilePhoto,
     resetPassword,
     forgotPassword
 };

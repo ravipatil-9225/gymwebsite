@@ -16,8 +16,12 @@ const FITNESS_GOALS = [
 
 const Settings = () => {
     const navigate = useNavigate();
-    const { user, logout, updateUser } = useContext(AuthContext);
+    const { user, logout, updateUser, uploadPhoto } = useContext(AuthContext);
     const { theme, toggleTheme } = useTheme();
+
+    // Local states
+    const [uploading, setUploading] = useState(false);
+    const [preview, setPreview] = useState(null);
 
     // Edit state
     const [editing, setEditing] = useState(false);
@@ -34,14 +38,30 @@ const Settings = () => {
     // Photo upload
     const fileInputRef = useRef(null);
 
-    const handlePhotoChange = (e) => {
+    const handlePhotoChange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
+
+        // Preview locally
         const reader = new FileReader();
         reader.onload = (ev) => {
-            updateUser({ photo: ev.target.result });
+            setPreview(ev.target.result);
         };
         reader.readAsDataURL(file);
+
+        // Upload to server
+        setUploading(true);
+        setError('');
+        try {
+            await uploadPhoto(file);
+            setSaved(true);
+            setTimeout(() => setSaved(false), 3000);
+        } catch (err) {
+            setError('Failed to upload photo. Please try again.');
+        } finally {
+            setUploading(false);
+            setPreview(null);
+        }
     };
 
     const handleChange = (e) => {
@@ -148,16 +168,22 @@ const Settings = () => {
                             {/* Avatar */}
                             <div className="flex flex-col items-center mb-6">
                                 <div className="relative w-24 h-24 mb-4">
-                                    {user?.photo ? (
-                                        <img src={user.photo} alt="Profile" className="w-24 h-24 rounded-full object-cover border-2 border-primary/50 shadow-lg" />
+                                    {uploading || preview || user?.profileImage?.url ? (
+                                        <img src={preview || user?.profileImage?.url} alt="Profile" className={`w-24 h-24 rounded-full object-cover border-2 border-primary/50 shadow-lg ${uploading ? 'opacity-50' : ''}`} />
                                     ) : (
                                         <div className="w-24 h-24 rounded-full bg-primary/20 flex items-center justify-center border-2 border-primary/50 shadow-lg">
                                             <User className="w-10 h-10 text-primary" />
                                         </div>
                                     )}
+                                    {uploading && (
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                        </div>
+                                    )}
                                     <button
                                         onClick={() => fileInputRef.current?.click()}
-                                        className="absolute bottom-0 right-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center hover:bg-primary-hover transition-colors shadow-lg border-2 border-dark"
+                                        disabled={uploading}
+                                        className="absolute bottom-0 right-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center hover:bg-primary-hover transition-colors shadow-lg border-2 border-dark disabled:opacity-50"
                                         title="Change photo"
                                     >
                                         <Camera size={14} className="text-white" />

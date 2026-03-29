@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Dumbbell, Activity, Target, Zap, Shield, Crown, X, Loader, CheckCircle, Mail, User, Image as ImageIcon, Hash, AlertTriangle, Banknote, CreditCard, Clock, Flame, Copy, CheckCheck, Package } from 'lucide-react';
+import { Check, Dumbbell, Activity, Target, Zap, Shield, Crown, X, Loader, CheckCircle, Mail, User, Image as ImageIcon, Hash, AlertTriangle, Banknote, CreditCard, Clock, Flame, Copy, CheckCheck, Package, Lock } from 'lucide-react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import socket from '../utils/socket';
@@ -27,7 +27,8 @@ const CategoryPlans = () => {
     const navigate = useNavigate();
     const [selected, setSelected] = useState(null);
     const [payTab, setPayTab] = useState('upi'); // 'upi' | 'cash'
-    const [form, setForm] = useState({ name: '', email: '', transactionId: '', screenshotUrl: '' });
+    const [form, setForm] = useState({ name: '', email: '', transactionId: '', screenshotFile: null });
+    const [preview, setPreview] = useState(null);
     const [status, setStatus] = useState('idle'); // idle | submitting | success | error
     const [errMsg, setErrMsg] = useState('');
     const [verifyMsg, setVerifyMsg] = useState('');
@@ -91,7 +92,8 @@ const CategoryPlans = () => {
         }
         setSelected(plan);
         setPayTab('upi');
-        setForm({ name: user?.name || '', email: user?.email || '', transactionId: '', screenshotUrl: '' });
+        setForm({ name: user?.name || '', email: user?.email || '', transactionId: '', screenshotFile: null });
+        setPreview(null);
         setStatus('idle');
         setErrMsg('');
         setVerifyMsg('');
@@ -103,9 +105,10 @@ const CategoryPlans = () => {
     const handlePhotoUpload = (e) => {
         const file = e.target.files[0];
         if (file) {
+            setForm(f => ({ ...f, screenshotFile: file }));
             const reader = new FileReader();
             reader.onloadend = () => {
-                setForm(f => ({ ...f, screenshotUrl: reader.result }));
+                setPreview(reader.result);
             };
             reader.readAsDataURL(file);
         }
@@ -120,7 +123,7 @@ const CategoryPlans = () => {
             return;
         }
 
-        if (payTab === 'upi' && (!form.screenshotUrl || !form.transactionId)) {
+        if (payTab === 'upi' && (!form.screenshotFile || !form.transactionId)) {
             setErrMsg('Please enter Transaction ID and upload payment screenshot.');
             setStatus('error');
             return;
@@ -128,22 +131,25 @@ const CategoryPlans = () => {
 
         setStatus('submitting');
         try {
-            const payload = {
-                userName: form.name,
-                email: form.email,
-                planName: selected.name,
-                planPrice: selected.price,
-                paymentMethod: payTab === 'cash' ? 'cash_on_bench' : 'upi',
-                ...(payTab === 'upi' && {
-                    transactionId: form.transactionId,
-                    screenshotUrl: form.screenshotUrl,
-                }),
-            };
+            const formData = new FormData();
+            formData.append('userName', form.name);
+            formData.append('email', form.email);
+            formData.append('packageId', selected.id);
+            formData.append('planName', selected.name);
+            formData.append('planPrice', selected.price);
+            formData.append('paymentMethod', payTab === 'cash' ? 'cash_on_bench' : 'upi');
+            
+            if (payTab === 'upi') {
+                formData.append('transactionId', form.transactionId);
+                formData.append('screenshot', form.screenshotFile);
+            }
 
-            const res = await fetch('/api/payments/verify', {
+            const res = await fetch('/api/payments/verify-and-upload', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
+                headers: {
+                    'Authorization': `Bearer ${user.token}`
+                },
+                body: formData, // No content-type header, browser sets it for FormData
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.message || 'Submission Failed');
@@ -395,15 +401,23 @@ const CategoryPlans = () => {
                                         {/* ── UPI TAB CONTENT ── */}
                                         {payTab === 'upi' && (
                                             <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-4">
+                                                
+                                                {/* Locked Read-Only Amount */}
+                                                <div className="relative mb-2">
+                                                    <Banknote size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-primary" />
+                                                    <input readOnly type="text" value={`Fixed Plan Amount: ₹${selected.price}`}
+                                                        className="w-full pl-10 pr-4 py-3 bg-dark/70 border border-primary/30 rounded-xl text-primary font-bold focus:outline-none text-sm cursor-not-allowed select-none" />
+                                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-500 uppercase tracking-widest flex items-center"><Lock size={10} className="mr-1" />Locked</span>
+                                                </div>
 
                                                 {/* Step 1: QR + UPI Info */}
                                                 <div className="flex flex-col items-center">
-                                                    <p className="text-sm font-semibold text-white mb-1">Step 1: Pay ₹{selected.price} via UPI</p>
+                                                    <p className="text-sm font-semibold text-white mb-1">Step 1: Scan & Pay</p>
                                                     <p className="text-xs text-gray-400 mb-3 text-center">Scan QR below with your phone camera, or open your UPI app and send to the UPI ID</p>
 
-                                                    {/* QR Code */}
+                                                    {/* Dynamic QR Code */}
                                                     <div className="bg-white p-2 rounded-lg mb-3 flex items-center justify-center h-52 w-52 shadow-xl border border-gray-200">
-                                                        <img src="/qr.jpeg" alt="UPI QR Code" className="w-full h-full object-contain" />
+                                                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${UPI_ID}&pn=Uddhav%20Borgalli&am=${rawPrice(selected.price)}&cu=INR&tn=Gym%20Account`)}`} alt="UPI QR Code" className="w-full h-full object-contain" />
                                                     </div>
 
                                                     {/* Copyable UPI ID */}
@@ -458,6 +472,20 @@ const CategoryPlans = () => {
                                                     <input required type="file" accept="image/*" onChange={handlePhotoUpload}
                                                         className="w-full pl-3 pr-4 py-2 text-gray-400 focus:outline-none text-xs file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:bg-primary/20 file:text-primary hover:file:bg-primary/30" />
                                                 </div>
+
+                                                {/* Screenshot Preview */}
+                                                {preview && (
+                                                    <div className="mt-2 relative rounded-lg overflow-hidden border border-white/10 h-32 w-full">
+                                                        <img src={preview} alt="Payment Preview" className="w-full h-full object-cover" />
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => { setPreview(null); setForm(f => ({ ...f, screenshotFile: null })); }}
+                                                            className="absolute top-1 right-1 bg-black/50 p-1 rounded-full text-white hover:bg-black"
+                                                        >
+                                                            <X size={12} />
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
 
@@ -503,7 +531,7 @@ const CategoryPlans = () => {
                                         >
                                             {status === 'submitting' ? (
                                                 <span className="flex items-center gap-2">
-                                                    <Loader size={18} className="animate-spin" /> Processing...
+                                                    <Loader size={18} className="animate-spin" /> Verifying...
                                                 </span>
                                             ) : payTab === 'cash' ? (
                                                 <span className="flex items-center gap-2"><Banknote size={18} /> Register Cash Payment</span>

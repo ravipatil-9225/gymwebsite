@@ -13,6 +13,7 @@ const Membership = require('./models/Membership');
 const socket = require('./socket');
 const emailService = require('./services/emailService');
 const whatsappService = require('./services/whatsappService');
+const { deleteFromCloudinary } = require('./utils/imageHandler');
 
 // Protect all admin routes
 router.use(verifyAdmin);
@@ -212,6 +213,10 @@ router.put('/users/:id', async (req, res) => {
 
 router.delete('/users/:id', async (req, res) => {
     try {
+        const user = await User.findById(req.params.id);
+        if (user && user.profileImage && user.profileImage.public_id) {
+            await deleteFromCloudinary(user.profileImage.public_id);
+        }
         await User.findByIdAndDelete(req.params.id);
         res.json({ message: 'User deleted successfully' });
         socket.getIO().emit('db_changed');
@@ -742,6 +747,21 @@ router.put('/payments/:id', async (req, res) => {
     } catch (err) {
         console.error('Admin payment update error:', err);
         res.status(500).json({ message: 'Error updating payment' });
+    }
+});
+
+router.delete('/payments/:id', async (req, res) => {
+    try {
+        const payment = await Payment.findById(req.params.id);
+        if (payment && payment.screenshot && payment.screenshot.public_id) {
+            await deleteFromCloudinary(payment.screenshot.public_id);
+        }
+        await Payment.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Payment deleted successfully' });
+        socket.getIO().emit('db_changed');
+    } catch (err) {
+        console.error('Admin payment delete error:', err);
+        res.status(500).json({ message: 'Error deleting payment' });
     }
 });
 

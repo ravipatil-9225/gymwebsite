@@ -108,7 +108,7 @@ const Navbar = () => {
                                 to="/join"
                                 className="hidden xl:flex items-center gap-2 bg-primary hover:bg-primary-hover text-white font-bold text-xs tracking-[0.2em] uppercase px-6 py-2.5 rounded-lg transition-all duration-300 shadow-[0_0_20px_rgba(227,74,41,0.4)] hover:shadow-[0_0_30px_rgba(227,74,41,0.6)] hover:-translate-y-0.5"
                             >
-                                JOIN US TODAY
+                                {user ? 'MEMBERSHIP' : 'JOIN US TODAY'}
                             </Link>
 
                             <button

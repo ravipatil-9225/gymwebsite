@@ -54,8 +54,16 @@ const UserDashboard = () => {
                         {/* Profile Summary */}
                         <div className="glass-card p-6 rounded-2xl border border-white/10">
                             <div className="flex items-center gap-4 mb-6">
-                                <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center border border-primary/50">
-                                    <User className="w-8 h-8 text-primary" />
+                                <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center border border-primary/50 overflow-hidden shadow-lg shadow-primary/10">
+                                    {user?.profileImage?.url ? (
+                                        <img 
+                                            src={user.profileImage.url} 
+                                            alt={userName} 
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <User className="w-8 h-8 text-primary" />
+                                    )}
                                 </div>
                                 <div>
                                     <h2 className="text-xl font-display font-bold text-white capitalize">{userName}</h2>

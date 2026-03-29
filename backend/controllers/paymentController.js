@@ -6,6 +6,7 @@ const User = require('../models/User');
 const Membership = require('../models/Membership');
 const emailService = require('../services/emailService');
 const whatsappService = require('../services/whatsappService');
+const { compressPaymentScreenshot, uploadToCloudinary } = require('../utils/imageHandler');
 
 // Helper: parse price string like "1,200" → 1200
 function parsePrice(price) {
@@ -30,201 +31,157 @@ async function getPlanDurationDays(planName) {
     return parse(planName);
 }
 
-exports.verifyPayment = async (req, res) => {
+exports.verifyAndUpload = async (req, res) => {
     try {
-        const { userName, email, planName, planPrice, transactionId, screenshotUrl, paymentMethod } = req.body;
+        const { userName, email, planName, packageId, transactionId, paymentMethod } = req.body;
 
-        if (!userName || !email || !planName || !planPrice) {
+        if (!userName || !email || (!planName && !packageId)) {
             return res.status(400).json({ message: 'Missing required fields' });
         }
 
-        const numericPrice = parsePrice(planPrice);
+        // Fetch price strictly from DB to NEVER trust frontend
+        let pkg = null;
+        if (packageId) {
+            pkg = await Package.findById(packageId);
+        } else if (planName) {
+            pkg = await Package.findOne({ name: planName });
+        }
+
+        if (!pkg) {
+            return res.status(404).json({ message: 'Selected package not found in our records.' });
+        }
+
+        const numericPrice = parsePrice(pkg.price);
+        const actualPlanName = pkg.name;
         const method = paymentMethod || 'upi';
 
         // ── CASH ON BENCH FLOW ──────────────────────────────────────────────────
         if (method === 'cash_on_bench') {
             const newPayment = await Payment.create({
-                userName,
-                email,
-                planName,
-                planPrice: numericPrice,
-                paymentMethod: 'cash_on_bench',
-                verificationStatus: 'cash_pending',
+                userName, email, planName: actualPlanName, planPrice: numericPrice,
+                paymentMethod: 'cash_on_bench', verificationStatus: 'cash_pending',
             });
-
-            // Send emails to user AND owner (fire & forget)
-            emailService.sendCashPaymentPendingUser({
-                userName, email, planName, planPrice: numericPrice,
-            }).catch(console.error);
-
-            // Send WhatsApp
-            whatsappService.sendCashPaymentPendingUser({
-                userName, email, planName, planPrice: numericPrice,
-            }).catch(console.error);
-
-            emailService.sendCashPaymentPendingOwner({
-                userName, email, planName, planPrice: numericPrice,
-            }).catch(console.error);
-
-            // Emit socket event for real-time admin update
+            emailService.sendCashPaymentPendingUser({ userName, email, planName: actualPlanName, planPrice: numericPrice }).catch(console.error);
+            whatsappService.sendCashPaymentPendingUser({ userName, email, planName: actualPlanName, planPrice: numericPrice }).catch(console.error);
+            emailService.sendCashPaymentPendingOwner({ userName, email, planName: actualPlanName, planPrice: numericPrice }).catch(console.error);
             try { socket.getIO().emit('db_changed', { type: 'payment_cash', data: newPayment }); } catch (_) {}
-
-            return res.status(201).json({
-                message: 'Cash Payment Request Received',
-                payment: newPayment,
-            });
+            
+            return res.status(201).json({ message: 'Cash Payment Request Received', payment: newPayment });
         }
 
         // ── UPI / SCREENSHOT FLOW ───────────────────────────────────────────────
-        if (!transactionId || !screenshotUrl) {
+        if (!transactionId || !req.file) {
             return res.status(400).json({ message: 'Transaction ID and screenshot are required for UPI payment.' });
         }
 
-        // Check for duplicate transaction ID
+        // 1. Transaction ID Uniqueness
         const existing = await Payment.findOne({ transactionId });
         if (existing) {
-            return res.status(400).json({ message: 'Transaction ID already used.' });
+            return res.status(400).json({ message: 'Transaction ID already used. Duplicate submission prevented.' });
         }
 
-        // Create the pending payment immediately to avoid Vercel 10s Serverless timeouts!
+        console.log(`Starting synchronous OCR for ${transactionId}...`);
+
+        // 2. OCR VERIFICATION (CRITICAL) - Run on Original Image
+        const originalBuffer = req.file.buffer;
+        let text = '';
+        let confidence = 0;
+        try {
+            const result = await tesseract.recognize(originalBuffer, 'eng');
+            text = (result.data.text || '').toUpperCase();
+            confidence = result.data.confidence || 0;
+            console.log('OCR Confidence:', confidence);
+        } catch (ocrErr) {
+            console.error('Tesseract OCR failed:', ocrErr.message);
+            return res.status(500).json({ message: 'Secure OCR verification failed. Please try again.' });
+        }
+
+        // 3. VALIDATION RULES
+        const normalizedText = text.replace(/\s+/g, '');
+        const normalizedInputTxn = transactionId.replace(/\s+/g, '').toUpperCase();
+        
+        // A. Transaction ID matches OCR output
+        const isTxnMatch = normalizedText.includes(normalizedInputTxn);
+        
+        // B. Amount Check matches package.price
+        const priceStr = numericPrice.toString();
+        const pricePattern = new RegExp(`\\b${priceStr}\\b|INR[\\s]*${priceStr}|(?:RS\\.?|₹)[\\s]*${priceStr}`, 'i');
+        const isAmountMatch = normalizedText.includes(priceStr) || text.includes(priceStr) || pricePattern.test(text);
+
+        // C. Payment Status contains "SUCCESS" or "PAID"
+        const isSuccessStatus = text.includes('SUCCESS') || text.includes('PAID') || text.includes('SUCCESSFUL');
+        
+        // D. Merchant Validation - Must contain basic identifiers of gym business
+        const merchantValid = text.includes('TARA') || text.includes('FITNESS') || text.includes('UDDHAV') || text.includes('9960552750') || text.includes('OKAXIS');
+
+        if (!isTxnMatch || !isAmountMatch || !isSuccessStatus || !merchantValid) {
+            return res.status(400).json({ 
+                message: 'Invalid or mismatched payment screenshot. Verification failed.',
+                details: { txnMatch: isTxnMatch, amountMatch: isAmountMatch, successMatch: isSuccessStatus, merchantMatch: merchantValid }
+            });
+        }
+
+        // 4. VERIFICATION SUCCESS -> Upload and Save
+        let cloudResult = { url: '', public_id: '' };
+        try {
+            const compressedBuffer = await compressPaymentScreenshot(originalBuffer);
+            cloudResult = await uploadToCloudinary(compressedBuffer, 'payment_screenshots');
+        } catch (uploadErr) {
+            console.error('Cloudinary upload failure:', uploadErr);
+            return res.status(500).json({ message: 'Image secure storage failed.' });
+        }
+
+        // Save DB only on SUCCESS
         const newPayment = await Payment.create({
             userName,
             email,
-            planName,
+            planName: actualPlanName,
             planPrice: numericPrice,
             paymentMethod: 'upi',
             transactionId,
-            verificationStatus: 'pending',
-            screenshotUrl,
+            verificationStatus: 'auto_verified',
+            ocrConfidence: confidence,
+            screenshot: {
+                url: cloudResult.url,
+                public_id: cloudResult.public_id
+            }
         });
 
-        // Respond to the user quickly to ensure the UI feels responsive
+        // Activate membership directly since it's fully verified
+        const user = await User.findOne({ email });
+        if (user) {
+            const planDuration = await getPlanDurationDays(actualPlanName);
+            const startDate = new Date();
+            const endDate = new Date();
+            endDate.setDate(endDate.getDate() + planDuration);
+
+            await Membership.create({
+                userId: user._id,
+                userName: user.name,
+                userEmail: user.email,
+                packageName: actualPlanName,
+                planDuration,
+                amountPaid: numericPrice,
+                startDate,
+                endDate,
+            });
+
+            try { socket.getIO().emit('db_changed', { type: 'membership_created', userId: user._id }); } catch (_) {}
+
+            emailService.sendPaymentConfirmation({ name: user.name, email: user.email, packageName: actualPlanName, amountPaid: numericPrice, startDate, endDate }).catch(console.error);
+            whatsappService.sendPaymentConfirmation({ name: user.name, email: user.email, packageName: actualPlanName, amountPaid: numericPrice, startDate, endDate }).catch(console.error);
+            emailService.sendPaymentApprovedOwner({ userName: user.name, email: user.email, planName: actualPlanName, planPrice: numericPrice, paymentMethod: 'upi', startDate, endDate }).catch(console.error);
+        }
+
+        try { socket.getIO().emit('db_changed', { type: 'payment_verified', data: newPayment }); } catch (_) {}
+
         res.status(201).json({
-            message: 'Payment Request Received — OCR Verification In Progress',
+            message: 'Payment verified securely! Your membership is instantly active.',
             payment: newPayment,
         });
 
-        // ── Notify user (payment pending/review) ────────────────────────────────
-        emailService.sendUpiPaymentPendingUser({
-            userName, email, planName, planPrice: numericPrice, transactionId,
-        }).catch(console.error);
-
-        whatsappService.sendUpiPaymentPendingUser({
-            userName, email, planName, planPrice: numericPrice, transactionId,
-        }).catch(console.error);
-
-        // Emit so admin sees it instantly as pending
-        try { socket.getIO().emit('db_changed', { type: 'payment_verified', data: newPayment }); } catch (_) {}
-
-        // ========================================================================
-        // ── FIRE AND FORGET ASYNC PROCESS FOR HEAVY OCR (AVOIDS 504 TIMEOUT) ────
-        // ========================================================================
-        setTimeout(async () => {
-            try {
-                console.log(`Starting background OCR for ${transactionId}...`);
-
-                // Extract base64 image data
-                let imageBuffer;
-                if (screenshotUrl.startsWith('data:image')) {
-                    const base64Data = screenshotUrl.split(',')[1];
-                    imageBuffer = Buffer.from(base64Data, 'base64');
-                } else {
-                    imageBuffer = Buffer.from(screenshotUrl, 'base64');
-                }
-
-                let text = '';
-                let confidence = 0;
-                try {
-                    const result = await tesseract.recognize(imageBuffer, 'eng');
-                    text = result.data.text || '';
-                    confidence = result.data.confidence || 0;
-                    console.log('OCR Result Text:', text);
-                    console.log('OCR Confidence:', confidence);
-                } catch (ocrErr) {
-                    console.error('Tesseract OCR failed:', ocrErr.message);
-                }
-
-                // Matching Logic
-                const normalizedText = text.replace(/\s+/g, '').toLowerCase();
-                const normalizedInputTxn = transactionId.replace(/\s+/g, '').toLowerCase();
-
-                const isTxnMatch = normalizedText.includes(normalizedInputTxn);
-                const priceStr = numericPrice.toString();
-                const isAmountMatch = normalizedText.includes(priceStr.replace(/,/g, '')) || text.includes(priceStr);
-
-                let status = 'failed_verification';
-                let extractedTxnId = null;
-
-                if (isTxnMatch && isAmountMatch) {
-                    status = 'auto_verified';
-                    extractedTxnId = transactionId;
-                } else {
-                    status = 'failed_verification';
-                    const match12 = text.match(/\d{12}/);
-                    if (match12) extractedTxnId = match12[0];
-                }
-
-                // Update the payment record in the DB
-                newPayment.verificationStatus = status;
-                newPayment.extractedTransactionId = extractedTxnId;
-                newPayment.ocrConfidence = confidence;
-                await newPayment.save();
-
-                // ── Notify owner with full OCR details ──────────────────────────────────
-                emailService.sendUpiPaymentPendingOwner({
-                    userName, email, planName, planPrice: numericPrice,
-                    transactionId, ocrConfidence: confidence, verificationStatus: status,
-                }).catch(console.error);
-
-                // ── Activate membership if auto-verified ─────────────────────────────────
-                if (status === 'auto_verified') {
-                    const user = await User.findOne({ email });
-                    if (user) {
-                        const planDuration = await getPlanDurationDays(planName);
-                        const startDate = new Date();
-                        const endDate = new Date();
-                        endDate.setDate(endDate.getDate() + planDuration);
-
-                        await Membership.create({
-                            userId: user._id,
-                            userName: user.name,
-                            userEmail: user.email,
-                            packageName: planName,
-                            planDuration,
-                            amountPaid: numericPrice,
-                            startDate,
-                            endDate,
-                        });
-
-                        try { socket.getIO().emit('db_changed', { type: 'membership_created', userId: user._id }); } catch (_) {}
-
-                        emailService.sendPaymentConfirmation({
-                            name: user.name, email: user.email, packageName: planName,
-                            amountPaid: numericPrice, startDate, endDate,
-                        }).catch(console.error);
-
-                        whatsappService.sendPaymentConfirmation({
-                            name: user.name, email: user.email, packageName: planName,
-                            amountPaid: numericPrice, startDate, endDate,
-                        }).catch(console.error);
-
-                        emailService.sendPaymentApprovedOwner({
-                            userName: user.name, email: user.email, planName,
-                            planPrice: numericPrice, paymentMethod: 'upi', startDate, endDate,
-                        }).catch(console.error);
-                    }
-                }
-
-                // Real-time update to flip the status in Admin panel from 'pending' to result
-                try { socket.getIO().emit('db_changed', { type: 'payment_verified', data: newPayment }); } catch (_) {}
-
-            } catch (bgErr) {
-                console.error('Background OCR Process Error:', bgErr);
-            }
-        }, 0);
-
     } catch (err) {
         console.error('Payment verification error:', err);
-        res.status(500).json({ message: 'Server error during payment verification.' });
+        res.status(500).json({ message: 'Server error during secure payment verification.' });
     }
 };

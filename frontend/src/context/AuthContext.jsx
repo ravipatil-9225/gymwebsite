@@ -70,6 +70,37 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const uploadPhoto = async (file) => {
+        const tok = token || localStorage.getItem('gymToken');
+        if (!tok) return;
+
+        const formData = new FormData();
+        formData.append('photo', file);
+
+        try {
+            const res = await fetch('/api/auth/upload-photo', {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${tok}`,
+                },
+                body: formData,
+            });
+            if (res.ok) {
+                const data = await res.json();
+                const updated = { ...user, profileImage: data.profileImage };
+                setUser(updated);
+                localStorage.setItem('gymUser', JSON.stringify(updated));
+                return data.profileImage;
+            } else {
+                const errorData = await res.json();
+                throw new Error(errorData.message || 'Upload failed');
+            }
+        } catch (err) {
+            console.error('Photo upload failed:', err);
+            throw err;
+        }
+    };
+
     const logout = () => {
         setUser(null);
         setToken(null);
@@ -78,7 +109,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, token, login, logout, updateUser, backendReady, checkingBackend }}>
+        <AuthContext.Provider value={{ user, token, login, logout, updateUser, uploadPhoto, backendReady, checkingBackend }}>
             {children}
         </AuthContext.Provider>
     );
