@@ -131,25 +131,39 @@ const CategoryPlans = () => {
 
         setStatus('submitting');
         try {
-            const formData = new FormData();
-            formData.append('userName', form.name);
-            formData.append('email', form.email);
-            formData.append('packageId', selected.id);
-            formData.append('planName', selected.name);
-            formData.append('planPrice', selected.price);
-            formData.append('paymentMethod', payTab === 'cash' ? 'cash_on_bench' : 'upi');
-            
+            let bodyData;
+            let headers = {
+                'Authorization': `Bearer ${user.token}`
+            };
+
             if (payTab === 'upi') {
+                const formData = new FormData();
+                formData.append('userName', form.name);
+                formData.append('email', form.email);
+                formData.append('packageId', selected.id);
+                formData.append('planName', selected.name);
+                formData.append('planPrice', selected.price);
+                formData.append('paymentMethod', 'upi');
                 formData.append('transactionId', form.transactionId);
                 formData.append('screenshot', form.screenshotFile);
+                bodyData = formData;
+                // browser sets content-type for form data automatically
+            } else {
+                bodyData = JSON.stringify({
+                    userName: form.name,
+                    email: form.email,
+                    packageId: selected.id,
+                    planName: selected.name,
+                    planPrice: selected.price,
+                    paymentMethod: 'cash_on_bench'
+                });
+                headers['Content-Type'] = 'application/json';
             }
 
             const res = await fetch('/api/payments/verify-and-upload', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${user.token}`
-                },
-                body: formData, // No content-type header, browser sets it for FormData
+                headers,
+                body: bodyData,
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.message || 'Submission Failed');
