@@ -20,6 +20,24 @@ const EnquiryForm = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        if (formData.name.trim().length < 2) {
+            setStatus('error');
+            return setErrorMessage('Full name must be at least 2 characters long.');
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+            setStatus('error');
+            return setErrorMessage('Please enter a valid email address.');
+        }
+
+        const phoneRegex = /^[6-9]\d{9}$/;
+        if (formData.phone && !phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
+            setStatus('error');
+            return setErrorMessage('Please enter a valid 10-digit Indian mobile number.');
+        }
+
         setStatus('submitting');
         setErrorMessage('');
 

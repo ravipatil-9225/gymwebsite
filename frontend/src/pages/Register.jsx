@@ -25,6 +25,19 @@ const Register = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        if (!formData.name || formData.name.trim().length < 2) {
+            return setError('Full name must be at least 2 characters long.');
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!formData.email || !emailRegex.test(formData.email)) {
+            return setError('Please enter a valid email address.');
+        }
+
+        if (formData.password.length < 6) {
+            return setError('Password must be at least 6 characters long.');
+        }
+
         if (formData.password !== formData.confirmPassword) {
             return setError('Passwords do not match.');
         }

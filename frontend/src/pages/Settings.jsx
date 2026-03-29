@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     LogOut, User, Activity, CalendarDays, TrendingUp,
     Moon, Sun, Settings as SettingsIcon, Camera, Edit3,
-    Save, X, Phone, Mail, Target, Cake, CheckCircle
+    Save, X, Phone, Mail, Target, Cake, CheckCircle, AlertCircle
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
@@ -22,6 +22,7 @@ const Settings = () => {
     // Edit state
     const [editing, setEditing] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [error, setError] = useState('');
     const [form, setForm] = useState({
         name: user?.name || '',
         email: user?.email || '',
@@ -45,9 +46,38 @@ const Settings = () => {
 
     const handleChange = (e) => {
         setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+        setError('');
     };
 
     const handleSave = () => {
+        setError('');
+        
+        if (!form.name || form.name.trim().length < 2) {
+            setError('Full name must be at least 2 characters long.');
+            return;
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!form.email || !emailRegex.test(form.email)) {
+            setError('Please enter a valid email address.');
+            return;
+        }
+
+        const phoneRegex = /^[6-9]\d{9}$/;
+        if (form.phone && !phoneRegex.test(form.phone.replace(/\s/g, ''))) {
+            setError('Please enter a valid 10-digit Indian mobile number (e.g., 9876543210).');
+            return;
+        }
+
+        if (form.dob) {
+            const selectedDate = new Date(form.dob);
+            const today = new Date();
+            if (selectedDate > today) {
+                setError('Date of birth cannot be in the future.');
+                return;
+            }
+        }
+
         updateUser(form);
         setEditing(false);
         setSaved(true);
@@ -62,6 +92,7 @@ const Settings = () => {
             dob: user?.dob || '',
             goal: user?.goal || '',
         });
+        setError('');
         setEditing(false);
     };
 
@@ -350,19 +381,27 @@ const Settings = () => {
                             </div>
 
                             {editing && (
-                                <div className="flex gap-3 mt-6 pt-6 border-t border-white/10">
-                                    <button
-                                        onClick={handleSave}
-                                        className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary-hover rounded-xl text-white font-bold text-sm transition-all shadow-[0_0_15px_rgba(227,74,41,0.3)]"
-                                    >
-                                        <Save size={16} /> Save Changes
-                                    </button>
-                                    <button
-                                        onClick={handleCancel}
-                                        className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white font-semibold text-sm transition-all"
-                                    >
-                                        <X size={16} /> Cancel
-                                    </button>
+                                <div className="mt-6 pt-6 border-t border-white/10">
+                                    {error && (
+                                        <div className="mb-4 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-400 text-sm flex items-center gap-2">
+                                            <AlertCircle size={15} className="shrink-0" />
+                                            <span>{error}</span>
+                                        </div>
+                                    )}
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={handleSave}
+                                            className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary-hover rounded-xl text-white font-bold text-sm transition-all shadow-[0_0_15px_rgba(227,74,41,0.3)]"
+                                        >
+                                            <Save size={16} /> Save Changes
+                                        </button>
+                                        <button
+                                            onClick={handleCancel}
+                                            className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white font-semibold text-sm transition-all"
+                                        >
+                                            <X size={16} /> Cancel
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>

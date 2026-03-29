@@ -112,6 +112,29 @@ const SmartNutrition = () => {
         setError('');
         setResult(null);
 
+        if (!formData.name || formData.name.trim().length === 0 || formData.name.length > 50) {
+            setError("Name must be between 1 and 50 characters.");
+            return;
+        }
+
+        const ageRaw = parseInt(formData.age);
+        if (isNaN(ageRaw) || ageRaw < 10 || ageRaw > 100) {
+            setError("Age must be between 10 and 100 years.");
+            return;
+        }
+
+        const weightRaw = parseFloat(formData.weight_kg);
+        if (isNaN(weightRaw) || weightRaw < 20 || weightRaw > 200) {
+            setError("Weight must be between 20kg and 200kg.");
+            return;
+        }
+
+        const heightRaw = parseFloat(formData.height_cm);
+        if (isNaN(heightRaw) || heightRaw < 120 || heightRaw > 220) {
+            setError("Height must be between 120cm and 220cm.");
+            return;
+        }
+
         const metrics = calculateMetrics();
         if (!metrics) {
             setError("Please fill in Weight, Height, and Age correctly.");
@@ -202,11 +225,11 @@ const SmartNutrition = () => {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div>
                                     <label className="block text-xs font-bold text-white/70 uppercase tracking-wider mb-2">Name *</label>
-                                    <input type="text" name="name" value={formData.name} onChange={handleChange} required className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" placeholder="John Doe" />
+                                    <input type="text" name="name" value={formData.name} onChange={handleChange} maxLength={50} required className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" placeholder="John Doe" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-white/70 uppercase tracking-wider mb-2">Age *</label>
-                                    <input type="number" name="age" value={formData.age} onChange={handleChange} required className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none" placeholder="25" />
+                                    <input type="number" name="age" min="10" max="100" value={formData.age} onChange={handleChange} required className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none" placeholder="25" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-white/70 uppercase tracking-wider mb-2">Gender *</label>
@@ -221,11 +244,11 @@ const SmartNutrition = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label className="block text-xs font-bold text-white/70 uppercase tracking-wider mb-2">Weight (kg) *</label>
-                                    <input type="number" step="0.1" name="weight_kg" value={formData.weight_kg} onChange={handleChange} required className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none" placeholder="75" />
+                                    <input type="number" step="0.1" min="20" max="200" name="weight_kg" value={formData.weight_kg} onChange={handleChange} required className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none" placeholder="75" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-white/70 uppercase tracking-wider mb-2">Height (cm) *</label>
-                                    <input type="number" step="0.1" name="height_cm" value={formData.height_cm} onChange={handleChange} required className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none" placeholder="175" />
+                                    <input type="number" step="0.1" min="120" max="220" name="height_cm" value={formData.height_cm} onChange={handleChange} required className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none" placeholder="175" />
                                 </div>
                             </div>
 

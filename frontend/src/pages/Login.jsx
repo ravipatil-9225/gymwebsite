@@ -20,6 +20,16 @@ const Login = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!formData.email || !emailRegex.test(formData.email)) {
+            return setError('Please enter a valid email address.');
+        }
+
+        if (!formData.password) {
+            return setError('Password is required.');
+        }
+
         setLoading(true);
         setError('');
         setNotFound(false);
