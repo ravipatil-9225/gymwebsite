@@ -204,10 +204,30 @@ Fill all [...] placeholders with real exercises/stretches following the user fit
         console.log(`🚀 Firing API calls... diet=${runDiet}, workout=${runWorkout}`);
         const startTime = Date.now();
 
-        const [dietResult, workoutResult] = await Promise.allSettled([
-            runDiet ? callGroq(groq, 'You are a nutrition planner. Output ONLY raw JSON. No markdown code blocks. No explanation text.', dietPrompt) : Promise.resolve(null),
-            runWorkout ? callGroq(groq, 'You are a fitness coach. Output ONLY raw JSON. No markdown code blocks. No explanation text.', workoutPrompt) : Promise.resolve(null)
-        ]);
+        let dietResult = { status: 'rejected', reason: new Error('Not executed') };
+        let workoutResult = { status: 'rejected', reason: new Error('Not executed') };
+
+        if (runDiet) {
+            try {
+                const dietData = await callGroq(groq, 'You are a nutrition planner. Output ONLY raw JSON. No markdown code blocks. No explanation text.', dietPrompt);
+                dietResult = { status: 'fulfilled', value: dietData };
+            } catch (err) {
+                dietResult = { status: 'rejected', reason: err };
+            }
+        } else {
+            dietResult = { status: 'fulfilled', value: null };
+        }
+
+        if (runWorkout) {
+            try {
+                const workoutData = await callGroq(groq, 'You are a fitness coach. Output ONLY raw JSON. No markdown code blocks. No explanation text.', workoutPrompt);
+                workoutResult = { status: 'fulfilled', value: workoutData };
+            } catch (err) {
+                workoutResult = { status: 'rejected', reason: err };
+            }
+        } else {
+            workoutResult = { status: 'fulfilled', value: null };
+        }
 
         console.log(`⏱ Groq responded in ${((Date.now() - startTime) / 1000).toFixed(1)}s`);
 
@@ -221,7 +241,7 @@ Fill all [...] placeholders with real exercises/stretches following the user fit
             
             // If they only asked for diet, error out. If 'both', maybe we still return workout? Let's just error out for consistency.
             if (p.plan_type === 'diet' || p.plan_type === 'both') {
-                return res.status(500).json({ message: 'Diet plan generation failed. Please try again.', error: msg });
+                return res.status(500).json({ message: 'Diet plan generation failed. ' + msg, error: msg });
             }
         }
 
@@ -234,7 +254,7 @@ Fill all [...] placeholders with real exercises/stretches following the user fit
             if (p.plan_type === 'workout') {
                 if (err?.status === 429 || msg.includes('rate_limit'))
                     return res.status(429).json({ message: 'Rate limit reached. Please wait 30 seconds and try again.' });
-                return res.status(500).json({ message: 'Workout plan generation failed. Please try again.', error: msg });
+                return res.status(500).json({ message: 'Workout plan generation failed. ' + msg, error: msg });
             }
         }
 
