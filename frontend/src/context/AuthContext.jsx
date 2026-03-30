@@ -3,16 +3,15 @@ import React, { createContext, useState, useEffect } from 'react';
 export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [token, setToken] = useState(null);
+    const [user, setUser] = useState(() => {
+        const storedUser = localStorage.getItem('gymUser');
+        return storedUser ? JSON.parse(storedUser) : null;
+    });
+    const [token, setToken] = useState(() => localStorage.getItem('gymToken'));
     const [backendReady, setBackendReady] = useState(true);   // optimistic: assume ready
     const [checkingBackend, setCheckingBackend] = useState(false);
 
     useEffect(() => {
-        const storedUser = localStorage.getItem('gymUser');
-        const storedToken = localStorage.getItem('gymToken');
-        if (storedUser) setUser(JSON.parse(storedUser));
-        if (storedToken) setToken(storedToken);
 
         // Quick, non-blocking health check — don't gate the UI on it
         const startupCheck = async () => {
