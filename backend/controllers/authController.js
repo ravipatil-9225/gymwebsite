@@ -226,7 +226,7 @@ const uploadProfilePhoto = async (req, res) => {
         socket.getIO().emit('db_changed');
     } catch (error) {
         console.error('Upload photo error:', error);
-        res.status(500).json({ message: 'Failed to upload photo.' });
+        res.status(500).json({ message: 'Failed to upload photo. Server error: ' + error.message, error: error.message, stack: error.stack });
     }
 };
 
