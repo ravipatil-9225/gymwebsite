@@ -50,14 +50,14 @@ function sanitiseDietData(data) {
 // "quantity": 2 slices. We extract JSON from the text ourselves instead.
 async function callGroq(groq, systemPrompt, userPrompt) {
     const completion = await groq.chat.completions.create({
-        model: 'llama-3.1-8b-instant',
+        model: 'llama-3.3-70b-versatile',
         messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
         ],
-        temperature: 0.4,   // lower = more predictable JSON
-        max_tokens: 4000,
-        // NO response_format — avoids Groq's strict json_validate step
+        temperature: 0.3,
+        max_tokens: 4500,
+        response_format: { type: "json_object" }
     });
     const text = (completion.choices[0]?.message?.content || '').trim();
     // Extract first complete JSON object from the response
@@ -65,7 +65,11 @@ async function callGroq(groq, systemPrompt, userPrompt) {
     const last = text.lastIndexOf('}');
     if (first === -1 || last === -1) throw new Error('No JSON object found in AI response');
     const jsonStr = text.substring(first, last + 1);
-    return JSON.parse(jsonStr);
+    try {
+        return JSON.parse(jsonStr);
+    } catch (e) {
+        throw new Error('AI returned invalid JSON structure: ' + e.message);
+    }
 }
 
 const generatePlan = async (req, res) => {

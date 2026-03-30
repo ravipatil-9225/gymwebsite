@@ -35,6 +35,7 @@ import SeeFeedbackPage from './pages/SeeFeedbackPage';
 // Admin Imports
 import AdminLayout from './components/layout/AdminLayout';
 import AdminRoute from './components/routing/AdminRoute';
+import PrivateRoute from './components/routing/PrivateRoute';
 import Dashboard from './pages/admin/Dashboard';
 import UserManagement from './pages/admin/UserManagement';
 import PackagesManager from './pages/admin/PackagesManager';
@@ -62,14 +63,14 @@ function App() {
                   <Route path="/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
                   <Route path="/home" element={<Home />} />
-                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
                   <Route path="/services" element={<ServicesPage />} />
                   <Route path="/packages" element={<Packages />} />
                   <Route path="/trainers" element={<Trainers />} />
                   <Route path="/media" element={<Media />} />
                   <Route path="/contact" element={<Contact />} />
-                  <Route path="/portal" element={<Portal />} />
-                  <Route path="/smart-nutrition" element={<SmartNutrition />} />
+                  <Route path="/portal" element={<PrivateRoute><Portal /></PrivateRoute>} />
+                  <Route path="/smart-nutrition" element={<PrivateRoute><SmartNutrition /></PrivateRoute>} />
                   <Route path="/dashboard" element={<Navigate to="/settings" replace />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
