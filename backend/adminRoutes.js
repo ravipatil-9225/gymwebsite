@@ -201,6 +201,28 @@ router.get('/users', async (req, res) => {
     }
 });
 
+router.post('/users', async (req, res) => {
+    try {
+        const { name, email, phone, dob, password, role } = req.body;
+        if(!name || !email || !phone || !dob || !password) {
+            return res.status(400).json({ message: "All required fields must be filled" });
+        }
+        
+        const userExists = await User.findOne({ email });
+        if (userExists) {
+            return res.status(400).json({ message: "User already exists with this email" });
+        }
+
+        const newUser = new User({ name, email, phone, dob, password, role: role || 'user' });
+        await newUser.save();
+
+        res.status(201).json({ message: "User created successfully", user: { _id: newUser._id, name, email, role } });
+        socket.getIO().emit('db_changed');
+    } catch (err) {
+        res.status(500).json({ message: err.message || 'Error creating user' });
+    }
+});
+
 router.put('/users/:id', async (req, res) => {
     try {
         const updated = await User.findByIdAndUpdate(req.params.id, req.body, { new: true }).select('-password');

@@ -54,6 +54,7 @@ const UserManagement = () => {
     const [filtered, setFiltered] = useState([]);
     const [loading, setLoading] = useState(true);
     const [editingUser, setEditingUser] = useState(null);
+    const [addingUser, setAddingUser] = useState(null);
     const [historyUser, setHistoryUser] = useState(null);
     const [search, setSearch] = useState('');
 
@@ -74,14 +75,14 @@ const UserManagement = () => {
 
     useEffect(() => {
         fetchUsers();
-        const onDbChange = () => { if (!editingUser) fetchUsers(true); };
+        const onDbChange = () => { if (!editingUser && !addingUser) fetchUsers(true); };
         socket.on('db_changed', onDbChange);
-        const interval = setInterval(() => { if (!editingUser) fetchUsers(true); }, 5000);
+        const interval = setInterval(() => { if (!editingUser && !addingUser) fetchUsers(true); }, 5000);
         return () => {
             clearInterval(interval);
             socket.off('db_changed', onDbChange);
         };
-    }, [editingUser]);
+    }, [editingUser, addingUser]);
 
     // Live search
     useEffect(() => {
@@ -123,6 +124,22 @@ const UserManagement = () => {
         }
     };
 
+    const handleCreateUser = async (e) => {
+        e.preventDefault();
+        try {
+            const token = localStorage.getItem('gymToken');
+            await axios.post(`/api/admin/users`, addingUser, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setAddingUser(null);
+            fetchUsers();
+            alert('User created successfully');
+        } catch (err) {
+            alert(err.response?.data?.message || 'Error creating user');
+            console.error(err);
+        }
+    };
+
     if (loading) return (
         <div className="flex items-center justify-center h-64 text-gray-500">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3" />
@@ -138,16 +155,24 @@ const UserManagement = () => {
                     <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
                     <p className="text-sm text-gray-500 mt-0.5">{users.length} total users</p>
                 </div>
-                {/* Search */}
-                <div className="relative w-full sm:w-72">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                        type="text"
-                        placeholder="Search name, email, phone, plan…"
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                {/* Actions */}
+                <div className="flex gap-3 w-full sm:w-auto">
+                    <div className="relative flex-1 sm:w-72">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder="Search name, email, phone, plan…"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                    <button
+                        onClick={() => setAddingUser({ name: '', email: '', phone: '', dob: '', password: '', role: 'user' })}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2 whitespace-nowrap"
+                    >
+                        <User className="w-4 h-4" /> Add User
+                    </button>
                 </div>
             </div>
 
@@ -459,6 +484,69 @@ const UserManagement = () => {
                                     className="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors font-medium"
                                 >
                                     Save Changes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Add User Modal ─────────────────────────────────────────── */}
+            {addingUser && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                            <h2 className="text-lg font-bold text-gray-900">Add New User</h2>
+                            <button onClick={() => setAddingUser(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleCreateUser} className="p-6 space-y-4">
+                            {[
+                                { label: 'Full Name', key: 'name', type: 'text', required: true },
+                                { label: 'Email', key: 'email', type: 'email', required: true },
+                                { label: 'Phone', key: 'phone', type: 'text', required: true },
+                                { label: 'Date of Birth', key: 'dob', type: 'date', required: true },
+                                { label: 'Password', key: 'password', type: 'password', required: true },
+                            ].map(({ label, key, type, required }) => (
+                                <div key={key}>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+                                    <input
+                                        type={type}
+                                        required={required}
+                                        className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                        value={addingUser[key] || ''}
+                                        onChange={(e) => setAddingUser({ ...addingUser, [key]: e.target.value })}
+                                    />
+                                </div>
+                            ))}
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                                <select
+                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                    value={addingUser.role || 'user'}
+                                    onChange={(e) => setAddingUser({ ...addingUser, role: e.target.value })}
+                                >
+                                    <option value="user">User</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                            </div>
+
+                            <div className="pt-2 flex justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setAddingUser(null)}
+                                    className="px-4 py-2 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                                >
+                                    Create User
                                 </button>
                             </div>
                         </form>
