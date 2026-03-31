@@ -36,6 +36,7 @@ const CategoryPlans = () => {
     const [upiCopied, setUpiCopied] = useState(false);
     const [groupedPlans, setGroupedPlans] = useState({});
     const [loading, setLoading] = useState(true);
+    const [discountInfo, setDiscountInfo] = useState(null);
 
     useEffect(() => {
         const fetchPlans = async (isSilent = false) => {
@@ -84,7 +85,7 @@ const CategoryPlans = () => {
         });
     };
 
-    const openModal = (plan) => {
+    const openModal = async (plan) => {
         if (!user) {
             alert('Please log in to purchase a membership plan.');
             navigate('/login');
@@ -98,9 +99,22 @@ const CategoryPlans = () => {
         setErrMsg('');
         setVerifyMsg('');
         setVerifyStatus('');
+        setDiscountInfo(null);
+        
+        try {
+            const tk = token || localStorage.getItem('gymToken');
+            const res = await axios.get(`/api/payments/check-discount?planName=${encodeURIComponent(plan.name)}`, {
+                headers: { Authorization: `Bearer ${tk}` }
+            });
+            if (res.data.hasDiscount) {
+                setDiscountInfo(res.data);
+            }
+        } catch(err) {
+            console.error('Failed to check discount', err);
+        }
     };
 
-    const closeModal = () => { setSelected(null); setStatus('idle'); };
+    const closeModal = () => { setSelected(null); setStatus('idle'); setDiscountInfo(null); };
 
     const handlePhotoUpload = (e) => {
         const file = e.target.files[0];
@@ -418,10 +432,18 @@ const CategoryPlans = () => {
                                                 
                                                 {/* Locked Read-Only Amount */}
                                                 <div className="relative mb-2">
-                                                    <Banknote size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-primary" />
-                                                    <input readOnly type="text" value={`Fixed Plan Amount: ₹${selected.price}`}
-                                                        className="w-full pl-10 pr-4 py-3 bg-dark/70 border border-primary/30 rounded-xl text-primary font-bold focus:outline-none text-sm cursor-not-allowed select-none" />
-                                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-500 uppercase tracking-widest flex items-center"><Lock size={10} className="mr-1" />Locked</span>
+                                                    <Banknote size={16} className="absolute left-3 top-5 -translate-y-1/2 text-primary" />
+                                                    {discountInfo ? (
+                                                        <div className="w-full pl-10 pr-4 py-3 bg-dark/70 border border-primary/30 rounded-xl text-primary font-bold text-sm cursor-not-allowed select-none">
+                                                            <div className="text-gray-400 line-through text-xs font-normal">Original Price: ₹{discountInfo.originalAmount}</div>
+                                                            <div className="text-red-400 text-xs font-normal my-0.5">Discount: {discountInfo.discountType === 'percentage' ? `${discountInfo.discount}%` : `₹${discountInfo.discount}`}</div>
+                                                            <div className="text-green-500 font-bold">Final Payable Amount: ₹{discountInfo.finalAmount}</div>
+                                                        </div>
+                                                    ) : (
+                                                        <input readOnly type="text" value={`Fixed Plan Amount: ₹${selected.price}`}
+                                                            className="w-full pl-10 pr-4 py-3 bg-dark/70 border border-primary/30 rounded-xl text-primary font-bold focus:outline-none text-sm cursor-not-allowed select-none" />
+                                                    )}
+                                                    <span className="absolute right-3 top-3 text-[10px] text-gray-500 uppercase tracking-widest flex items-center"><Lock size={10} className="mr-1" />Locked</span>
                                                 </div>
 
                                                 {/* Step 1: QR + UPI Info */}
@@ -431,7 +453,7 @@ const CategoryPlans = () => {
 
                                                     {/* Dynamic QR Code */}
                                                     <div className="bg-white p-2 rounded-lg mb-3 flex items-center justify-center h-52 w-52 shadow-xl border border-gray-200">
-                                                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${UPI_ID}&pn=Uddhav%20Borgalli&am=${rawPrice(selected.price)}&cu=INR&tn=Gym%20Account`)}`} alt="UPI QR Code" className="w-full h-full object-contain" />
+                                                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${UPI_ID}&pn=Uddhav%20Borgalli&am=${rawPrice(discountInfo ? discountInfo.finalAmount : selected.price)}&cu=INR&tn=Gym%20Account`)}`} alt="UPI QR Code" className="w-full h-full object-contain" />
                                                     </div>
 
                                                     {/* Copyable UPI ID */}

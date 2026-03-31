@@ -640,6 +640,39 @@ router.put('/content/:section', async (req, res) => {
 // ==========================================
 // PAYMENTS MANAGEMENT
 // ==========================================
+router.put('/payments/:id/apply-discount', async (req, res) => {
+    try {
+        const { discount, discountType } = req.body;
+        const payment = await Payment.findById(req.params.id);
+        if (!payment) return res.status(404).json({ message: 'Payment not found' });
+
+        if (['auto_verified', 'manually_verified', 'cash_collected'].includes(payment.verificationStatus)) {
+            return res.status(400).json({ message: 'Payment already verified. Cannot apply discount.' });
+        }
+
+        const originalAmount = payment.originalAmount || payment.planPrice;
+        let finalAmount = originalAmount;
+
+        if (discountType === 'percentage') {
+            finalAmount = Math.round(originalAmount - (originalAmount * discount / 100));
+        } else if (discountType === 'flat') {
+            finalAmount = Math.round(originalAmount - discount);
+        }
+
+        if (finalAmount < 0) finalAmount = 0;
+
+        const updated = await Payment.findByIdAndUpdate(req.params.id, {
+            originalAmount, discount, discountType, finalAmount, planPrice: finalAmount
+        }, { new: true });
+
+        res.json({ message: 'Discount applied', payment: updated });
+        socket.getIO().emit('db_changed');
+    } catch (err) {
+        console.error('Admin discount apply error:', err);
+        res.status(500).json({ message: 'Error applying discount' });
+    }
+});
+
 router.get('/payments', async (req, res) => {
     try {
         const payments = await Payment.find().sort({ createdAt: -1 });

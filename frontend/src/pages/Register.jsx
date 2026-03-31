@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Lock, User, Phone, ArrowRight, AlertCircle, Loader } from 'lucide-react';
+import { Mail, Lock, User, Phone, ArrowRight, AlertCircle, Loader, Calendar } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
@@ -13,6 +13,7 @@ const Register = () => {
         email: '',
         password: '',
         confirmPassword: '',
+        dob: '',
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -47,6 +48,10 @@ const Register = () => {
             return setError('Please enter a valid 10-digit Indian mobile number (starting with 6–9).');
         }
 
+        if (!formData.dob) {
+            return setError('Date of birth is required.');
+        }
+
         setLoading(true);
         setError('');
         try {
@@ -58,6 +63,7 @@ const Register = () => {
                     email: formData.email,
                     password: formData.password,
                     phone: formData.phone,
+                    dob: formData.dob,
                 }),
             });
             const data = await res.json();
@@ -133,6 +139,22 @@ const Register = () => {
                             placeholder="Contact Number * (10 digits)"
                             value={formData.phone}
                             onChange={handleChange}
+                        />
+                    </div>
+
+                    {/* Date of Birth */}
+                    <div className="relative group">
+                        <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-600 group-focus-within:text-primary transition-colors" />
+                        <input
+                            name="dob"
+                            type="date"
+                            required
+                            title="Date of Birth"
+                            className="w-full pl-11 pr-4 py-4 bg-white/5 border border-white/8 focus:border-primary/60 rounded-xl text-white placeholder-gray-600 focus:outline-none transition-all duration-300 text-sm [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert-[0.6] cursor-pointer"
+                            style={{ boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.3)' }}
+                            value={formData.dob}
+                            onChange={handleChange}
+                            max={new Date().toISOString().split('T')[0]}
                         />
                     </div>
 

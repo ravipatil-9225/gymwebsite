@@ -22,7 +22,11 @@ const paymentSchema = new mongoose.Schema({
         public_id: { type: String, default: '' }
     },
     ocrConfidence: { type: Number },
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now },
+    originalAmount: { type: Number },
+    discount: { type: Number },
+    discountType: { type: String, enum: ['percentage', 'flat'] },
+    finalAmount: { type: Number }
 });
 
 module.exports = mongoose.model('Payment', paymentSchema);

@@ -133,6 +133,156 @@ const ScreenshotThumb = ({ payment, onExpand }) => {
     );
 };
 
+/* ── Payment Row Component ─────────────────────────────────────────── */
+const PaymentRow = ({ payment, updateStatus, applyDiscount, deletePayment, setLightbox }) => {
+    const isCash = payment.paymentMethod === 'cash_on_bench';
+    const [discVal, setDiscVal] = useState(payment.discount || '');
+    const [discType, setDiscType] = useState(payment.discountType || 'flat');
+    const isVerified = ['auto_verified', 'manually_verified', 'cash_collected'].includes(payment.verificationStatus);
+
+    return (
+        <tr className="hover:bg-gray-50 transition-colors align-top">
+            {/* User */}
+            <td className="px-5 py-4">
+                <div className="font-medium text-gray-900 whitespace-nowrap">{payment.userName}</div>
+                <div className="text-xs text-gray-500">{payment.email}</div>
+                <div className="text-xs text-gray-400 mt-1 whitespace-nowrap">
+                    {new Date(payment.createdAt).toLocaleDateString()} {new Date(payment.createdAt).toLocaleTimeString()}
+                </div>
+            </td>
+
+            {/* Plan */}
+            <td className="px-5 py-4 whitespace-nowrap">
+                <div className="text-gray-900 font-medium">{payment.planName}</div>
+                <div className="text-gray-500 text-xs">₹{payment.planPrice}</div>
+            </td>
+
+            {/* Method badge */}
+            <td className="px-5 py-4 whitespace-nowrap">
+                {isCash ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200">
+                        <Banknote className="w-3 h-3" /> Cash
+                    </span>
+                ) : (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                        <CreditCard className="w-3 h-3" /> UPI
+                    </span>
+                )}
+            </td>
+
+            {/* Transaction / Notes */}
+            <td className="px-5 py-4 max-w-[220px]">
+                {isCash ? (
+                    <span className="text-gray-400 text-xs italic">Pay at reception</span>
+                ) : (
+                    <>
+                        <code className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs select-all block mb-1 truncate max-w-[200px]">
+                            {payment.transactionId}
+                        </code>
+                        {payment.extractedTransactionId && (
+                            <code className={`px-2 py-1 rounded text-xs select-all block mb-1 truncate max-w-[200px] ${payment.extractedTransactionId === payment.transactionId ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                OCR: {payment.extractedTransactionId}
+                            </code>
+                        )}
+                        {payment.ocrConfidence && (
+                            <div className="text-xs text-gray-400 mt-0.5">Conf: {payment.ocrConfidence.toFixed(1)}%</div>
+                        )}
+                    </>
+                )}
+            </td>
+
+            {/* ── Screenshot column (UPI only) ── */}
+            <td className="px-5 py-4">
+                {!isCash && (payment.screenshot?.url || payment.screenshotUrl) ? (
+                    <ScreenshotThumb
+                        payment={{...payment, screenshotUrl: payment.screenshot?.url || payment.screenshotUrl}}
+                        onExpand={() => setLightbox({...payment, screenshotUrl: payment.screenshot?.url || payment.screenshotUrl})}
+                    />
+                ) : (
+                    <span className="text-gray-300 text-xs">—</span>
+                )}
+            </td>
+
+            {/* Status */}
+            <td className="px-5 py-4 whitespace-nowrap">
+                <StatusBadge status={payment.verificationStatus} />
+            </td>
+
+            {/* Discount */}
+            <td className="px-5 py-4">
+                <div className="flex flex-col gap-2">
+                    {payment.finalAmount !== undefined ? (
+                        <div className="text-xs">
+                            <div className="line-through text-gray-400">₹{payment.originalAmount}</div>
+                            <div className="text-red-500 font-semibold mb-1">
+                                -{payment.discountType === 'percentage' ? `${payment.discount}%` : `₹${payment.discount}`}
+                            </div>
+                            <div className="text-green-600 font-bold">Final: ₹{payment.finalAmount}</div>
+                        </div>
+                    ) : <span className="text-xs text-gray-500">₹{payment.planPrice}</span>}
+                    
+                    {!isVerified && (
+                        <div className="flex flex-col gap-1 mt-2">
+                            <div className="flex gap-1">
+                                <input type="number" value={discVal} onChange={e => setDiscVal(e.target.value)} placeholder="0" className="w-16 px-2 py-1 border text-xs rounded" />
+                                <select value={discType} onChange={e => setDiscType(e.target.value)} className="w-[70px] px-1 py-1 border text-xs rounded">
+                                    <option value="flat">₹</option>
+                                    <option value="percentage">%</option>
+                                </select>
+                            </div>
+                            <button onClick={() => applyDiscount(payment._id, discVal, discType)} className="w-full bg-blue-600 text-white text-[10px] py-1 rounded hover:bg-blue-700">Apply</button>
+                        </div>
+                    )}
+                </div>
+            </td>
+
+            {/* Actions */}
+            <td className="px-5 py-4 text-right whitespace-nowrap space-x-1">
+                {/* Cash payment actions */}
+                {isCash && payment.verificationStatus === 'cash_pending' && (
+                    <button
+                        onClick={() => updateStatus(payment._id, 'cash_collected')}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs text-green-600 hover:bg-green-50 rounded-lg transition-colors border border-green-200 font-medium"
+                        title="Mark Cash Collected"
+                    >
+                        <CheckCircle className="w-3.5 h-3.5" /> Collected
+                    </button>
+                )}
+
+                {/* UPI failed/pending actions */}
+                {!isCash && (payment.verificationStatus === 'failed_verification' || payment.verificationStatus === 'pending') && (
+                    <button
+                        onClick={() => updateStatus(payment._id, 'manually_verified')}
+                        className="inline-flex items-center justify-center p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors border border-green-200"
+                        title="Approve Manually"
+                    >
+                        <CheckCircle className="w-4 h-4" />
+                    </button>
+                )}
+
+                {/* Reject/Delete (Shared) */}
+                {['pending', 'cash_pending', 'failed_verification'].includes(payment.verificationStatus) && (
+                    <button
+                        onClick={() => updateStatus(payment._id, 'rejected')}
+                        className="inline-flex items-center justify-center p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors border border-orange-200"
+                        title="Reject"
+                    >
+                        <XCircle className="w-4 h-4" />
+                    </button>
+                )}
+                
+                <button
+                    onClick={() => deletePayment(payment._id)}
+                    className="inline-flex items-center justify-center p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200"
+                    title="Delete Record"
+                >
+                    <XCircle className="w-4 h-4" />
+                </button>
+            </td>
+        </tr>
+    );
+};
+
 /* ── Main Component ─────────────────────────────────────────── */
 const PaymentsManager = () => {
     const [payments, setPayments]     = useState([]);
@@ -169,6 +319,20 @@ const PaymentsManager = () => {
             fetchPayments();
         } catch (err) {
             alert('Error updating payment status');
+            console.error(err);
+        }
+    };
+
+    const applyDiscount = async (id, discount, type) => {
+        try {
+            const token = localStorage.getItem('gymToken');
+            await axios.put(`/api/admin/payments/${id}/apply-discount`, { discount: Number(discount), discountType: type }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            alert('Discount applied successfully!');
+            fetchPayments();
+        } catch (err) {
+            alert(err.response?.data?.message || 'Error applying discount');
             console.error(err);
         }
     };
@@ -256,126 +420,21 @@ const PaymentsManager = () => {
                                 <th className="px-5 py-4">Transaction / Notes</th>
                                 <th className="px-5 py-4">Screenshot</th>
                                 <th className="px-5 py-4">Status</th>
+                                <th className="px-5 py-4 w-48">Discount</th>
                                 <th className="px-5 py-4 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                            {filtered.map(payment => {
-                                const isCash = payment.paymentMethod === 'cash_on_bench';
-                                return (
-                                    <tr key={payment._id} className="hover:bg-gray-50 transition-colors align-top">
-                                        {/* User */}
-                                        <td className="px-5 py-4">
-                                            <div className="font-medium text-gray-900 whitespace-nowrap">{payment.userName}</div>
-                                            <div className="text-xs text-gray-500">{payment.email}</div>
-                                            <div className="text-xs text-gray-400 mt-1 whitespace-nowrap">
-                                                {new Date(payment.createdAt).toLocaleDateString()} {new Date(payment.createdAt).toLocaleTimeString()}
-                                            </div>
-                                        </td>
-
-                                        {/* Plan */}
-                                        <td className="px-5 py-4 whitespace-nowrap">
-                                            <div className="text-gray-900 font-medium">{payment.planName}</div>
-                                            <div className="text-gray-500 text-xs">₹{payment.planPrice}</div>
-                                        </td>
-
-                                        {/* Method badge */}
-                                        <td className="px-5 py-4 whitespace-nowrap">
-                                            {isCash ? (
-                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200">
-                                                    <Banknote className="w-3 h-3" /> Cash
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                                                    <CreditCard className="w-3 h-3" /> UPI
-                                                </span>
-                                            )}
-                                        </td>
-
-                                        {/* Transaction / Notes */}
-                                        <td className="px-5 py-4 max-w-[220px]">
-                                            {isCash ? (
-                                                <span className="text-gray-400 text-xs italic">Pay at reception</span>
-                                            ) : (
-                                                <>
-                                                    <code className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs select-all block mb-1 truncate max-w-[200px]">
-                                                        {payment.transactionId}
-                                                    </code>
-                                                    {payment.extractedTransactionId && (
-                                                        <code className={`px-2 py-1 rounded text-xs select-all block mb-1 truncate max-w-[200px] ${payment.extractedTransactionId === payment.transactionId ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                                            OCR: {payment.extractedTransactionId}
-                                                        </code>
-                                                    )}
-                                                    {payment.ocrConfidence && (
-                                                        <div className="text-xs text-gray-400 mt-0.5">Conf: {payment.ocrConfidence.toFixed(1)}%</div>
-                                                    )}
-                                                </>
-                                            )}
-                                        </td>
-
-                                        {/* ── Screenshot column (UPI only) ── */}
-                                        <td className="px-5 py-4">
-                                            {!isCash && (payment.screenshot?.url || payment.screenshotUrl) ? (
-                                                <ScreenshotThumb
-                                                    payment={{...payment, screenshotUrl: payment.screenshot?.url || payment.screenshotUrl}}
-                                                    onExpand={() => setLightbox({...payment, screenshotUrl: payment.screenshot?.url || payment.screenshotUrl})}
-                                                />
-                                            ) : (
-                                                <span className="text-gray-300 text-xs">—</span>
-                                            )}
-                                        </td>
-
-                                        {/* Status */}
-                                        <td className="px-5 py-4 whitespace-nowrap">
-                                            <StatusBadge status={payment.verificationStatus} />
-                                        </td>
-
-                                        {/* Actions */}
-                                        <td className="px-5 py-4 text-right whitespace-nowrap space-x-1">
-                                            {/* Cash payment actions */}
-                                            {isCash && payment.verificationStatus === 'cash_pending' && (
-                                                <button
-                                                    onClick={() => updateStatus(payment._id, 'cash_collected')}
-                                                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs text-green-600 hover:bg-green-50 rounded-lg transition-colors border border-green-200 font-medium"
-                                                    title="Mark Cash Collected"
-                                                >
-                                                    <CheckCircle className="w-3.5 h-3.5" /> Collected
-                                                </button>
-                                            )}
-
-                                            {/* UPI failed/pending actions */}
-                                            {!isCash && (payment.verificationStatus === 'failed_verification' || payment.verificationStatus === 'pending') && (
-                                                <button
-                                                    onClick={() => updateStatus(payment._id, 'manually_verified')}
-                                                    className="inline-flex items-center justify-center p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors border border-green-200"
-                                                    title="Approve Manually"
-                                                >
-                                                    <CheckCircle className="w-4 h-4" />
-                                                </button>
-                                            )}
-
-                                            {/* Reject/Delete (Shared) */}
-                                            {['pending', 'cash_pending', 'failed_verification'].includes(payment.verificationStatus) && (
-                                                <button
-                                                    onClick={() => updateStatus(payment._id, 'rejected')}
-                                                    className="inline-flex items-center justify-center p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors border border-orange-200"
-                                                    title="Reject"
-                                                >
-                                                    <XCircle className="w-4 h-4" />
-                                                </button>
-                                            )}
-                                            
-                                            <button
-                                                onClick={() => deletePayment(payment._id)}
-                                                className="inline-flex items-center justify-center p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200"
-                                                title="Delete Record"
-                                            >
-                                                <XCircle className="w-4 h-4" />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
+                            {filtered.map(payment => (
+                                <PaymentRow 
+                                    key={payment._id} 
+                                    payment={payment} 
+                                    updateStatus={updateStatus} 
+                                    deletePayment={deletePayment} 
+                                    applyDiscount={applyDiscount} 
+                                    setLightbox={setLightbox} 
+                                />
+                            ))}
                             {filtered.length === 0 && (
                                 <tr>
                                     <td colSpan="7" className="px-6 py-8 text-center text-gray-400">

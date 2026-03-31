@@ -31,6 +31,35 @@ async function getPlanDurationDays(planName) {
     return parse(planName);
 }
 
+exports.checkDiscount = async (req, res) => {
+    try {
+        const { planName } = req.query;
+        if (!planName) return res.status(400).json({ message: 'planName required' });
+
+        const email = req.user.email;
+        const existingDiscountPayment = await Payment.findOne({ 
+            email, 
+            planName, 
+            verificationStatus: { $in: ['pending', 'cash_pending', 'failed_verification'] },
+            discount: { $exists: true }
+        }).sort({ createdAt: -1 });
+
+        if (existingDiscountPayment && existingDiscountPayment.finalAmount !== undefined) {
+            return res.json({ 
+                hasDiscount: true, 
+                originalAmount: existingDiscountPayment.originalAmount || existingDiscountPayment.planPrice,
+                discount: existingDiscountPayment.discount,
+                discountType: existingDiscountPayment.discountType,
+                finalAmount: existingDiscountPayment.finalAmount
+            });
+        }
+        res.json({ hasDiscount: false });
+    } catch (err) {
+        console.error('Check discount error:', err);
+        res.status(500).json({ message: 'Server error check-discount' });
+    }
+};
+
 exports.verifyAndUpload = async (req, res) => {
     try {
         const { userName, email, planName, packageId, transactionId, paymentMethod } = req.body;
@@ -55,10 +84,22 @@ exports.verifyAndUpload = async (req, res) => {
         const actualPlanName = pkg.name;
         const method = paymentMethod || 'upi';
 
+        // Check for existing discount
+        const existingDiscountPayment = await Payment.findOne({ 
+            email, 
+            planName: actualPlanName, 
+            verificationStatus: { $in: ['pending', 'cash_pending', 'failed_verification'] },
+            discount: { $exists: true }
+        }).sort({ createdAt: -1 });
+
+        const finalAmount = existingDiscountPayment && existingDiscountPayment.finalAmount !== undefined 
+            ? existingDiscountPayment.finalAmount 
+            : numericPrice;
+
         // ── CASH ON BENCH FLOW ──────────────────────────────────────────────────
         if (method === 'cash_on_bench') {
             const newPayment = await Payment.create({
-                userName, email, planName: actualPlanName, planPrice: numericPrice,
+                userName, email, planName: actualPlanName, planPrice: finalAmount, originalAmount: numericPrice,
                 paymentMethod: 'cash_on_bench', verificationStatus: 'cash_pending',
             });
             emailService.sendCashPaymentPendingUser({ userName, email, planName: actualPlanName, planPrice: numericPrice }).catch(console.error);
@@ -103,8 +144,8 @@ exports.verifyAndUpload = async (req, res) => {
         // A. Transaction ID matches OCR output
         const isTxnMatch = normalizedText.includes(normalizedInputTxn);
         
-        // B. Amount Check matches package.price
-        const priceStr = numericPrice.toString();
+        // B. Amount Check matches finalAmount
+        const priceStr = finalAmount.toString();
         const pricePattern = new RegExp(`\\b${priceStr}\\b|INR[\\s]*${priceStr}|(?:RS\\.?|₹)[\\s]*${priceStr}`, 'i');
         const isAmountMatch = normalizedText.includes(priceStr) || text.includes(priceStr) || pricePattern.test(text);
 
@@ -136,7 +177,8 @@ exports.verifyAndUpload = async (req, res) => {
             userName,
             email,
             planName: actualPlanName,
-            planPrice: numericPrice,
+            planPrice: finalAmount,
+            originalAmount: numericPrice,
             paymentMethod: 'upi',
             transactionId,
             verificationStatus: 'auto_verified',

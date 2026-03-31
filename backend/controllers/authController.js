@@ -18,9 +18,9 @@ const isAdminEmail = (email) => {
 // @route   POST /api/auth/register
 const registerUser = async (req, res) => {
     try {
-        const { name, email, password, phone } = req.body;
-        if (!name || !email || !password || !phone)
-            return res.status(400).json({ message: 'Name, email, password, and contact number are required.' });
+        const { name, email, password, phone, dob } = req.body;
+        if (!name || !email || !password || !phone || !dob)
+            return res.status(400).json({ message: 'Name, email, password, contact number, and date of birth are required.' });
 
         // Validate Indian mobile number format
         if (!/^[6-9]\d{9}$/.test(phone.replace(/\s/g, '')))
@@ -34,7 +34,7 @@ const registerUser = async (req, res) => {
         if (isAdminEmail(email)) {
             role = 'admin';
         }
-        const user = await User.create({ name, email, password, role, phone: phone || '' });
+        const user = await User.create({ name, email, password, role, phone: phone || '', dob });
         const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '30d' });
 
         emailService.sendWelcomeEmail(user).catch(console.error);

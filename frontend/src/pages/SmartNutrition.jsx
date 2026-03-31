@@ -198,6 +198,37 @@ const SmartNutrition = () => {
         });
     };
 
+    const handleDownloadDoc = () => {
+        const element = reportRef.current;
+        const htmlSource = `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+                <meta charset="utf-8">
+                <style>
+                    body { font-family: Arial, sans-serif; color: #000; background: #fff; padding: 20px; }
+                    * { color: #000 !important; font-family: inherit; }
+                    h1, h2, h3, h4, h5 { margin-top: 15px; margin-bottom: 5px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                    th, td { border: 1px solid #ccc; padding: 8px; }
+                </style>
+            </head>
+            <body>
+                ${element.innerHTML}
+            </body>
+            </html>
+        `;
+
+        const blob = new Blob(['\ufeff', htmlSource], { type: 'application/msword' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${formData.name}_SmartNutrition_Plan.doc`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <div className="min-h-screen bg-[#050505] text-white pt-[120px] pb-24 overflow-x-hidden">
             <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
@@ -417,11 +448,14 @@ const SmartNutrition = () => {
                                     </p>
                                 </div>
                                 <div className="flex gap-3 flex-wrap justify-center">
-                                    <button onClick={() => { setResult(null); setError(''); }} className="flex items-center gap-2 bg-white/10 text-white font-bold uppercase tracking-wider px-4 py-2 rounded-lg hover:bg-white/20 transition-all text-xs border border-white/10">
-                                        ↩ New Plan
+                                    <button onClick={() => { setResult(null); setError(''); }} className="flex items-center gap-2 bg-white/10 text-white font-bold uppercase tracking-wider px-3 py-2 rounded-lg hover:bg-white/20 transition-all text-xs border border-white/10">
+                                        ↩ New
                                     </button>
-                                    <button onClick={handleDownloadPDF} className="flex items-center gap-2 bg-white text-black font-bold uppercase tracking-wider px-6 py-2 rounded-lg hover:bg-white/90 transition-all text-xs">
-                                        <Download size={16} /> Download PDF
+                                    <button onClick={handleDownloadDoc} className="flex items-center gap-2 bg-blue-600/20 text-blue-400 font-bold uppercase tracking-wider px-4 py-2 rounded-lg hover:bg-blue-600/30 transition-all text-xs border border-blue-600/30">
+                                        <Download size={16} /> Editable File
+                                    </button>
+                                    <button onClick={handleDownloadPDF} className="flex items-center gap-2 bg-white text-black font-bold uppercase tracking-wider px-4 py-2 rounded-lg hover:bg-white/90 transition-all text-xs">
+                                        <Download size={16} /> PDF
                                     </button>
                                 </div>
                             </div>
@@ -431,6 +465,8 @@ const SmartNutrition = () => {
 
                                 {/* Header */}
                                 <div className="text-center pb-8 border-b border-white/10">
+                                    <h2 className="text-xl font-bold text-white mb-1 uppercase tracking-widest">TARA FITNESS</h2>
+                                    <p className="text-white/40 text-[11px] mb-4 tracking-wider">{new Date().toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</p>
                                     <h1 className="text-3xl font-black text-primary uppercase tracking-[0.2em] mb-2">SMARTNUTRITION REPORT</h1>
                                     <p className="text-white/50 text-sm">Goal: {(meta.goal || '').replace(/_/g, ' ').toUpperCase()} • 7 Days • {meta.caloriesTarget} kcal/day</p>
                                     {meta.safetyNotice && <p className="text-red-400/70 text-xs mt-3 max-w-lg mx-auto italic">{meta.safetyNotice}</p>}
