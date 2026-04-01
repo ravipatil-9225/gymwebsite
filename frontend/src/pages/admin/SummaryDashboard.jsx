@@ -1,12 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Users, Calendar, TrendingUp, Clock, FileText } from 'lucide-react';
+import socket from '../../utils/socket';
 
 const SummaryDashboard = () => {
     const [summaryMonth, setSummaryMonth] = useState(new Date().getMonth() + 1);
     const [summaryYear, setSummaryYear] = useState(new Date().getFullYear());
     const [summaryData, setSummaryData] = useState(null);
     const [isSummaryLoading, setIsSummaryLoading] = useState(true);
+
+    const fetchSummarySilent = async () => {
+        try {
+            const token = localStorage.getItem('gymToken');
+            const { data } = await axios.get(`/api/admin/summary?month=${summaryMonth}&year=${summaryYear}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setSummaryData(data);
+        } catch (err) {
+            // Silently fail on background sync
+        }
+    };
 
     useEffect(() => {
         const fetchSummary = async () => {
@@ -23,7 +36,25 @@ const SummaryDashboard = () => {
                 setIsSummaryLoading(false);
             }
         };
+
         fetchSummary();
+
+        const onDbChange = () => {
+            console.log('Socket event received: db_changed (Summary)');
+            fetchSummarySilent();
+        };
+
+        socket.on('db_changed', onDbChange);
+
+        // Setup background auto-sync just in case sockets fail (every 20 seconds)
+        const intervalId = setInterval(() => {
+            fetchSummarySilent();
+        }, 20000);
+
+        return () => {
+            clearInterval(intervalId);
+            socket.off('db_changed', onDbChange);
+        };
     }, [summaryMonth, summaryYear]);
 
     return (
