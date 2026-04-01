@@ -44,6 +44,7 @@ import OffersManager from './pages/admin/OffersManager';
 import GalleryManager from './pages/admin/GalleryManager';
 import CMSManager from './pages/admin/CMSManager';
 import PaymentsManager from './pages/admin/PaymentsManager';
+import SummaryDashboard from './pages/admin/SummaryDashboard';
 import { EnquiriesManager, ClassBookingsManager, PTSessionsManager, FeedbackManager, DocumentsManager } from './pages/admin/FormManagers';
 
 function App() {
@@ -98,10 +99,10 @@ function App() {
                   <Route path="/packages/plans/:categoryName" element={<CategoryPlans />} />
                   <Route path="/offers" element={<OffersPage />} />
 
-                  {/* Admin Routes */}
                   <Route path="/admin" element={<AdminRoute />}>
                     <Route element={<AdminLayout />}>
                       <Route index element={<Dashboard />} />
+                      <Route path="summary" element={<SummaryDashboard />} />
                       <Route path="users" element={<UserManagement />} />
                       <Route path="enquiries" element={<EnquiriesManager />} />
                       <Route path="classes" element={<ClassBookingsManager />} />

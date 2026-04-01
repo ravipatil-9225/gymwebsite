@@ -170,6 +170,53 @@ router.get('/analytics', async (req, res) => {
 });
 
 // ==========================================
+// DYNAMIC SUMMARY DASHBOARD
+// ==========================================
+router.get('/summary', async (req, res) => {
+    try {
+        const { month, year } = req.query;
+        if (!month || !year) {
+            return res.status(400).json({ message: 'Month and year are required' });
+        }
+
+        const yearInt = parseInt(year);
+        const monthInt = parseInt(month);
+
+        const startDate = new Date(yearInt, monthInt - 1, 1);
+        const endDate = new Date(yearInt, monthInt, 0, 23, 59, 59, 999);
+
+        // A. New Members
+        const newMembers = await User.find({
+            createdAt: { $gte: startDate, $lte: endDate }
+        }).select('name email phone createdAt role').sort({ createdAt: -1 });
+
+        // B. Subscriptions
+        const subscriptions = await Membership.find({
+            startDate: { $gte: startDate, $lte: endDate }
+        }).sort({ startDate: -1 });
+
+        // C. Expirations
+        const expirations = await Membership.find({
+            endDate: { $gte: startDate, $lte: endDate }
+        }).sort({ endDate: -1 });
+
+        res.json({
+            newMembersCount: newMembers.length,
+            subscriptionsCount: subscriptions.length,
+            expirationsCount: expirations.length,
+            newMembers,
+            subscriptions,
+            expirations,
+            period: { month: monthInt, year: yearInt }
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error fetching summary data' });
+    }
+});
+
+// ==========================================
 // USERS MANAGEMENT
 // ==========================================
 router.get('/users', async (req, res) => {
