@@ -19,7 +19,7 @@ const Dashboard = () => {
         const fetchAnalytics = async () => {
             try {
                 const token = localStorage.getItem('gymToken');
-                const { data } = await axios.get('/api/admin/analytics', {
+                const { data } = await axios.get(`/api/admin/analytics?t=${Date.now()}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 setStats(data);
@@ -30,6 +30,16 @@ const Dashboard = () => {
             }
         };
 
+        const fetchAnalyticsSilent = async () => {
+            try {
+                const token = localStorage.getItem('gymToken');
+                const { data } = await axios.get(`/api/admin/analytics?t=${Date.now()}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setStats(data);
+            } catch (err) {}
+        };
+
         const onDbChange = () => {
             console.log('Socket event received: db_changed (Dashboard)');
             fetchAnalyticsSilent();
@@ -37,10 +47,8 @@ const Dashboard = () => {
 
         fetchAnalytics();
 
-        // Listen for real-time database changes
         socket.on('db_changed', onDbChange);
 
-        // Setup background auto-sync just in case sockets fail (every 20 seconds)
         const intervalId = setInterval(() => {
             fetchAnalyticsSilent();
         }, 20000);
@@ -50,18 +58,6 @@ const Dashboard = () => {
             socket.off('db_changed', onDbChange);
         };
     }, []);
-
-    const fetchAnalyticsSilent = async () => {
-        try {
-            const token = localStorage.getItem('gymToken');
-            const { data } = await axios.get('/api/admin/analytics', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setStats(data);
-        } catch (err) {
-            // Silently fail on background sync
-        }
-    };
 
     if (loading) return <div className="p-8">Loading dashboard...</div>;
 

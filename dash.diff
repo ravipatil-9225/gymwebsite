@@ -1,0 +1,290 @@
+commit 02e26a79cd810bb673c042124368b27815dd9615
+Author: Raviraj Patil <ravipatil7512@gmail.com>
+Date:   Sat Mar 28 22:17:16 2026 +0530
+
+    feat: added one-click legacy initialize button to main admin dashboard to easily restore production servers
+
+diff --git a/frontend/src/pages/admin/Dashboard.jsx b/frontend/src/pages/admin/Dashboard.jsx
+index 244fac1..00b3625 100644
+--- a/frontend/src/pages/admin/Dashboard.jsx
++++ b/frontend/src/pages/admin/Dashboard.jsx
+@@ -74,7 +74,26 @@ const Dashboard = () => {
+ 
+     return (
+         <div className="space-y-6">
+-            <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
++            <div className="flex justify-between items-center bg-indigo-50 border border-indigo-100 p-4 rounded-xl shadow-sm">
++                <div>
++                    <h1 className="text-2xl font-bold text-indigo-900">Dashboard Overview</h1>
++                    <p className="text-indigo-600 text-sm mt-1">Manage and monitor your gym website</p>
++                </div>
++                <button 
++                    onClick={async () => {
++                        if(window.confirm('Are you running this on the Live Server? This will instantly populate the database with your original Plans, Trainers, and Gallery photos. Continue?')) {
++                            try {
++                                const t = localStorage.getItem('gymToken');
++                                const {data} = await axios.post('/api/admin/system/restore-legacy', {}, { headers: { Authorization: `Bearer ${t}` } });
++                                alert(data.message);
++                            } catch(err) { alert('Error restoring legacy data'); }
++                        }
++                    }}
++                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg shadow-md hover:shadow-lg transition-all text-sm font-bold flex items-center gap-2"
++                >
++                    <Activity className="w-4 h-4" /> Initialize Live Data
++                </button>
++            </div>
+ 
+             {/* Stat Cards */}
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+commit 668e76df237ee083f95999bce9fe1461ef4e751d
+Author: Raviraj Patil <ravipatil7512@gmail.com>
+Date:   Tue Mar 17 22:18:26 2026 +0530
+
+    Fix frontend data missing issues and restore user polling
+
+diff --git a/frontend/src/pages/admin/Dashboard.jsx b/frontend/src/pages/admin/Dashboard.jsx
+index 417b77d..244fac1 100644
+--- a/frontend/src/pages/admin/Dashboard.jsx
++++ b/frontend/src/pages/admin/Dashboard.jsx
+@@ -29,19 +29,25 @@ const Dashboard = () => {
+                 setLoading(false);
+             }
+         };
++
++        const onDbChange = () => {
++            console.log('Socket event received: db_changed (Dashboard)');
++            fetchAnalyticsSilent();
++        };
++
+         fetchAnalytics();
+ 
+         // Listen for real-time database changes
+-        socket.on('db_changed', fetchAnalyticsSilent);
++        socket.on('db_changed', onDbChange);
+ 
+-        // Setup background auto-sync just in case sockets fail (every 5 seconds)
++        // Setup background auto-sync just in case sockets fail (every 20 seconds)
+         const intervalId = setInterval(() => {
+             fetchAnalyticsSilent();
+-        }, 5000);
++        }, 20000);
+ 
+         return () => {
+             clearInterval(intervalId);
+-            socket.off('db_changed', fetchAnalyticsSilent);
++            socket.off('db_changed', onDbChange);
+         };
+     }, []);
+ 
+
+commit 1ad46974b1066f639d3aa3b3f0bcc190af216bd4
+Author: Raviraj Patil <ravipatil7512@gmail.com>
+Date:   Wed Mar 11 12:51:42 2026 +0530
+
+    Implement Socket.IO for real-time admin updates
+
+diff --git a/frontend/src/pages/admin/Dashboard.jsx b/frontend/src/pages/admin/Dashboard.jsx
+index f812d90..417b77d 100644
+--- a/frontend/src/pages/admin/Dashboard.jsx
++++ b/frontend/src/pages/admin/Dashboard.jsx
+@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
+ import axios from 'axios';
+ import { Users, PhoneCall, HandCoins, Activity } from 'lucide-react';
+ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
++import socket from '../../utils/socket';
+ 
+ const Dashboard = () => {
+     const [stats, setStats] = useState({
+@@ -30,12 +31,18 @@ const Dashboard = () => {
+         };
+         fetchAnalytics();
+ 
+-        // Auto-refresh every 5 seconds to keep stats real-time
++        // Listen for real-time database changes
++        socket.on('db_changed', fetchAnalyticsSilent);
++
++        // Setup background auto-sync just in case sockets fail (every 5 seconds)
+         const intervalId = setInterval(() => {
+             fetchAnalyticsSilent();
+         }, 5000);
+ 
+-        return () => clearInterval(intervalId);
++        return () => {
++            clearInterval(intervalId);
++            socket.off('db_changed', fetchAnalyticsSilent);
++        };
+     }, []);
+ 
+     const fetchAnalyticsSilent = async () => {
+
+commit 3677b5605198cb272f3870dd43ea8f4eb5baa3de
+Author: Raviraj Patil <ravipatil7512@gmail.com>
+Date:   Wed Mar 11 12:01:21 2026 +0530
+
+    Fix absolute localhost URLs in admin and form pages
+
+diff --git a/frontend/src/pages/admin/Dashboard.jsx b/frontend/src/pages/admin/Dashboard.jsx
+new file mode 100644
+index 0000000..f812d90
+--- /dev/null
++++ b/frontend/src/pages/admin/Dashboard.jsx
+@@ -0,0 +1,158 @@
++import React, { useEffect, useState } from 'react';
++import axios from 'axios';
++import { Users, PhoneCall, HandCoins, Activity } from 'lucide-react';
++import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
++
++const Dashboard = () => {
++    const [stats, setStats] = useState({
++        totalUsers: 0,
++        activeMembers: 0,
++        totalEnquiries: 0,
++        pendingPayments: 0,
++        recentActivities: [],
++        chartData: []
++    });
++    const [loading, setLoading] = useState(true);
++
++    useEffect(() => {
++        const fetchAnalytics = async () => {
++            try {
++                const token = localStorage.getItem('gymToken');
++                const { data } = await axios.get('/api/admin/analytics', {
++                    headers: { Authorization: `Bearer ${token}` }
++                });
++                setStats(data);
++            } catch (err) {
++                console.error('Failed to fetch analytics', err);
++            } finally {
++                setLoading(false);
++            }
++        };
++        fetchAnalytics();
++
++        // Auto-refresh every 5 seconds to keep stats real-time
++        const intervalId = setInterval(() => {
++            fetchAnalyticsSilent();
++        }, 5000);
++
++        return () => clearInterval(intervalId);
++    }, []);
++
++    const fetchAnalyticsSilent = async () => {
++        try {
++            const token = localStorage.getItem('gymToken');
++            const { data } = await axios.get('/api/admin/analytics', {
++                headers: { Authorization: `Bearer ${token}` }
++            });
++            setStats(data);
++        } catch (err) {
++            // Silently fail on background sync
++        }
++    };
++
++    if (loading) return <div className="p-8">Loading dashboard...</div>;
++
++    const statCards = [
++        { title: 'Total Users', value: stats.totalUsers, icon: Users, color: 'text-blue-600', bg: 'bg-blue-100' },
++        { title: 'Active Members', value: stats.activeMembers, icon: Activity, color: 'text-green-600', bg: 'bg-green-100' },
++        { title: 'Total Enquiries', value: stats.totalEnquiries, icon: PhoneCall, color: 'text-yellow-600', bg: 'bg-yellow-100' },
++        { title: 'Pending Payments', value: stats.pendingPayments, icon: HandCoins, color: 'text-red-600', bg: 'bg-red-100' },
++    ];
++
++    return (
++        <div className="space-y-6">
++            <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
++
++            {/* Stat Cards */}
++            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
++                {statCards.map((stat, idx) => {
++                    const Icon = stat.icon;
++                    return (
++                        <div key={idx} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex items-center">
++                            <div className={`p-4 rounded-lg ${stat.bg} mr-4`}>
++                                <Icon className={`w-6 h-6 ${stat.color}`} />
++                            </div>
++                            <div>
++                                <p className="text-sm font-medium text-gray-500">{stat.title}</p>
++                                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
++                            </div>
++                        </div>
++                    );
++                })}
++            </div>
++
++            {/* Growth Chart */}
++            <div className="bg-white rounded-xl shadow-sm border border-gray-100 mt-8 p-6">
++                <h2 className="text-lg font-bold text-gray-900 mb-6">Audience Metrics Over Time</h2>
++                <div className="h-80 w-full">
++                    {stats.chartData && stats.chartData.length > 0 ? (
++                        <ResponsiveContainer width="100%" height="100%">
++                            <AreaChart data={stats.chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
++                                <defs>
++                                    <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
++                                        <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8} />
++                                        <stop offset="95%" stopColor="#8884d8" stopOpacity={0} />
++                                    </linearGradient>
++                                    <linearGradient id="colorEnquiries" x1="0" y1="0" x2="0" y2="1">
++                                        <stop offset="5%" stopColor="#82ca9d" stopOpacity={0.8} />
++                                        <stop offset="95%" stopColor="#82ca9d" stopOpacity={0} />
++                                    </linearGradient>
++                                </defs>
++                                <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
++                                <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
++                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
++                                <Tooltip />
++                                <Legend />
++                                <Area type="monotone" dataKey="users" name="New Users" stroke="#8884d8" fillOpacity={1} fill="url(#colorUsers)" />
++                                <Area type="monotone" dataKey="enquiries" name="Enquiries" stroke="#82ca9d" fillOpacity={1} fill="url(#colorEnquiries)" />
++                            </AreaChart>
++                        </ResponsiveContainer>
++                    ) : (
++                        <div className="flex h-full items-center justify-center text-gray-400">Not enough data to graph</div>
++                    )}
++                </div>
++            </div>
++
++            {/* Recent Activity */}
++            <div className="bg-white rounded-xl shadow-sm border border-gray-100 mt-8">
++                <div className="p-6 border-b border-gray-100">
++                    <h2 className="text-lg font-bold text-gray-900">Recent Form Submissions</h2>
++                </div>
++                <div className="p-0">
++                    {stats.recentActivities.length > 0 ? (
++                        <div className="overflow-x-auto">
++                            <table className="w-full text-left border-collapse">
++                                <thead>
++                                    <tr className="bg-gray-50 text-gray-500 text-sm">
++                                        <th className="px-6 py-4 font-medium">Name</th>
++                                        <th className="px-6 py-4 font-medium">Type</th>
++                                        <th className="px-6 py-4 font-medium">Date</th>
++                                    </tr>
++                                </thead>
++                                <tbody className="divide-y divide-gray-100 text-sm">
++                                    {stats.recentActivities.map((act) => (
++                                        <tr key={act._id} className="hover:bg-gray-50 transition-colors">
++                                            <td className="px-6 py-4 font-medium text-gray-900">{act.name}</td>
++                                            <td className="px-6 py-4">
++                                                <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs uppercase tracking-wider">
++                                                    {act.type}
++                                                </span>
++                                            </td>
++                                            <td className="px-6 py-4 text-gray-500">
++                                                {new Date(act.createdAt).toLocaleDateString()}
++                                            </td>
++                                        </tr>
++                                    ))}
++                                </tbody>
++                            </table>
++                        </div>
++                    ) : (
++                        <div className="p-6 text-gray-500">No recent activity.</div>
++                    )}
++                </div>
++            </div>
++        </div>
++    );
++};
++
++export default Dashboard;

@@ -9,24 +9,12 @@ const SummaryDashboard = () => {
     const [summaryData, setSummaryData] = useState(null);
     const [isSummaryLoading, setIsSummaryLoading] = useState(true);
 
-    const fetchSummarySilent = async () => {
-        try {
-            const token = localStorage.getItem('gymToken');
-            const { data } = await axios.get(`/api/admin/summary?month=${summaryMonth}&year=${summaryYear}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setSummaryData(data);
-        } catch (err) {
-            // Silently fail on background sync
-        }
-    };
-
     useEffect(() => {
         const fetchSummary = async () => {
             setIsSummaryLoading(true);
             try {
                 const token = localStorage.getItem('gymToken');
-                const { data } = await axios.get(`/api/admin/summary?month=${summaryMonth}&year=${summaryYear}`, {
+                const { data } = await axios.get(`/api/admin/summary?month=${summaryMonth}&year=${summaryYear}&t=${Date.now()}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 setSummaryData(data);
@@ -35,6 +23,16 @@ const SummaryDashboard = () => {
             } finally {
                 setIsSummaryLoading(false);
             }
+        };
+
+        const fetchSummarySilent = async () => {
+            try {
+                const token = localStorage.getItem('gymToken');
+                const { data } = await axios.get(`/api/admin/summary?month=${summaryMonth}&year=${summaryYear}&t=${Date.now()}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setSummaryData(data);
+            } catch (err) {}
         };
 
         fetchSummary();
@@ -46,7 +44,6 @@ const SummaryDashboard = () => {
 
         socket.on('db_changed', onDbChange);
 
-        // Setup background auto-sync just in case sockets fail (every 20 seconds)
         const intervalId = setInterval(() => {
             fetchSummarySilent();
         }, 20000);
