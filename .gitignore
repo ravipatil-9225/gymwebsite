@@ -30,3 +30,27 @@ Thumbs.db
 # Uploaded files / large media that shouldn't be in git
 public/gallery/
 backend/uploads/
+
+# ── CLEANUP RULES (added during Phase 3 hardening) ──
+# Temp/dev files — should never reach the repo
+temp_*.jsx
+temp_*.js
+temp_*.txt
+*_old.jsx
+*_old.js
+
+# Diff / debug dumps
+*.diff
+diff.txt
+spy_*.js
+
+# One-off build and test logs
+build_output*.txt
+test_results.txt
+
+# Developer reference notes folder
+_dev_notes/
+
+# Load testing scripts (dev-only, not for production repo)
+backend/load-test.js
+backend/load_test_results.txt

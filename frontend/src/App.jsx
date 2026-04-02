@@ -31,6 +31,7 @@ import MembershipPlans from './pages/MembershipPlans';
 import CategoryPlans from './pages/CategoryPlans';
 import OffersPage from './pages/OffersPage';
 import SeeFeedbackPage from './pages/SeeFeedbackPage';
+import NotFound from './pages/NotFound';
 
 // Admin Imports
 import AdminLayout from './components/layout/AdminLayout';
@@ -118,6 +119,7 @@ function App() {
                     </Route>
                   </Route>
 
+                  <Route path="*" element={<NotFound />} />
                 </Routes>
               </main>
             </div>

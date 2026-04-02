@@ -201,7 +201,7 @@ Fill all [...] placeholders with real exercises/stretches following the user fit
         const runDiet = p.plan_type === 'both' || p.plan_type === 'diet';
         const runWorkout = p.plan_type === 'both' || p.plan_type === 'workout';
 
-        console.log(`🚀 Firing API calls... diet=${runDiet}, workout=${runWorkout}`);
+        // Firing Groq API calls (production-silent)
         const startTime = Date.now();
 
         let dietResult = { status: 'rejected', reason: new Error('Not executed') };
@@ -229,7 +229,7 @@ Fill all [...] placeholders with real exercises/stretches following the user fit
             workoutResult = { status: 'fulfilled', value: null };
         }
 
-        console.log(`⏱ Groq responded in ${((Date.now() - startTime) / 1000).toFixed(1)}s`);
+        // Groq call complete (production-silent)
 
         // ── ERROR HANDLING ─────────────────────────────────────────────────
         if (runDiet && dietResult.status === 'rejected') {
@@ -261,7 +261,7 @@ Fill all [...] placeholders with real exercises/stretches following the user fit
         const dietData = runDiet && dietResult.status === 'fulfilled' ? sanitiseDietData(dietResult.value) : null;
         const workoutData = runWorkout && workoutResult.status === 'fulfilled' ? workoutResult.value : null;
 
-        console.log(`✅ dietOk=${isDietComplete(dietData?.dietPlan)}, workoutOk=${isWorkoutComplete(workoutData?.workoutPlan)}, days=${dietData?.dietPlan?.length}`);
+        // Plan validation complete (production-silent)
 
         // ── MERGE & RETURN ─────────────────────────────────────────────────
         res.json({

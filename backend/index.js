@@ -1,7 +1,22 @@
 require('dotenv').config();
+
+// ── PROCESS-LEVEL SAFETY NET (Layer 3) ──
+// Catches errors that happen completely OUTSIDE of Express (e.g. background DB errors)
+process.on('unhandledRejection', (reason) => {
+    console.error('⚠️  [Unhandled Rejection] Server survived:', reason);
+    // Do NOT crash the server — just log and keep running
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('🔴 [Uncaught Exception] Server survived:', err.message);
+    // Do NOT crash the server — just log and keep running
+});
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
+const rateLimit = require('express-rate-limit');
 
 const connectDB = require('./config/db');
 const socket = require('./socket');
@@ -89,10 +104,68 @@ connectDB().then(async () => {
     } catch (e) { console.error('Auto-seed error:', e); }
 });
 
-// Middleware
-app.use(cors());
+// ── SECURITY MIDDLEWARE ──
+
+// 1. Helmet — Sets 15+ secure HTTP headers (hides Express, prevents Clickjacking/XSS)
+app.use(helmet());
+
+// 2. CORS — Only allow requests from our official frontend URL
+const allowedOrigins = [
+    process.env.FRONTEND_URL,              // Production URL (e.g. https://your-site.vercel.app)
+    'http://localhost:5173',               // Local dev frontend
+    'http://localhost:5174',               // Local dev fallback
+].filter(Boolean);
+
+app.use(cors({
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps, Postman, curl)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+        callback(new Error(`CORS policy: Origin '${origin}' is not allowed`));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
+// 3. Body Parsers
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// 4. NoSQL Injection Sanitizer — strips '$' and '.' from user input
+app.use(mongoSanitize());
+
+// ── RATE LIMITERS ──
+
+// Auth routes (Login/Register): Max 10 attempts per 15 minutes per IP
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10,
+    message: { message: 'Too many attempts from this IP. Please wait 15 minutes and try again.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// General API routes: Max 200 requests per 15 minutes per IP (normal usage)
+const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 200,
+    message: { message: 'Too many requests. Please slow down.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// AI/Nutrition route: Max 20 requests per 15 minutes (expensive AI calls)
+const nutritionLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    message: { message: 'Too many nutrition plan requests. Please wait before generating another.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Apply general limiter to all /api/* routes
+app.use('/api/', generalLimiter);
 
 // Health Check
 app.get('/api/health', (req, res) => {
@@ -100,13 +173,13 @@ app.get('/api/health', (req, res) => {
 });
 
 // ── MOUNT ROUTES ──
-app.use('/api/auth', authRoutes);
-app.use('/api/users', authRoutes); // Combined user profile/auth logic
-app.use('/api', enquiryRoutes);    // /api/plan-interest, /api/join
+app.use('/api/auth', authLimiter, authRoutes);    // Auth routes are rate-limited to 10 req/15min
+app.use('/api/users', authRoutes);               // Combined user profile/auth logic
+app.use('/api', enquiryRoutes);                  // /api/plan-interest, /api/join
 app.use('/api/forms', formRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/payments', paymentRoutes);
-app.use('/api/nutrition', nutritionRoutes);
+app.use('/api/nutrition', nutritionLimiter, nutritionRoutes); // AI route limited to 20 req/15min
 
 // ── PUBLIC CONTENT ROUTES ──
 app.get('/api/public/trainers', async (req, res) => {
@@ -216,9 +289,36 @@ app.post('/api/admin/confirm-payment', protect, async (req, res) => {
     }
 });
 
+// ── 404 HANDLER — catches requests to routes that don't exist ──
+app.use((req, res) => {
+    res.status(404).json({ message: `Route not found: ${req.method} ${req.originalUrl}` });
+});
+
+// ── GLOBAL ERROR HANDLER (Layer 2) ──
+// Must be the LAST middleware (4 arguments = Express treats it as error handler)
+// Catches everything forwarded via next(err) from any route or asyncHandler
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+    // If response status is still 200 (OK), override to 500 (Server Error)
+    const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+
+    // Log the error with context for easy debugging
+    console.error(`[ERROR] ${req.method} ${req.originalUrl} → ${err.message}`);
+    if (process.env.NODE_ENV !== 'production') {
+        console.error(err.stack);
+    }
+
+    // Send a clean JSON response (never expose raw stack traces in production)
+    res.status(statusCode).json({
+        message: err.message || 'An unexpected server error occurred.',
+        ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
+    });
+});
+
 // Start server
 httpServer.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`🛡️  Security: Helmet + Rate Limiting + NoSQL Sanitizer active`);
+    console.log(`🔧 Error Handler: Global crash protection active`);
     startMembershipReminderCron();
 });
-// trigger restart

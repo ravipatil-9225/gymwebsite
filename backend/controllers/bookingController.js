@@ -48,7 +48,7 @@ const handleFormSubmission = async (req, res) => {
                 emailService.sendAdminPTContractAlert(formData).catch(console.error);
                 break;
             default:
-                console.log(`Unhandled form type: ${type}`);
+                console.warn(`[BookingController] Unknown form type submitted: '${type}' — no email sent.`);
         }
 
         res.status(200).json({ success: true, message: 'Form submitted successfully!' });

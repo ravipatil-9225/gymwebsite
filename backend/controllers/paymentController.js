@@ -121,7 +121,7 @@ exports.verifyAndUpload = async (req, res) => {
             return res.status(400).json({ message: 'Transaction ID already used. Duplicate submission prevented.' });
         }
 
-        console.log(`Starting synchronous OCR for ${transactionId}...`);
+        // OCR verification starting (production-silent)
 
         // 2. OCR VERIFICATION (CRITICAL) - Run on Original Image
         const originalBuffer = req.file.buffer;
@@ -131,7 +131,7 @@ exports.verifyAndUpload = async (req, res) => {
             const result = await tesseract.recognize(originalBuffer, 'eng');
             text = (result.data.text || '').toUpperCase();
             confidence = result.data.confidence || 0;
-            console.log('OCR Confidence:', confidence);
+            // OCR confidence captured (production-silent)
         } catch (ocrErr) {
             console.error('Tesseract OCR failed:', ocrErr.message);
             return res.status(500).json({ message: 'Secure OCR verification failed. Please try again.' });
