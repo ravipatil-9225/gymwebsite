@@ -76,7 +76,7 @@ const CategoryPlans = () => {
     }, []);
 
 
-    const UPI_ID = 'uddhavb9561-1@okaxis';
+    const UPI_ID = 'taraparmar2-2@oksbi';
 
     const copyUpiId = () => {
         navigator.clipboard.writeText(UPI_ID).then(() => {
@@ -453,7 +453,7 @@ const CategoryPlans = () => {
 
                                                     {/* Dynamic QR Code */}
                                                     <div className="bg-white p-2 rounded-lg mb-3 flex items-center justify-center h-52 w-52 shadow-xl border border-gray-200">
-                                                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${UPI_ID}&pn=Uddhav%20Borgalli&am=${rawPrice(discountInfo ? discountInfo.finalAmount : selected.price)}&cu=INR&tn=Gym%20Account`)}`} alt="UPI QR Code" className="w-full h-full object-contain" />
+                                                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`upi://pay?pa=${UPI_ID}&pn=Tara%20Parmar&am=${rawPrice(discountInfo ? discountInfo.finalAmount : selected.price)}&cu=INR&tn=Gym%20Account`)}`} alt="UPI QR Code" className="w-full h-full object-contain" />
                                                     </div>
 
                                                     {/* Copyable UPI ID */}
@@ -473,7 +473,7 @@ const CategoryPlans = () => {
 
                                                     {/* UPI Deep-link Button */}
                                                     <a
-                                                        href={`upi://pay?pa=${UPI_ID}&pn=Uddhav%20Borgalli&am=${rawPrice(selected.price)}&cu=INR&tn=Gym%20Membership%20${encodeURIComponent(selected.name)}`}
+                                                        href={`upi://pay?pa=${UPI_ID}&pn=Tara%20Parmar&am=${rawPrice(selected.price)}&cu=INR&tn=Gym%20Membership%20${encodeURIComponent(selected.name)}`}
                                                         className="mt-2 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg px-4 py-2 transition-all duration-200 w-full"
                                                         onClick={(e) => {
                                                             // On desktop browsers upi:// won't work; show a helpful message
