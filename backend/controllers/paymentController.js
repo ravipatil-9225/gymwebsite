@@ -149,11 +149,21 @@ exports.verifyAndUpload = async (req, res) => {
         const pricePattern = new RegExp(`\\b${priceStr}\\b|INR[\\s]*${priceStr}|(?:RS\\.?|₹)[\\s]*${priceStr}`, 'i');
         const isAmountMatch = normalizedText.includes(priceStr) || text.includes(priceStr) || pricePattern.test(text);
 
-        // C. Payment Status contains "SUCCESS" or "PAID"
-        const isSuccessStatus = text.includes('SUCCESS') || text.includes('PAID') || text.includes('SUCCESSFUL');
+        // C. Payment Status contains "SUCCESS", "PAID" or "COMPLETED" (Google Pay uses 'Completed')
+        const isSuccessStatus = text.includes('SUCCESS') || text.includes('PAID') || text.includes('SUCCESSFUL') || text.includes('COMPLETED') || text.includes('COMPLETE');
         
-        // D. Merchant Validation - Must contain basic identifiers of gym business
-        const merchantValid = text.includes('TARA') || text.includes('FITNESS') || text.includes('UDDHAV') || text.includes('9960552750') || text.includes('OKAXIS');
+        // D. Merchant Validation - Must contain gym business identifiers (supports old and new UPI IDs)
+        const merchantValid = 
+            text.includes('TARA') ||
+            text.includes('FITNESS') ||
+            text.includes('TARACHAND') ||
+            text.includes('PARMAR') ||
+            text.includes('UDDHAV') ||
+            text.includes('9960552750') ||
+            text.includes('OKSBI') ||
+            text.includes('OKAXIS') ||
+            text.includes('TARAPARMAR') ||
+            normalizedText.includes('TARAPARMAR2');
 
         if (!isTxnMatch || !isAmountMatch || !isSuccessStatus || !merchantValid) {
             return res.status(400).json({ 
