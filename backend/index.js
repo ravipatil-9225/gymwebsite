@@ -111,9 +111,11 @@ app.use(helmet());
 
 // 2. CORS — Only allow requests from our official frontend URL
 const allowedOrigins = [
-    process.env.FRONTEND_URL,              // Production URL from .env (e.g. https://tara-fitness.vercel.app)
+    process.env.FRONTEND_URL,              // Production URL from .env
+    'https://tfc365.com',                  // ✅ Custom domain (primary)
+    'https://www.tfc365.com',              // ✅ Custom domain (www)
     'https://gymwebsite-pink.vercel.app',  // Vercel preview/alternate deployment
-    'https://tara-fitness.vercel.app',     // Primary production frontend
+    'https://tara-fitness.vercel.app',     // Previous production frontend
     'http://localhost:5173',               // Local dev frontend
     'http://localhost:5174',               // Local dev fallback
 ].filter(Boolean);
