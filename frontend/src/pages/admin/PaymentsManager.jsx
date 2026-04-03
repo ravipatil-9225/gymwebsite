@@ -249,14 +249,18 @@ const PaymentRow = ({ payment, updateStatus, applyDiscount, deletePayment, setLi
                     </button>
                 )}
 
-                {/* UPI failed/pending actions */}
-                {!isCash && (payment.verificationStatus === 'failed_verification' || payment.verificationStatus === 'pending') && (
+                {/* UPI Manual Verify — shown for pending, failed, or even auto-verified UPI payments */}
+                {!isCash && payment.verificationStatus !== 'manually_verified' && (
                     <button
-                        onClick={() => updateStatus(payment._id, 'manually_verified')}
-                        className="inline-flex items-center justify-center p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors border border-green-200"
-                        title="Approve Manually"
+                        onClick={() => {
+                            if (window.confirm(`Manually approve this UPI payment?\n\n👤 ${payment.userName}\n💳 ${payment.planName} — ₹${payment.planPrice}\n\nThis will activate their membership immediately.`)) {
+                                updateStatus(payment._id, 'manually_verified');
+                            }
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-50 rounded-lg transition-colors border border-green-300 bg-green-50/50"
+                        title="Manually Approve & Activate Membership"
                     >
-                        <CheckCircle className="w-4 h-4" />
+                        <CheckCircle className="w-3.5 h-3.5" /> Verify
                     </button>
                 )}
 
