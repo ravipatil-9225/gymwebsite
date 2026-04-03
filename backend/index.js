@@ -111,7 +111,9 @@ app.use(helmet());
 
 // 2. CORS — Only allow requests from our official frontend URL
 const allowedOrigins = [
-    process.env.FRONTEND_URL,              // Production URL (e.g. https://your-site.vercel.app)
+    process.env.FRONTEND_URL,              // Production URL from .env (e.g. https://tara-fitness.vercel.app)
+    'https://gymwebsite-pink.vercel.app',  // Vercel preview/alternate deployment
+    'https://tara-fitness.vercel.app',     // Primary production frontend
     'http://localhost:5173',               // Local dev frontend
     'http://localhost:5174',               // Local dev fallback
 ].filter(Boolean);
@@ -133,7 +135,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // 4. NoSQL Injection Sanitizer — strips '$' and '.' from user input
-app.use(mongoSanitize());
+app.use(mongoSanitize({ replaceWith: '_', onSanitize: ({ req, key }) => { console.warn(`[SANITIZE] Attempted NoSQL injection via key: ${key}`); } }));
 
 // ── RATE LIMITERS ──
 
