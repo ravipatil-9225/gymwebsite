@@ -246,8 +246,10 @@ const forgotPassword = async (req, res) => {
         const payload = { email: user.email, id: user._id };
         const token = jwt.sign(payload, secret, { expiresIn: '15m' });
 
-        const origin = req.headers.origin || 'http://localhost:5173';
-        const link = `${origin}/reset-password?id=${user._id}&token=${token}`;
+        // ✅ Always use the configured FRONTEND_URL — req.headers.origin is unreliable
+        // in production (missing from email clients, proxies, etc.)
+        const frontendURL = process.env.FRONTEND_URL || 'https://tfc365.com';
+        const link = `${frontendURL}/reset-password?id=${user._id}&token=${token}`;
 
         emailService.sendPasswordResetLink(user, link).catch(console.error);
 
@@ -281,11 +283,14 @@ const resetPassword = async (req, res) => {
             return res.status(400).json({ message: 'Your link has expired or is invalid.' });
         }
 
-        if (!user.phone) {
-            user.phone = '0000000000'; // Fallback for older accounts
-        }
+        // Ensure old accounts without phone/dob don't fail validation
+        if (!user.phone) user.phone = '0000000000';
+        if (!user.dob)   user.dob   = '1990-01-01';
+
         user.password = newPassword;
-        await user.save();
+        // validateBeforeSave:false skips validation on unrelated required fields
+        // (e.g. phone/dob on old Google accounts) — password hashing still runs
+        await user.save({ validateBeforeSave: false });
 
         emailService.sendPasswordResetConfirmation(user).catch(console.error);
 
