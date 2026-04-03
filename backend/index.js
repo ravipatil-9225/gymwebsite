@@ -134,8 +134,14 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// 4. NoSQL Injection Sanitizer — strips '$' and '.' from user input
-app.use(mongoSanitize({ replaceWith: '_', onSanitize: ({ req, key }) => { console.warn(`[SANITIZE] Attempted NoSQL injection via key: ${key}`); } }));
+// 4. NoSQL Injection Sanitizer — manually sanitize only body & params
+// NOTE: We skip req.query because Express 4 makes it a read-only getter
+// and express-mongo-sanitize would crash trying to reassign it.
+app.use((req, res, next) => {
+    if (req.body) req.body = mongoSanitize.sanitize(req.body, { replaceWith: '_' });
+    if (req.params) req.params = mongoSanitize.sanitize(req.params, { replaceWith: '_' });
+    next();
+});
 
 // ── RATE LIMITERS ──
 
