@@ -83,20 +83,38 @@ const statusBadge = (text, color = primaryColor) => `<span style="display:inline
 // ─── CORE SEND FUNCTION ───────────────────────────────────────────────────
 
 const send = async (to, subject, html) => {
-    const transporter = createTransporter();
-    if (!transporter) {
-        console.log(`[EMAIL SKIPPED - no credentials] To: ${to} | Subject: ${subject}`);
+    const resendApiKey = process.env.RESEND_API_KEY;
+    if (!resendApiKey) {
+        console.log(`[EMAIL SKIPPED - no Resend API Key] To: ${to} | Subject: ${subject}`);
         return false;
     }
     try {
-        await transporter.sendMail({
-            from: `"Tara Fitness Centre" <${process.env.EMAIL_USER}>`,
-            to,
-            subject,
-            html,
+        // Resend requires a custom domain (e.g. noreply@tfc365.com). It cannot send from @gmail.com.
+        const fromEmail = process.env.EMAIL_FROM || 'Tara Fitness <noreply@tfc365.com>';
+        
+        const response = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${resendApiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                from: fromEmail,
+                to: [to],
+                subject,
+                html,
+            })
         });
-        console.log(`✉️  Email sent to ${to} | ${subject}`);
-        return true;
+
+        const data = await response.json();
+
+        if (response.ok) {
+            console.log(`✉️  Email sent to ${to} | ${subject}`);
+            return true;
+        } else {
+            console.error(`❌ Email failed to ${to}:`, data);
+            return false;
+        }
     } catch (err) {
         console.error(`❌ Email failed to ${to}:`, err.message);
         return false;
