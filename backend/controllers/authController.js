@@ -248,10 +248,15 @@ const forgotPassword = async (req, res) => {
 
         // ✅ Always use the configured FRONTEND_URL — req.headers.origin is unreliable
         // in production (missing from email clients, proxies, etc.)
-        const frontendURL = process.env.FRONTEND_URL || 'https://tfc365.com';
+        let frontendURL = process.env.FRONTEND_URL || 'https://tfc365.com';
+        frontendURL = frontendURL.replace(/\/+$/, ''); // Strip trailing slashes
         const link = `${frontendURL}/reset-password?id=${user._id}&token=${token}`;
 
-        emailService.sendPasswordResetLink(user, link).catch(console.error);
+        const emailSuccess = await emailService.sendPasswordResetLink(user, link);
+
+        if (!emailSuccess) {
+            return res.status(500).json({ message: 'Failed to send password reset email. Please contact support or check server config.' });
+        }
 
         res.status(200).json({ message: 'Password reset link sent to your email.' });
     } catch (error) {
@@ -280,17 +285,25 @@ const resetPassword = async (req, res) => {
         try {
             jwt.verify(token, secret);
         } catch (err) {
+            console.error('JWT Verify error during reset:', err.message);
             return res.status(400).json({ message: 'Your link has expired or is invalid.' });
         }
 
-        // Ensure old accounts without phone/dob don't fail validation
-        if (!user.phone) user.phone = '0000000000';
-        if (!user.dob)   user.dob   = '1990-01-01';
+        // Manually hash the password to bypass any potential Mongoose validation or pre-save hook bugs
+        const salt = await bcrypt.genSalt(8);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
 
-        user.password = newPassword;
-        // validateBeforeSave:false skips validation on unrelated required fields
-        // (e.g. phone/dob on old Google accounts) — password hashing still runs
-        await user.save({ validateBeforeSave: false });
+        await User.updateOne(
+            { _id: id },
+            { 
+                $set: { 
+                    password: hashedPassword,
+                    // Optionally set fallback values if missing, but updateOne skips validation anyway
+                    phone: user.phone || '0000000000',
+                    dob: user.dob || '1990-01-01'
+                } 
+            }
+        );
 
         emailService.sendPasswordResetConfirmation(user).catch(console.error);
 

@@ -86,7 +86,7 @@ const send = async (to, subject, html) => {
     const transporter = createTransporter();
     if (!transporter) {
         console.log(`[EMAIL SKIPPED - no credentials] To: ${to} | Subject: ${subject}`);
-        return;
+        return false;
     }
     try {
         await transporter.sendMail({
@@ -96,8 +96,10 @@ const send = async (to, subject, html) => {
             html,
         });
         console.log(`✉️  Email sent to ${to} | ${subject}`);
+        return true;
     } catch (err) {
         console.error(`❌ Email failed to ${to}:`, err.message);
+        return false;
     }
 };
 
