@@ -252,10 +252,16 @@ const forgotPassword = async (req, res) => {
         frontendURL = frontendURL.replace(/\/+$/, ''); // Strip trailing slashes
         const link = `${frontendURL}/reset-password?id=${user._id}&token=${token}`;
 
-        const emailSuccess = await emailService.sendPasswordResetLink(user, link);
+        // Ensure emailService never hangs the server by enforcing a strict 5-second timeout manually
+        const emailPromise = emailService.sendPasswordResetLink(user, link);
+        const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(false), 5000));
+        
+        const emailSuccess = await Promise.race([emailPromise, timeoutPromise]);
 
         if (!emailSuccess) {
-            return res.status(500).json({ message: 'Failed to send password reset email. Please contact support or check server config.' });
+            return res.status(500).json({ 
+                message: 'Failed to send password reset email. Your server might be blocking SMTP, or your credentials are out of date.' 
+            });
         }
 
         res.status(200).json({ message: 'Password reset link sent to your email.' });
