@@ -11,16 +11,15 @@ const createTransporter = () => {
     }
     return nodemailer.createTransport({
         host: 'smtp.gmail.com',
-        port: 587,
-        secure: false, // TLS requires secure: false on 587, and requireTLS: true
-        requireTLS: true,
+        port: 465,
+        secure: true, // Use SSL/TLS
         auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS,
         },
-        connectionTimeout: 5000, // Important: Don't hang Vercel beyond 5 seconds!
-        greetingTimeout: 5000,
-        socketTimeout: 5000
+        connectionTimeout: 8000, 
+        greetingTimeout: 8000,
+        socketTimeout: 8000
     });
 };
 
