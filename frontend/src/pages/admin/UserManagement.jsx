@@ -149,6 +149,16 @@ const UserManagement = () => {
 
     return (
         <div className="space-y-5">
+            <datalist id="batch-times">
+                {Array.from(new Set([
+                    '5.30am to 9.00am',
+                    '5.00pm to 9.00pm',
+                    ...users.map(u => u.batchTime).filter(bt => bt && bt !== 'Not Assigned')
+                ])).map(time => (
+                    <option key={time} value={time} />
+                ))}
+            </datalist>
+
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
@@ -168,7 +178,7 @@ const UserManagement = () => {
                         />
                     </div>
                     <button
-                        onClick={() => setAddingUser({ name: '', email: '', phone: '', dob: '', password: '', role: 'user' })}
+                        onClick={() => setAddingUser({ name: '', email: '', phone: '', dob: '', password: '', role: 'user', batchTime: '' })}
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2 whitespace-nowrap"
                     >
                         <User className="w-4 h-4" /> Add User
@@ -208,6 +218,9 @@ const UserManagement = () => {
                                 </th>
                                 <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider whitespace-nowrap">
                                     <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />DOB</span>
+                                </th>
+                                <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider whitespace-nowrap">
+                                    <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Batch</span>
                                 </th>
                                 <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider whitespace-nowrap">
                                     <span className="flex items-center gap-1"><Package className="w-3.5 h-3.5" />Plan</span>
@@ -269,6 +282,15 @@ const UserManagement = () => {
                                         {/* DOB */}
                                         <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
                                             {user.dob ? fmt(user.dob) : <span className="text-gray-300">—</span>}
+                                        </td>
+
+                                        {/* Batch Time */}
+                                        <td className="px-4 py-3 text-gray-600 whitespace-nowrap text-xs font-medium">
+                                            {user.batchTime && user.batchTime !== 'Not Assigned' ? (
+                                                <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded-md">{user.batchTime}</span>
+                                            ) : (
+                                                <span className="text-gray-300 text-xs">Not Assigned</span>
+                                            )}
                                         </td>
 
                                         {/* Plan name */}
@@ -460,6 +482,17 @@ const UserManagement = () => {
                             ))}
 
                             <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Batch Time</label>
+                                <input
+                                    list="batch-times"
+                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                    value={editingUser.batchTime || ''}
+                                    placeholder="Select or type a batch time..."
+                                    onChange={(e) => setEditingUser({ ...editingUser, batchTime: e.target.value })}
+                                />
+                            </div>
+
+                            <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
                                 <select
                                     className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
@@ -521,6 +554,17 @@ const UserManagement = () => {
                                     />
                                 </div>
                             ))}
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Batch Time</label>
+                                <input
+                                    list="batch-times"
+                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                    value={addingUser.batchTime || ''}
+                                    placeholder="Select or type a batch time..."
+                                    onChange={(e) => setAddingUser({ ...addingUser, batchTime: e.target.value })}
+                                />
+                            </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>

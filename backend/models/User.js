@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema({
     role: { type: String, default: 'user', enum: ['user', 'admin'] },
     phone: { type: String, required: [true, 'Contact number is required'], trim: true, minlength: 10 },
     dob: { type: String, required: [true, 'Date of birth is required'], trim: true },
+    batchTime: { type: String, default: 'Not Assigned' },
     goal: { type: String, default: '' },
     profileImage: {
         url: { type: String, default: '' },
