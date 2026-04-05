@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { Users, PhoneCall, HandCoins, Activity } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -62,10 +63,10 @@ const Dashboard = () => {
     if (loading) return <div className="p-8">Loading dashboard...</div>;
 
     const statCards = [
-        { title: 'Total Users', value: stats.totalUsers, icon: Users, color: 'text-blue-600', bg: 'bg-blue-100' },
-        { title: 'Active Members', value: stats.activeMembers, icon: Activity, color: 'text-green-600', bg: 'bg-green-100' },
-        { title: 'Total Enquiries', value: stats.totalEnquiries, icon: PhoneCall, color: 'text-yellow-600', bg: 'bg-yellow-100' },
-        { title: 'Pending Payments', value: stats.pendingPayments, icon: HandCoins, color: 'text-red-600', bg: 'bg-red-100' },
+        { title: 'Total Users', value: stats.totalUsers, icon: Users, color: 'text-blue-600', bg: 'bg-blue-100', link: '/admin/users' },
+        { title: 'Active Members', value: stats.activeMembers, icon: Activity, color: 'text-green-600', bg: 'bg-green-100', link: '/admin/summary' },
+        { title: 'Total Enquiries', value: stats.totalEnquiries, icon: PhoneCall, color: 'text-yellow-600', bg: 'bg-yellow-100', link: '/admin/enquiries' },
+        { title: 'Pending Payments', value: stats.pendingPayments, icon: HandCoins, color: 'text-red-600', bg: 'bg-red-100', link: '/admin/payments' },
     ];
 
     return (
@@ -96,7 +97,7 @@ const Dashboard = () => {
                 {statCards.map((stat, idx) => {
                     const Icon = stat.icon;
                     return (
-                        <div key={idx} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex items-center">
+                        <Link key={idx} to={stat.link} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex items-center hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer">
                             <div className={`p-4 rounded-lg ${stat.bg} mr-4`}>
                                 <Icon className={`w-6 h-6 ${stat.color}`} />
                             </div>
@@ -104,7 +105,7 @@ const Dashboard = () => {
                                 <p className="text-sm font-medium text-gray-500">{stat.title}</p>
                                 <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
                             </div>
-                        </div>
+                        </Link>
                     );
                 })}
             </div>
