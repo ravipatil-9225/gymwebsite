@@ -147,28 +147,28 @@ app.use((req, res, next) => {
 
 // ── RATE LIMITERS ──
 
-// Auth routes (Login/Register): Max 10 attempts per 15 minutes per IP
+// Auth routes (Login/Register): Max 50 attempts per 15 minutes per IP
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 10,
+    max: 50,
     message: { message: 'Too many attempts from this IP. Please wait 15 minutes and try again.' },
     standardHeaders: true,
     legacyHeaders: false,
 });
 
-// General API routes: Max 200 requests per 15 minutes per IP (normal usage)
+// General API routes: Max 1000 requests per 15 minutes per IP (administrative/heavy usage)
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 200,
+    max: 1000,
     message: { message: 'Too many requests. Please slow down.' },
     standardHeaders: true,
     legacyHeaders: false,
 });
 
-// AI/Nutrition route: Max 20 requests per 15 minutes (expensive AI calls)
+// AI/Nutrition route: Max 100 requests per 15 minutes
 const nutritionLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 20,
+    max: 100,
     message: { message: 'Too many nutrition plan requests. Please wait before generating another.' },
     standardHeaders: true,
     legacyHeaders: false,
