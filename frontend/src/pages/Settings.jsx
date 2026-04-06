@@ -8,6 +8,7 @@ import {
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import SubscriptionCard from '../components/dashboard/SubscriptionCard';
 
 const FITNESS_GOALS = [
     'Weight Loss', 'Muscle Gain', 'Strength Training',
@@ -227,19 +228,7 @@ const Settings = () => {
                                 </div>
                             )}
 
-                            {/* Membership Info */}
-                            <div className="mt-6 pt-5 border-t border-white/10 space-y-3">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-400">Next Renewal:</span>
-                                    <span className="text-white font-semibold">Dec 31, 2026</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-400">Current Plan:</span>
-                                    <span className="text-white font-semibold flex items-center gap-1">
-                                        <TrendingUp className="w-4 h-4 text-primary" /> Pro
-                                    </span>
-                                </div>
-                            </div>
+                            <SubscriptionCard />
                         </div>
 
                         {/* Preferences */}
