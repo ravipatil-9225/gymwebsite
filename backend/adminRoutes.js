@@ -286,6 +286,11 @@ router.delete('/users/:id', async (req, res) => {
         if (user && user.profileImage && user.profileImage.public_id) {
             await deleteFromCloudinary(user.profileImage.public_id);
         }
+        if (user) {
+            await Membership.deleteMany({ userId: user._id });
+            await Payment.deleteMany({ email: user.email });
+            await FormSubmission.deleteMany({ email: user.email });
+        }
         await User.findByIdAndDelete(req.params.id);
         res.json({ message: 'User deleted successfully' });
         socket.getIO().emit('db_changed');
