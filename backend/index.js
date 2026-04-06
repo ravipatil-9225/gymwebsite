@@ -166,10 +166,10 @@ const generalLimiter = rateLimit({
     legacyHeaders: false,
 });
 
-// AI/Nutrition route: Max 100 requests per 15 minutes
+// AI/Nutrition route: Max 200 requests per 15 minutes
 const nutritionLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: 200,
     message: { message: 'Too many nutrition plan requests. Please wait before generating another.' },
     standardHeaders: true,
     legacyHeaders: false,
