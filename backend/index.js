@@ -151,7 +151,7 @@ app.use((req, res, next) => {
 // Auth routes (Login/Register): Max 200 attempts per 15 minutes per IP
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 200,
+    max: 300,
     message: { message: 'High traffic right now. Please try again in 1 to 2 mins.' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -169,7 +169,7 @@ const generalLimiter = rateLimit({
 // AI/Nutrition route: Max 200 requests per 15 minutes
 const nutritionLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 200,
+    max: 300,
     message: { message: 'Too many nutrition plan requests. Please wait before generating another.' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -242,9 +242,9 @@ app.get('/api/public/content/:section', async (req, res) => {
 app.get('/api/public/reviews', async (req, res) => {
     try {
         const FormSubmission = require('./models/FormSubmission');
-        const reviews = await FormSubmission.find({ 
-            type: 'feedback', 
-            rating: { $gte: 4 } 
+        const reviews = await FormSubmission.find({
+            type: 'feedback',
+            rating: { $gte: 4 }
         }).sort({ createdAt: -1 }).limit(50);
         res.json(reviews);
     } catch (err) {
