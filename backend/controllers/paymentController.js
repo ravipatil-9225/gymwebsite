@@ -15,20 +15,25 @@ function parsePrice(price) {
 }
 
 // Helper: parse plan duration string into days
-async function getPlanDurationDays(planName) {
+async function getPlanDurationDays(pkgOrName) {
     const parse = (str = '') => {
-        const s = str.toLowerCase();
+        const s = typeof str === 'string' ? str.toLowerCase() : '';
         if (s.includes('year'))  { const m = s.match(/(\d+)\s*year/);  return (m ? +m[1] : 1) * 365; }
         if (s.includes('month')) { const m = s.match(/(\d+)\s*month/); return (m ? +m[1] : 1) * 30;  }
         if (s.includes('week'))  { const m = s.match(/(\d+)\s*week/);  return (m ? +m[1] : 1) * 7;   }
         if (s.includes('day'))   { const m = s.match(/(\d+)\s*day/);   return m ? +m[1] : 30;         }
         return 30;
     };
+
+    if (typeof pkgOrName === 'object' && pkgOrName?.duration) {
+        return parse(pkgOrName.duration);
+    }
+
     try {
-        const pkg = await Package.findOne({ name: planName });
+        const pkg = await Package.findOne({ name: pkgOrName });
         if (pkg?.duration) return parse(pkg.duration);
     } catch (_) {}
-    return parse(planName);
+    return parse(pkgOrName);
 }
 
 exports.checkDiscount = async (req, res) => {
@@ -99,7 +104,7 @@ exports.verifyAndUpload = async (req, res) => {
         // ── CASH ON BENCH FLOW ──────────────────────────────────────────────────
         if (method === 'cash_on_bench') {
             const newPayment = await Payment.create({
-                userName, email, planName: actualPlanName, planPrice: finalAmount, originalAmount: numericPrice,
+                userName, email, packageId: pkg._id, planName: actualPlanName, planPrice: finalAmount, originalAmount: numericPrice,
                 paymentMethod: 'cash_on_bench', verificationStatus: 'cash_pending',
             });
             emailService.sendCashPaymentPendingUser({ userName, email, planName: actualPlanName, planPrice: numericPrice }).catch(console.error);
@@ -186,6 +191,7 @@ exports.verifyAndUpload = async (req, res) => {
         const newPayment = await Payment.create({
             userName,
             email,
+            packageId: pkg._id,
             planName: actualPlanName,
             planPrice: finalAmount,
             originalAmount: numericPrice,
@@ -202,7 +208,7 @@ exports.verifyAndUpload = async (req, res) => {
         // Activate membership directly since it's fully verified
         const user = await User.findOne({ email });
         if (user) {
-            const planDuration = await getPlanDurationDays(actualPlanName);
+            const planDuration = await getPlanDurationDays(pkg);
             const startDate = new Date();
             const endDate = new Date();
             endDate.setDate(endDate.getDate() + planDuration);

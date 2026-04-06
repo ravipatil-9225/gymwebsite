@@ -9,6 +9,15 @@ const fmt = (dateStr) => {
     return new Date(dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
+const fmtInput = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return '';
+        return d.toISOString().split('T')[0];
+    } catch { return ''; }
+};
+
 const getRemainingDays = (endDate) => {
     if (!endDate) return null;
     const now = new Date();
@@ -113,11 +122,14 @@ const UserManagement = () => {
         e.preventDefault();
         try {
             const token = localStorage.getItem('gymToken');
-            await axios.put(`/api/admin/users/${editingUser._id}`, editingUser, {
+            const { data: updatedUser } = await axios.put(`/api/admin/users/${editingUser._id}`, editingUser, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+            // ✅ Optimistic update: merge the server response + the latestMembership changes
+            const merged = { ...updatedUser, latestMembership: editingUser.latestMembership, allMemberships: editingUser.allMemberships };
+            setUsers(prev => prev.map(u => u._id === editingUser._id ? merged : u));
+            setFiltered(prev => prev.map(u => u._id === editingUser._id ? merged : u));
             setEditingUser(null);
-            fetchUsers();
         } catch (err) {
             alert('Error updating user');
             console.error(err);
@@ -503,6 +515,40 @@ const UserManagement = () => {
                                     <option value="admin">Admin</option>
                                 </select>
                             </div>
+
+                            {editingUser.latestMembership && (
+                                <div className="pt-4 border-t border-gray-100 space-y-4">
+                                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Active Plan Edits</h3>
+                                    
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-500 mb-1">Duration (days)</label>
+                                            <input
+                                                type="number"
+                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                value={editingUser.latestMembership.planDuration || ''}
+                                                onChange={(e) => setEditingUser({
+                                                    ...editingUser,
+                                                    latestMembership: { ...editingUser.latestMembership, planDuration: parseInt(e.target.value) }
+                                                })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-500 mb-1">End Date</label>
+                                            <input
+                                                type="date"
+                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                value={fmtInput(editingUser.latestMembership.endDate)}
+                                                onChange={(e) => setEditingUser({
+                                                    ...editingUser,
+                                                    latestMembership: { ...editingUser.latestMembership, endDate: e.target.value }
+                                                })}
+                                            />
+                                        </div>
+                                    </div>
+                                    <p className="text-[10px] text-orange-500 italic">Editing these will modify the active membership record instantly.</p>
+                                </div>
+                            )}
 
                             <div className="pt-2 flex justify-end gap-3">
                                 <button

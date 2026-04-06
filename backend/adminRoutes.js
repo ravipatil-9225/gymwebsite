@@ -272,10 +272,23 @@ router.post('/users', async (req, res) => {
 
 router.put('/users/:id', async (req, res) => {
     try {
-        const updated = await User.findByIdAndUpdate(req.params.id, req.body, { new: true }).select('-password');
+        const { latestMembership, ...userData } = req.body;
+        
+        // 1. Update User basic info
+        const updated = await User.findByIdAndUpdate(req.params.id, userData, { new: true }).select('-password');
+
+        // 2. Update Membership if provided
+        if (latestMembership && latestMembership._id) {
+            await Membership.findByIdAndUpdate(latestMembership._id, {
+                planDuration: latestMembership.planDuration,
+                endDate: latestMembership.endDate
+            });
+        }
+
         res.json(updated);
         socket.getIO().emit('db_changed');
     } catch (err) {
+        console.error('Update user error:', err);
         res.status(500).json({ message: 'Error updating user' });
     }
 });
@@ -454,9 +467,11 @@ router.post('/packages/reset-category', async (req, res) => {
 router.put('/packages/:id', async (req, res) => {
     try {
         const updated = await Package.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        if (!updated) return res.status(404).json({ message: 'Package not found' });
         res.json(updated);
-        socket.getIO().emit('db_changed');
+        socket.getIO().emit('db_changed', { type: 'package_changed', data: updated });
     } catch (err) {
+        console.error('Package update error:', err);
         res.status(500).json({ message: 'Error updating package' });
     }
 });
@@ -465,8 +480,9 @@ router.delete('/packages/:id', async (req, res) => {
     try {
         await Package.findByIdAndDelete(req.params.id);
         res.json({ message: 'Package deleted' });
-        socket.getIO().emit('db_changed');
+        socket.getIO().emit('db_changed', { type: 'package_changed' });
     } catch (err) {
+        console.error('Package delete error:', err);
         res.status(500).json({ message: 'Error deleting package' });
     }
 });
@@ -771,7 +787,7 @@ router.put('/payments/:id', async (req, res) => {
             if (user) {
                 // Parse duration in days from planName / package
                 const parseDurationDays = (name = '') => {
-                    const n = name.toLowerCase();
+                    const n = typeof name === 'string' ? name.toLowerCase() : '';
                     if (n.includes('year')) {
                         const m = n.match(/(\d+)\s*year/);
                         return (m ? parseInt(m[1]) : 1) * 365;
@@ -785,13 +801,19 @@ router.put('/payments/:id', async (req, res) => {
                         const m = n.match(/(\d+)\s*day/);
                         return m ? parseInt(m[1]) : 30;
                     }
-                    // Try to get duration from Package model
                     return 30;
                 };
 
                 let planDuration = 30;
                 try {
-                    const pkg = await Package.findOne({ name: payment.planName });
+                    let pkg = null;
+                    if (payment.packageId) {
+                        pkg = await Package.findById(payment.packageId);
+                    }
+                    if (!pkg) {
+                        // Fallback: match Name AND Price to avoid taking the first plan match only
+                        pkg = await Package.findOne({ name: payment.planName, price: payment.originalAmount || payment.planPrice });
+                    }
                     if (pkg && pkg.duration) {
                         planDuration = parseDurationDays(pkg.duration);
                     } else {
@@ -799,7 +821,7 @@ router.put('/payments/:id', async (req, res) => {
                     }
                 } catch (e) {
                     planDuration = parseDurationDays(payment.planName);
-                }
+                };
 
                 const startDate = new Date();
                 const endDate = new Date();

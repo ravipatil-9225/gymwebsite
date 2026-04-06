@@ -317,10 +317,11 @@ const PaymentsManager = () => {
     const updateStatus = async (id, status) => {
         try {
             const token = localStorage.getItem('gymToken');
-            await axios.put(`/api/admin/payments/${id}`, { verificationStatus: status }, {
+            const { data: updated } = await axios.put(`/api/admin/payments/${id}`, { verificationStatus: status }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            fetchPayments();
+            // ✅ Optimistic: update status in-place immediately
+            setPayments(prev => prev.map(p => p._id === id ? { ...p, verificationStatus: updated.verificationStatus } : p));
         } catch (err) {
             alert('Error updating payment status');
             console.error(err);
@@ -330,11 +331,12 @@ const PaymentsManager = () => {
     const applyDiscount = async (id, discount, type) => {
         try {
             const token = localStorage.getItem('gymToken');
-            await axios.put(`/api/admin/payments/${id}/apply-discount`, { discount: Number(discount), discountType: type }, {
+            const { data: updated } = await axios.put(`/api/admin/payments/${id}/apply-discount`, { discount: Number(discount), discountType: type }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+            // ✅ Optimistic: update discount fields in-place immediately
+            setPayments(prev => prev.map(p => p._id === id ? { ...p, ...updated } : p));
             alert('Discount applied successfully!');
-            fetchPayments();
         } catch (err) {
             alert(err.response?.data?.message || 'Error applying discount');
             console.error(err);
@@ -348,7 +350,8 @@ const PaymentsManager = () => {
             await axios.delete(`/api/admin/payments/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            fetchPayments();
+            // ✅ Optimistic: remove immediately from state
+            setPayments(prev => prev.filter(p => p._id !== id));
         } catch (err) {
             alert('Error deleting payment');
             console.error(err);

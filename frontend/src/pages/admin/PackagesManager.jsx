@@ -57,7 +57,8 @@ const PackagesManager = () => {
             await axios.delete(`/api/admin/packages/${id}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
-            fetchPackages();
+            // Optimistic: remove immediately from state
+            setPackages(prev => prev.filter(p => p._id !== id));
         } catch { alert('Error deleting package'); }
     };
 
@@ -73,16 +74,19 @@ const PackagesManager = () => {
                     : formData.features,
             };
             if (editingId) {
-                await axios.put(`/api/admin/packages/${editingId}`, payload, {
+                const { data: updated } = await axios.put(`/api/admin/packages/${editingId}`, payload, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
+                // ✅ Optimistic update: replace changed package in state immediately
+                setPackages(prev => prev.map(p => p._id === editingId ? updated : p));
             } else {
-                await axios.post('/api/admin/packages', payload, {
+                const { data: created } = await axios.post('/api/admin/packages', payload, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
+                // ✅ Optimistic update: prepend new package immediately
+                setPackages(prev => [created, ...prev]);
             }
             closeModal();
-            fetchPackages();
         } catch { alert(editingId ? 'Error updating package' : 'Error creating package'); }
     };
 
