@@ -1,11 +1,11 @@
-const Subscription = require('../models/Subscription');
+const Membership = require('../models/Membership');
 
 // @desc    Get user's current subscription
 // @route   GET /api/subscription/
 // @access  Private
 const getSubscription = async (req, res) => {
     try {
-        const subscription = await Subscription.findOne({ userId: req.user.id }).sort({ createdAt: -1 });
+        const subscription = await Membership.findOne({ userId: req.user.id }).sort({ createdAt: -1 });
         
         if (!subscription) {
             return res.status(404).json({ message: 'No active plan found' });
@@ -17,7 +17,11 @@ const getSubscription = async (req, res) => {
             await subscription.save();
         }
 
-        res.json(subscription);
+        // Map it back so frontend properties remain unchanged
+        res.json({
+            ...subscription._doc,
+            planName: subscription.packageName
+        });
     } catch (error) {
         console.error('Error fetching subscription:', error);
         res.status(500).json({ message: 'Server error' });

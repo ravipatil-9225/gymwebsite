@@ -37,6 +37,22 @@ const SubscriptionCard = () => {
         }
     }, [token]);
 
+    useEffect(() => {
+        const handleDbChange = () => {
+            if (token) {
+                fetchSubscription();
+            }
+        };
+        
+        import('../../utils/socket').then((module) => {
+            const socket = module.default;
+            socket.on('db_changed', handleDbChange);
+            return () => {
+                socket.off('db_changed', handleDbChange);
+            };
+        });
+    }, [token]);
+
     const formatDate = (dateString) => {
         const options = { year: 'numeric', month: 'short', day: 'numeric' };
         return new Date(dateString).toLocaleDateString('en-US', options);
