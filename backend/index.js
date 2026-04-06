@@ -148,10 +148,10 @@ app.use((req, res, next) => {
 
 // ── RATE LIMITERS ──
 
-// Auth routes (Login/Register): Max 150 attempts per 15 minutes per IP
+// Auth routes (Login/Register): Max 200 attempts per 15 minutes per IP
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 150,
+    max: 200,
     message: { message: 'High traffic right now. Please try again in 1 to 2 mins.' },
     standardHeaders: true,
     legacyHeaders: false,
