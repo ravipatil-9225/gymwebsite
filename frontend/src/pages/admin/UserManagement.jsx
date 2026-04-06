@@ -516,39 +516,91 @@ const UserManagement = () => {
                                 </select>
                             </div>
 
-                            {editingUser.latestMembership && (
-                                <div className="pt-4 border-t border-gray-100 space-y-4">
-                                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Active Plan Edits</h3>
-                                    
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-semibold text-gray-500 mb-1">Duration (days)</label>
-                                            <input
-                                                type="number"
-                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                                value={editingUser.latestMembership.planDuration || ''}
-                                                onChange={(e) => setEditingUser({
-                                                    ...editingUser,
-                                                    latestMembership: { ...editingUser.latestMembership, planDuration: parseInt(e.target.value) }
-                                                })}
-                                            />
+                            {editingUser.latestMembership && (() => {
+                                const mem = editingUser.latestMembership;
+                                const startDate = mem.startDate ? new Date(mem.startDate) : new Date();
+                                const endDate   = mem.endDate   ? new Date(mem.endDate)   : new Date();
+                                const daysLeft  = Math.ceil((endDate - new Date()) / (1000 * 60 * 60 * 24));
+
+                                const onDurationChange = (val) => {
+                                    const days = parseInt(val) || 0;
+                                    const newEnd = new Date(startDate);
+                                    newEnd.setDate(newEnd.getDate() + days);
+                                    setEditingUser({
+                                        ...editingUser,
+                                        latestMembership: {
+                                            ...mem,
+                                            planDuration: days,
+                                            endDate: newEnd.toISOString()
+                                        }
+                                    });
+                                };
+
+                                const onEndDateChange = (val) => {
+                                    const newEnd = new Date(val);
+                                    const diffDays = Math.ceil((newEnd - startDate) / (1000 * 60 * 60 * 24));
+                                    setEditingUser({
+                                        ...editingUser,
+                                        latestMembership: {
+                                            ...mem,
+                                            planDuration: diffDays > 0 ? diffDays : 0,
+                                            endDate: newEnd.toISOString()
+                                        }
+                                    });
+                                };
+
+                                return (
+                                    <div className="pt-4 border-t border-gray-100 space-y-4">
+                                        <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                                            <Clock className="w-4 h-4 text-blue-500" />
+                                            Active Plan Edits
+                                        </h3>
+
+                                        {/* Live preview bar */}
+                                        <div className="grid grid-cols-3 gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3 text-center">
+                                            <div>
+                                                <p className="text-[10px] font-semibold text-blue-400 uppercase tracking-wider mb-0.5">Start Date</p>
+                                                <p className="text-xs font-bold text-blue-700">{fmt(mem.startDate)}</p>
+                                            </div>
+                                            <div className="border-x border-blue-100">
+                                                <p className="text-[10px] font-semibold text-blue-400 uppercase tracking-wider mb-0.5">End Date</p>
+                                                <p className={`text-xs font-bold ${daysLeft > 0 ? 'text-green-600' : 'text-red-500'}`}>{fmt(mem.endDate)}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-semibold text-blue-400 uppercase tracking-wider mb-0.5">Days Left</p>
+                                                <p className={`text-xs font-bold ${daysLeft > 7 ? 'text-green-600' : daysLeft > 0 ? 'text-orange-500' : 'text-red-500'}`}>
+                                                    {daysLeft > 0 ? `${daysLeft}d` : 'Expired'}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <label className="block text-xs font-semibold text-gray-500 mb-1">End Date</label>
-                                            <input
-                                                type="date"
-                                                className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                                value={fmtInput(editingUser.latestMembership.endDate)}
-                                                onChange={(e) => setEditingUser({
-                                                    ...editingUser,
-                                                    latestMembership: { ...editingUser.latestMembership, endDate: e.target.value }
-                                                })}
-                                            />
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-xs font-semibold text-gray-500 mb-1">Duration (days)</label>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                    value={mem.planDuration || ''}
+                                                    onChange={(e) => onDurationChange(e.target.value)}
+                                                />
+                                                <p className="text-[10px] text-gray-400 mt-1">→ auto-updates End Date</p>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-semibold text-gray-500 mb-1">End Date</label>
+                                                <input
+                                                    type="date"
+                                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                    value={fmtInput(mem.endDate)}
+                                                    onChange={(e) => onEndDateChange(e.target.value)}
+                                                />
+                                                <p className="text-[10px] text-gray-400 mt-1">→ auto-updates Duration</p>
+                                            </div>
                                         </div>
+                                        <p className="text-[10px] text-orange-500 italic">Changes are saved instantly on clicking "Save Changes".</p>
                                     </div>
-                                    <p className="text-[10px] text-orange-500 italic">Editing these will modify the active membership record instantly.</p>
-                                </div>
-                            )}
+                                );
+                            })()}
 
                             <div className="pt-2 flex justify-end gap-3">
                                 <button
