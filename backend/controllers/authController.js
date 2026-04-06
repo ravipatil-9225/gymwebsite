@@ -35,7 +35,7 @@ const registerUser = async (req, res) => {
             role = 'admin';
         }
         const user = await User.create({ name, email, password, role, phone: phone || '', dob });
-        const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '30d' });
+        const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1y' });
 
         emailService.sendWelcomeEmail(user).catch(console.error);
         emailService.sendAdminNewUserAlert(user).catch(console.error);
@@ -71,7 +71,7 @@ const loginUser = async (req, res) => {
         // Update lastLogin non-blocking (fire & forget) — don't wait for it
         User.updateOne({ _id: user._id }, { lastLogin: new Date() }).catch(() => {});
 
-        const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '30d' });
+        const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1y' });
 
         res.json({
             token,
@@ -140,7 +140,7 @@ const googleAuth = async (req, res) => {
             User.updateOne({ _id: user._id }, { lastLogin: new Date() }).catch(() => {});
         }
 
-        const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '30d' });
+        const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1y' });
 
         res.json({
             token,

@@ -152,7 +152,7 @@ app.use((req, res, next) => {
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 150,
-    message: { message: 'Too many attempts from this IP. Please wait 15 minutes and try again.' },
+    message: { message: 'High traffic right now. Please try again in 1 to 2 mins.' },
     standardHeaders: true,
     legacyHeaders: false,
 });
