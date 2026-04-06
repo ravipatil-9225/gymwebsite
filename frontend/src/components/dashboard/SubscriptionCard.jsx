@@ -1,0 +1,93 @@
+import React, { useState, useEffect, useContext } from 'react';
+import axios from 'axios';
+import { TrendingUp, Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { AuthContext } from '../../context/AuthContext';
+
+const SubscriptionCard = () => {
+    const { token } = useContext(AuthContext);
+    const [subscription, setSubscription] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    const fetchSubscription = async () => {
+        try {
+            setLoading(true);
+            const { data } = await axios.get('/api/subscription/', {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+            setSubscription(data);
+            setError(null);
+        } catch (err) {
+            if (err.response && err.response.status === 404) {
+                setSubscription(null); // No active plan
+            } else {
+                setError('Failed to fetch subscription');
+                console.error(err);
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (token) {
+            fetchSubscription();
+        }
+    }, [token]);
+
+    const formatDate = (dateString) => {
+        const options = { year: 'numeric', month: 'short', day: 'numeric' };
+        return new Date(dateString).toLocaleDateString('en-US', options);
+    };
+
+    if (loading) {
+        return (
+            <div className="space-y-4 pt-4 border-t border-white/10 flex items-center justify-center p-4">
+                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        );
+    }
+
+    if (!subscription) {
+        return (
+            <div className="space-y-4 pt-4 border-t border-white/10">
+                <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-400">Current Plan:</span>
+                    <span className="text-gray-400 font-semibold flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4" /> No Active Plan
+                    </span>
+                </div>
+            </div>
+        );
+    }
+
+    const isExpired = subscription.status === 'expired';
+
+    return (
+        <div className="space-y-4 pt-4 border-t border-white/10">
+            <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-400">Next Renewal:</span>
+                <span className={`font-semibold flex items-center gap-2 ${isExpired ? 'text-red-400' : 'text-white'}`}>
+                    <Clock className="w-4 h-4" /> {formatDate(subscription.endDate)}
+                </span>
+            </div>
+            <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-400">Current Plan:</span>
+                <span className="text-white font-semibold flex items-center gap-2">
+                    <TrendingUp className={`w-4 h-4 ${isExpired ? 'text-red-500' : 'text-primary'}`} /> {subscription.planName}
+                </span>
+            </div>
+            <div className="flex justify-between items-center text-sm mt-1">
+                <span className="text-gray-400">Status:</span>
+                <span className={`font-semibold flex items-center gap-1.5 text-[0.7rem] uppercase px-2 py-0.5 rounded-full ${isExpired ? 'bg-red-500/20 text-red-500 border border-red-500/30' : 'bg-green-500/20 text-green-400 border border-green-500/30'}`}>
+                    {isExpired ? <AlertCircle className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
+                    {isExpired ? 'Expired' : 'Active'}
+                </span>
+            </div>
+        </div>
+    );
+};
+
+export default SubscriptionCard;

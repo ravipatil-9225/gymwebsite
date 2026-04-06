@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { LogOut, User, Activity, CalendarDays, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import SubscriptionCard from '../components/dashboard/SubscriptionCard';
 
 const UserDashboard = () => {
     const navigate = useNavigate();
@@ -73,18 +74,7 @@ const UserDashboard = () => {
                                 </div>
                             </div>
 
-                            <div className="space-y-4 pt-4 border-t border-white/10">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-400">Next Renewal:</span>
-                                    <span className="text-white font-semibold">Dec 31, 2026</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-400">Current Plan:</span>
-                                    <span className="text-white font-semibold flex items-center gap-2">
-                                        <TrendingUp className="w-4 h-4 text-primary" /> Pro
-                                    </span>
-                                </div>
-                            </div>
+                            <SubscriptionCard />
                         </div>
 
                         {/* Quick Actions */}

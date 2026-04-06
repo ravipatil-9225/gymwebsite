@@ -38,6 +38,7 @@ const formRoutes = require('./routes/formRoutes');
 const adminRoutes = require('./adminRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const nutritionRoutes = require('./routes/nutritionRoutes');
+const subscriptionRoutes = require('./routes/subscriptionRoutes');
 
 // Services
 const emailService = require('./services/emailService');
@@ -190,6 +191,7 @@ app.use('/api/forms', formRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/nutrition', nutritionLimiter, nutritionRoutes); // AI route limited to 20 req/15min
+app.use('/api/subscription', subscriptionRoutes);
 
 // ── PUBLIC CONTENT ROUTES ──
 app.get('/api/public/trainers', async (req, res) => {
