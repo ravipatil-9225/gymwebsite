@@ -280,6 +280,7 @@ router.put('/users/:id', async (req, res) => {
         // 2. Update Membership if provided
         if (latestMembership && latestMembership._id) {
             await Membership.findByIdAndUpdate(latestMembership._id, {
+                startDate: latestMembership.startDate,
                 planDuration: latestMembership.planDuration,
                 endDate: latestMembership.endDate
             });
