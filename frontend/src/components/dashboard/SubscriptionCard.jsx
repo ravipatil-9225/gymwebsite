@@ -6,27 +6,34 @@ import { AuthContext } from '../../context/AuthContext';
 const SubscriptionCard = () => {
     const { token } = useContext(AuthContext);
     const [subscription, setSubscription] = useState(null);
+    const [payments, setPayments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     const fetchSubscription = async () => {
         try {
             setLoading(true);
-            const { data } = await axios.get('/api/subscription/', {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
-            setSubscription(data);
-            setError(null);
-        } catch (err) {
-            if (err.response && err.response.status === 404) {
-                setSubscription(null); // No active plan
+            
+            // Fetch both subscription and payments in parallel
+            const [subRes, payRes] = await Promise.allSettled([
+                axios.get('/api/subscription/', { headers: { Authorization: `Bearer ${token}` } }),
+                axios.get('/api/payments/my-payments', { headers: { Authorization: `Bearer ${token}` } })
+            ]);
+
+            if (subRes.status === 'fulfilled') {
+                setSubscription(subRes.value.data);
+            } else if (subRes.reason?.response?.status === 404) {
+                setSubscription(null);
             } else {
                 setError('Failed to fetch subscription');
-                console.error(err);
             }
-        } finally {
+
+            if (payRes.status === 'fulfilled') {
+                setPayments(payRes.value.data);
+            }
+
+            setError(null);
+        } catch (err) {
             setLoading(false);
         }
     };
@@ -80,9 +87,21 @@ const SubscriptionCard = () => {
     }
 
     const isExpired = subscription.status === 'expired';
+    const overduePayment = payments.find(p => p.verificationStatus === 'overdue');
+    let daysOverdue = 0;
+    if (overduePayment && overduePayment.expiryDate) {
+        daysOverdue = Math.floor((new Date() - new Date(overduePayment.expiryDate)) / (1000 * 60 * 60 * 24));
+    }
 
     return (
         <div className="space-y-4 pt-4 border-t border-white/10">
+            {overduePayment && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-red-400 text-xs text-left">
+                    <span className="font-semibold block mb-1">⚠️ Your payment is overdue by {daysOverdue} day{daysOverdue !== 1 ? 's' : ''}.</span>
+                    Please complete payment for your {overduePayment.planName} plan to continue your membership.
+                </div>
+            )}
+            
             <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-400">Next Renewal:</span>
                 <span className={`font-semibold flex items-center gap-2 ${isExpired ? 'text-red-400' : 'text-white'}`}>

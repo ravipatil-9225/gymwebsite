@@ -242,6 +242,7 @@ const UserManagement = () => {
                                 <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider whitespace-nowrap">
                                     <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Duration</span>
                                 </th>
+                                <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider whitespace-nowrap">Allow Pending</th>
                                 <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider whitespace-nowrap">Status</th>
                                 <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider whitespace-nowrap">Days Left</th>
                                 <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider text-right whitespace-nowrap">Actions</th>
@@ -329,6 +330,27 @@ const UserManagement = () => {
                                             {m?.planDuration
                                                 ? `${m.planDuration} days`
                                                 : m ? '30 days' : <span className="text-gray-300">—</span>}
+                                        </td>
+
+                                        {/* Allow Pending toggle */}
+                                        <td className="px-4 py-3 whitespace-nowrap">
+                                            <button
+                                                onClick={async () => {
+                                                    try {
+                                                        const token = localStorage.getItem('gymToken');
+                                                        const { data } = await axios.put(`/api/admin/users/${user._id}/toggle-pending`, {}, {
+                                                            headers: { Authorization: `Bearer ${token}` }
+                                                        });
+                                                        setUsers(prev => prev.map(u => u._id === user._id ? { ...u, allowPendingPayment: data.user.allowPendingPayment } : u));
+                                                        setFiltered(prev => prev.map(u => u._id === user._id ? { ...u, allowPendingPayment: data.user.allowPendingPayment } : u));
+                                                    } catch (err) {
+                                                        alert('Error updating pending payment permission');
+                                                    }
+                                                }}
+                                                className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-colors ${user.allowPendingPayment !== false ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-600 hover:bg-red-200'}`}
+                                            >
+                                                {user.allowPendingPayment !== false ? '✔ Allow' : '✖ Disable'}
+                                            </button>
                                         </td>
 
                                         {/* Status badge */}

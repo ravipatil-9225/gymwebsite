@@ -9,6 +9,7 @@ const { protect } = require('../middleware/authMiddleware');
 router.post('/verify-and-upload', protect, upload.single('screenshot'), paymentController.verifyAndUpload);
 
 // GET /api/payments/check-discount
-router.get('/check-discount', protect, paymentController.checkDiscount);
+// GET /api/payments/my-payments
+router.get('/my-payments', protect, paymentController.getMyPayments);
 
 module.exports = router;

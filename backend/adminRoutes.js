@@ -294,6 +294,22 @@ router.put('/users/:id', async (req, res) => {
     }
 });
 
+router.put('/users/:id/toggle-pending', async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        
+        user.allowPendingPayment = !user.allowPendingPayment;
+        await user.save();
+        
+        res.json({ message: 'Pending payment permission updated', user });
+        socket.getIO().emit('db_changed');
+    } catch (err) {
+        console.error('Toggle pending error:', err);
+        res.status(500).json({ message: 'Error toggling pending payment' });
+    }
+});
+
 router.delete('/users/:id', async (req, res) => {
     try {
         const user = await User.findById(req.params.id);
@@ -766,7 +782,22 @@ router.put('/payments/:id/apply-discount', async (req, res) => {
 
 router.get('/payments', async (req, res) => {
     try {
-        const payments = await Payment.find().sort({ createdAt: -1 });
+        const payments = await Payment.aggregate([
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'email',
+                    foreignField: 'email',
+                    as: 'userDoc'
+                }
+            },
+            { $unwind: { path: '$userDoc', preserveNullAndEmptyArrays: true } },
+            {
+                $addFields: { allowPendingPayment: { $ifNull: ['$userDoc.allowPendingPayment', true] } }
+            },
+            { $project: { userDoc: 0 } },
+            { $sort: { createdAt: -1 } }
+        ]);
         res.json(payments);
     } catch (err) {
         res.status(500).json({ message: 'Error fetching payments' });

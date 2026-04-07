@@ -21,6 +21,7 @@ const rateLimit = require('express-rate-limit');
 const connectDB = require('./config/db');
 const socket = require('./socket');
 const { startMembershipReminderCron } = require('./cron/membershipReminder');
+const { startPaymentMonitorCron } = require('./cron/paymentMonitor');
 
 // Models (for public routes and admin triggers)
 const User = require('./models/User');
@@ -333,4 +334,5 @@ httpServer.listen(PORT, () => {
     console.log(`🛡️  Security: Helmet + Rate Limiting + NoSQL Sanitizer active`);
     console.log(`🔧 Error Handler: Global crash protection active`);
     startMembershipReminderCron();
+    startPaymentMonitorCron();
 });

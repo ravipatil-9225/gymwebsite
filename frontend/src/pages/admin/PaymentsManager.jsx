@@ -1,16 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import socket from '../../utils/socket';
-import { CheckCircle, XCircle, Clock, Banknote, CreditCard, Download, ZoomIn, X, Image as ImageIcon } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Banknote, CreditCard, Download, ZoomIn, X, Image as ImageIcon, AlertCircle } from 'lucide-react';
 
 const STATUS_LABELS = {
     auto_verified:       { label: 'Auto Verified',     bg: 'bg-green-100 text-green-700 border-green-200',   icon: <CheckCircle className="w-3.5 h-3.5" /> },
-    manually_verified:   { label: 'Manually Verified', bg: 'bg-blue-100 text-blue-700 border-blue-200',      icon: <CheckCircle className="w-3.5 h-3.5" /> },
-    cash_pending:        { label: 'Cash Pending',       bg: 'bg-orange-100 text-orange-700 border-orange-200', icon: <Banknote className="w-3.5 h-3.5" /> },
+    manually_verified:   { label: 'Manually Verified', bg: 'bg-green-100 text-green-700 border-green-200',      icon: <CheckCircle className="w-3.5 h-3.5" /> },
+    cash_pending:        { label: 'Cash Pending',       bg: 'bg-blue-100 text-blue-700 border-blue-200', icon: <Banknote className="w-3.5 h-3.5" /> },
     cash_collected:      { label: 'Cash Collected',     bg: 'bg-green-100 text-green-700 border-green-200',   icon: <CheckCircle className="w-3.5 h-3.5" /> },
-    pending:             { label: 'Pending Review',     bg: 'bg-yellow-100 text-yellow-700 border-yellow-200', icon: <Clock className="w-3.5 h-3.5" /> },
+    pending:             { label: 'Pending',     bg: 'bg-yellow-100 text-yellow-700 border-yellow-200', icon: <Clock className="w-3.5 h-3.5" /> },
     failed_verification: { label: 'Failed OCR',         bg: 'bg-red-100 text-red-700 border-red-200',         icon: <XCircle className="w-3.5 h-3.5" /> },
-    rejected:            { label: 'Rejected',           bg: 'bg-gray-100 text-gray-700 border-gray-200',      icon: <XCircle className="w-3.5 h-3.5" /> },
+    rejected:            { label: 'Rejected',           bg: 'bg-red-100 text-red-700 border-red-200',      icon: <XCircle className="w-3.5 h-3.5" /> },
+    expired:             { label: 'Expired',            bg: 'bg-gray-800 text-gray-200 border-gray-700',      icon: <XCircle className="w-3.5 h-3.5" /> },
+    overdue:             { label: 'Overdue',            bg: 'bg-orange-100 text-orange-700 border-orange-200', icon: <AlertCircle className="w-3.5 h-3.5" /> },
+    verified:            { label: 'Verified',           bg: 'bg-green-100 text-green-700 border-green-200', icon: <CheckCircle className="w-3.5 h-3.5" /> },
 };
 
 const StatusBadge = ({ status }) => {
@@ -160,11 +163,15 @@ const PaymentRow = ({ payment, updateStatus, applyDiscount, deletePayment, setLi
             {/* Method badge */}
             <td className="px-5 py-4 whitespace-nowrap">
                 {isCash ? (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
                         <Banknote className="w-3 h-3" /> Cash
                     </span>
+                ) : payment.paymentMethod === 'pay_later' ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200">
+                        <Clock className="w-3 h-3" /> Pay Later
+                    </span>
                 ) : (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
                         <CreditCard className="w-3 h-3" /> UPI
                     </span>
                 )}
@@ -241,16 +248,27 @@ const PaymentRow = ({ payment, updateStatus, applyDiscount, deletePayment, setLi
                 {/* Cash payment actions */}
                 {isCash && payment.verificationStatus === 'cash_pending' && (
                     <button
-                        onClick={() => updateStatus(payment._id, 'cash_collected')}
+                        onClick={() => updateStatus(payment._id, 'verified')}
                         className="inline-flex items-center gap-1 px-3 py-1.5 text-xs text-green-600 hover:bg-green-50 rounded-lg transition-colors border border-green-200 font-medium"
-                        title="Mark Cash Collected"
+                        title="Verify Cash Payment"
                     >
-                        <CheckCircle className="w-3.5 h-3.5" /> Collected
+                        <CheckCircle className="w-3.5 h-3.5" /> Verify Cash
+                    </button>
+                )}
+
+                {/* Verify action for pay_later that is pending/overdue */}
+                {payment.paymentMethod === 'pay_later' && ['pending', 'overdue'].includes(payment.verificationStatus) && (
+                    <button
+                        onClick={() => updateStatus(payment._id, 'verified')}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-50 rounded-lg transition-colors border border-green-300 bg-green-50/50"
+                        title="Mark Pay Later verified"
+                    >
+                        <CheckCircle className="w-3.5 h-3.5" /> Mark Paid
                     </button>
                 )}
 
                 {/* UPI Manual Verify — shown for pending, failed, or even auto-verified UPI payments */}
-                {!isCash && payment.verificationStatus !== 'manually_verified' && (
+                {payment.paymentMethod === 'upi' && payment.verificationStatus !== 'manually_verified' && payment.verificationStatus !== 'verified' && (
                     <button
                         onClick={() => {
                             if (window.confirm(`Manually approve this UPI payment?\n\n👤 ${payment.userName}\n💳 ${payment.planName} — ₹${payment.planPrice}\n\nThis will activate their membership immediately.`)) {
@@ -292,6 +310,7 @@ const PaymentsManager = () => {
     const [payments, setPayments]     = useState([]);
     const [loading, setLoading]       = useState(true);
     const [tab, setTab]               = useState('all');
+    const [userFilter, setUserFilter] = useState('all'); // 'all', 'allowed', 'disabled'
     const [lightbox, setLightbox]     = useState(null); // payment object or null
 
     const fetchPayments = async () => {
@@ -359,8 +378,15 @@ const PaymentsManager = () => {
     };
 
     const filtered = payments.filter(p => {
-        if (tab === 'upi')  return p.paymentMethod !== 'cash_on_bench';
-        if (tab === 'cash') return p.paymentMethod === 'cash_on_bench';
+        // Tab filter
+        if (tab === 'upi' && paymentMethod !== 'upi') return false;
+        if (tab === 'cash' && paymentMethod !== 'cash_on_bench') return false;
+        if (tab === 'later' && paymentMethod !== 'pay_later') return false;
+        
+        // User permission filter
+        if (userFilter === 'allowed' && p.allowPendingPayment === false) return false;
+        if (userFilter === 'disabled' && p.allowPendingPayment !== false) return false;
+
         return true;
     });
 
@@ -377,7 +403,17 @@ const PaymentsManager = () => {
             {/* Header */}
             <div className="flex flex-wrap justify-between items-center gap-3">
                 <h1 className="text-2xl font-bold text-gray-900">Payment Management</h1>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
+                    <select
+                        value={userFilter}
+                        onChange={(e) => setUserFilter(e.target.value)}
+                        className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        <option value="all">All Users Filter</option>
+                        <option value="allowed">Pending Allowed Users</option>
+                        <option value="disabled">Pending Disabled Users</option>
+                    </select>
+
                     {cashPendingCount > 0 && (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700 border border-orange-200">
                             <Banknote className="w-3.5 h-3.5" /> {cashPendingCount} Cash Pending
@@ -397,6 +433,7 @@ const PaymentsManager = () => {
                     { key: 'all',  label: 'All Payments' },
                     { key: 'upi',  label: 'UPI / Online',  icon: <CreditCard className="w-3.5 h-3.5" /> },
                     { key: 'cash', label: 'Cash on Bench', icon: <Banknote className="w-3.5 h-3.5" /> },
+                    { key: 'later', label: 'Pay Later',    icon: <Clock className="w-3.5 h-3.5" /> },
                 ].map(t => (
                     <button
                         key={t.key}
@@ -409,11 +446,13 @@ const PaymentsManager = () => {
                         <span className={`ml-1 text-xs px-1.5 py-0.5 rounded-full ${tab === t.key ? 'bg-gray-100 text-gray-600' : 'bg-gray-200 text-gray-500'}`}>
                             {t.key === 'all'  ? payments.length
                             : t.key === 'cash' ? payments.filter(p => p.paymentMethod === 'cash_on_bench').length
-                            :                    payments.filter(p => p.paymentMethod !== 'cash_on_bench').length}
+                            : t.key === 'later' ? payments.filter(p => p.paymentMethod === 'pay_later').length
+                            :                    payments.filter(p => p.paymentMethod === 'upi').length}
                         </span>
                     </button>
                 ))}
             </div>
+        </div>
 
             {/* Table */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">

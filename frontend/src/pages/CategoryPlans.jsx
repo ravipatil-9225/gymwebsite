@@ -26,7 +26,7 @@ const CategoryPlans = () => {
     const { user, token } = useContext(AuthContext);
     const navigate = useNavigate();
     const [selected, setSelected] = useState(null);
-    const [payTab, setPayTab] = useState('upi'); // 'upi' | 'cash'
+    const [payTab, setPayTab] = useState('upi'); // 'upi' | 'cash' | 'later'
     const [form, setForm] = useState({ name: '', email: '', transactionId: '', screenshotFile: null });
     const [preview, setPreview] = useState(null);
     const [status, setStatus] = useState('idle'); // idle | submitting | success | error
@@ -57,7 +57,7 @@ const CategoryPlans = () => {
                     return {
                         id: p._id, name: p.name, price: p.price.toString(), duration: p.duration, description: p.description,
                         includes: p.features || [], icon: st.icon, accentColor: st.color, popular: st.popular, bestValue: st.bestValue, trialTag: st.trialTag,
-                        gradient: st.gradient, border: st.border, badgeBg: st.badgeBg, category: p.category || 'OTHER PACKAGES'
+                        gradient: st.gradient, border: st.border, badgeBg: st.badgeBg, category: p.category || 'OTHER PACKAGES', allowPending: p.allowPending !== false
                     };
                 });
                 const grouped = mapped.reduce((acc, plan) => {
@@ -169,7 +169,7 @@ const CategoryPlans = () => {
                     packageId: selected.id,
                     planName: selected.name,
                     planPrice: selected.price,
-                    paymentMethod: 'cash_on_bench'
+                    paymentMethod: payTab === 'later' ? 'pay_later' : 'cash_on_bench'
                 });
                 headers['Content-Type'] = 'application/json';
             }
@@ -206,6 +206,7 @@ const CategoryPlans = () => {
     const getSuccessDesc = () => {
         if (verifyStatus === 'auto_verified') return 'Your payment was automatically verified. We will confirm your membership shortly.';
         if (verifyStatus === 'cash_pending') return 'Your cash payment request has been recorded. Please pay ₹' + selected?.price + ' at the gym reception. Your membership will be activated once the payment is received.';
+        if (verifyStatus === 'pending') return 'Your Pay Later request has been approved. Please note you must complete payment within the plan access period or your account may be restricted.';
         return 'Our team will manually review your transaction screenshot. We\'ll update you as soon as possible.';
     };
 
@@ -396,18 +397,38 @@ const CategoryPlans = () => {
                                     </div>
 
                                     {/* Payment Method Tabs */}
-                                    <div className="flex gap-2 mb-5 bg-white/5 rounded-xl p-1">
+                                    <div className="flex gap-2 mb-5 bg-white/5 rounded-xl p-1 overflow-x-auto">
                                         <button
                                             onClick={() => { setPayTab('upi'); setStatus('idle'); setErrMsg(''); }}
-                                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${payTab === 'upi' ? 'bg-primary text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-lg text-xs font-semibold transition-all duration-200 whitespace-nowrap ${payTab === 'upi' ? 'bg-primary text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
                                         >
-                                            <CreditCard size={15} /> UPI / QR Pay
+                                            <CreditCard size={14} /> UPI / QR
                                         </button>
                                         <button
                                             onClick={() => { setPayTab('cash'); setStatus('idle'); setErrMsg(''); }}
-                                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${payTab === 'cash' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-lg text-xs font-semibold transition-all duration-200 whitespace-nowrap ${payTab === 'cash' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
                                         >
-                                            <Banknote size={15} /> Cash on Bench
+                                            <Banknote size={14} /> Cash (Bench)
+                                        </button>
+                                        <button
+                                            onClick={() => { 
+                                                if (user?.allowPendingPayment === false) {
+                                                    setErrMsg('Immediate payment required. You are not authorized for Pay Later.');
+                                                    return;
+                                                }
+                                                if (selected.allowPending === false) {
+                                                    setErrMsg('Pay Later is disabled for this specific plan.');
+                                                    return;
+                                                }
+                                                setPayTab('later'); 
+                                                setStatus('idle'); 
+                                                setErrMsg(''); 
+                                            }}
+                                            disabled={user?.allowPendingPayment === false || selected.allowPending === false}
+                                            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-lg text-xs font-semibold transition-all duration-200 whitespace-nowrap ${payTab === 'later' ? 'bg-orange-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'} ${(user?.allowPendingPayment === false || selected.allowPending === false) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            title={user?.allowPendingPayment === false ? 'Immediate payment required' : selected.allowPending === false ? 'Disabled for this plan' : ''}
+                                        >
+                                            <Clock size={14} /> Pay Later
                                         </button>
                                     </div>
 
@@ -559,10 +580,39 @@ const CategoryPlans = () => {
                                             </div>
                                         )}
 
+                                        {/* ── PAY LATER TAB CONTENT ── */}
+                                        {payTab === 'later' && (
+                                            <div className="bg-orange-500/5 border border-orange-500/20 rounded-xl p-5">
+                                                <div className="flex items-center gap-3 mb-4">
+                                                    <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center shrink-0">
+                                                        <Clock size={20} className="text-orange-400" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-white font-semibold text-sm">Pay Later Plan</p>
+                                                        <p className="text-gray-400 text-xs">Start now, pay before expiry</p>
+                                                    </div>
+                                                </div>
+                                                <ul className="space-y-2 text-sm text-gray-300 mb-4">
+                                                    <li className="flex items-start gap-2.5">
+                                                        <Check size={14} className="text-orange-400 mt-0.5 shrink-0" />
+                                                        Membership activates instantly.
+                                                    </li>
+                                                    <li className="flex items-start gap-2.5">
+                                                        <Check size={14} className="text-orange-400 mt-0.5 shrink-0" />
+                                                        You MUST complete this payment (₹{selected.price}) before your plan duration expires.
+                                                    </li>
+                                                    <li className="flex items-start gap-2.5">
+                                                        <AlertTriangle size={14} className="text-orange-400 mt-0.5 shrink-0" />
+                                                        Unpaid plans will result in an overdue status and access restrictions.
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        )}
+
                                         {status === 'error' && <p className="text-red-400 text-sm bg-red-500/10 px-3 py-2 rounded-lg">{errMsg}</p>}
 
                                         <button type="submit" disabled={status === 'submitting'}
-                                            className={`w-full py-3.5 rounded-xl text-white font-bold text-sm tracking-wider transition-all disabled:opacity-60 flex justify-center items-center ${payTab === 'cash' ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                                            className={`w-full py-3.5 rounded-xl text-white font-bold text-sm tracking-wider transition-all disabled:opacity-60 flex justify-center items-center ${payTab === 'cash' ? 'bg-green-600 hover:bg-green-700' : payTab === 'later' ? 'bg-orange-500 hover:bg-orange-600' : ''}`}
                                             style={payTab === 'upi' ? { background: selected.accentColor } : {}}
                                         >
                                             {status === 'submitting' ? (
@@ -570,13 +620,15 @@ const CategoryPlans = () => {
                                                     <Loader size={18} className="animate-spin" /> Verifying...
                                                 </span>
                                             ) : payTab === 'cash' ? (
-                                                <span className="flex items-center gap-2"><Banknote size={18} /> Register Cash Payment</span>
+                                                <span className="flex items-center gap-2"><Banknote size={18} /> Req. Cash Payment</span>
+                                            ) : payTab === 'later' ? (
+                                                <span className="flex items-center gap-2"><Clock size={18} /> Confirm Pay Later</span>
                                             ) : (
                                                 'Pay & Verify'
                                             )}
                                         </button>
                                         <p className="text-xs text-gray-500 text-center mt-1">
-                                            {payTab === 'upi' ? 'Our AI agent automatically verifies your payment.' : 'Your membership will be activated after cash is paid at reception.'}
+                                            {payTab === 'upi' ? 'Our AI agent automatically verifies your payment.' : payTab === 'later' ? 'Commiting to a legally binding later payment.' : 'Your membership will be activated after cash is paid at reception.'}
                                         </p>
                                     </form>
                                 </>

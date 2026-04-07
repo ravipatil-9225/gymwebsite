@@ -14,6 +14,8 @@ const userSchema = new mongoose.Schema({
         url: { type: String, default: '' },
         public_id: { type: String, default: '' }
     },
+    allowPendingPayment: { type: Boolean, default: true },
+    pendingDaysLimit: { type: Number, default: 30 },
     lastLogin: { type: Date, default: null }
 }, { timestamps: true });
 

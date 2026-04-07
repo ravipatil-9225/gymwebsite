@@ -101,6 +101,47 @@ exports.verifyAndUpload = async (req, res) => {
             ? existingDiscountPayment.finalAmount 
             : numericPrice;
 
+        // ── PAY LATER FLOW ──────────────────────────────────────────────────────
+        if (method === 'pay_later') {
+            const user = await User.findOne({ email });
+            
+            if (pkg.allowPending === false) {
+                return res.status(403).json({ message: 'Pay Later is disabled for this specific plan.' });
+            }
+
+            if (user && user.allowPendingPayment === false) {
+                return res.status(403).json({ message: 'Immediate payment required. You are not authorized for Pay Later.' });
+            }
+
+            const planDuration = await getPlanDurationDays(pkg);
+            const startDate = new Date();
+            const expiryDate = new Date();
+            expiryDate.setDate(expiryDate.getDate() + planDuration);
+
+            const newPayment = await Payment.create({
+                userName, email, packageId: pkg._id, planName: actualPlanName, planPrice: finalAmount, originalAmount: numericPrice,
+                paymentMethod: 'pay_later', verificationStatus: 'pending', startDate, expiryDate
+            });
+
+            // Activate membership immediately but status is pending payment
+            if (user) {
+                await Membership.create({
+                    userId: user._id,
+                    userName: user.name,
+                    userEmail: user.email,
+                    packageName: actualPlanName,
+                    planDuration,
+                    amountPaid: 0, // 0 paid so far
+                    startDate,
+                    endDate: expiryDate,
+                });
+                try { socket.getIO().emit('db_changed', { type: 'membership_created', userId: user._id }); } catch (_) {}
+            }
+
+            try { socket.getIO().emit('db_changed', { type: 'payment_pay_later', data: newPayment }); } catch (_) {}
+            return res.status(201).json({ message: 'Pay Later Request Approved', payment: newPayment });
+        }
+
         // ── CASH ON BENCH FLOW ──────────────────────────────────────────────────
         if (method === 'cash_on_bench') {
             const newPayment = await Payment.create({
@@ -241,5 +282,15 @@ exports.verifyAndUpload = async (req, res) => {
     } catch (err) {
         console.error('Payment verification error:', err);
         res.status(500).json({ message: 'Server error during secure payment verification.' });
+    }
+};
+
+exports.getMyPayments = async (req, res) => {
+    try {
+        const email = req.user.email;
+        const payments = await Payment.find({ email }).sort({ createdAt: -1 });
+        res.json(payments);
+    } catch (err) {
+        res.status(500).json({ message: 'Error fetching payments' });
     }
 };

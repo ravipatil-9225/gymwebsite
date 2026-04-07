@@ -7,7 +7,8 @@ const packageSchema = new mongoose.Schema({
     price: { type: Number, required: true },
     duration: { type: String, required: true }, // e.g., '1 Month', '3 Months'
     features: [{ type: String }],
-    isActive: { type: Boolean, default: true }
+    isActive: { type: Boolean, default: true },
+    allowPending: { type: Boolean, default: true }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Package', packageSchema);

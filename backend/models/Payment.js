@@ -8,14 +8,14 @@ const paymentSchema = new mongoose.Schema({
     planPrice: { type: Number, required: true },
     paymentMethod: {
         type: String,
-        enum: ['upi', 'cash_on_bench'],
+        enum: ['upi', 'cash_on_bench', 'pay_later'],
         default: 'upi'
     },
     transactionId: { type: String, unique: true, sparse: true },
     extractedTransactionId: { type: String },
     verificationStatus: { 
         type: String, 
-        enum: ['pending', 'auto_verified', 'failed_verification', 'cash_pending', 'cash_collected', 'manually_verified', 'rejected'], 
+        enum: ['pending', 'auto_verified', 'failed_verification', 'cash_pending', 'cash_collected', 'manually_verified', 'rejected', 'expired', 'overdue'], 
         default: 'pending' 
     },
     screenshot: {
@@ -27,7 +27,9 @@ const paymentSchema = new mongoose.Schema({
     originalAmount: { type: Number },
     discount: { type: Number },
     discountType: { type: String, enum: ['percentage', 'flat'] },
-    finalAmount: { type: Number }
+    finalAmount: { type: Number },
+    startDate: { type: Date },
+    expiryDate: { type: Date }
 });
 
 module.exports = mongoose.model('Payment', paymentSchema);
