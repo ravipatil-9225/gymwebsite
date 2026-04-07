@@ -379,9 +379,9 @@ const PaymentsManager = () => {
 
     const filtered = payments.filter(p => {
         // Tab filter
-        if (tab === 'upi' && paymentMethod !== 'upi') return false;
-        if (tab === 'cash' && paymentMethod !== 'cash_on_bench') return false;
-        if (tab === 'later' && paymentMethod !== 'pay_later') return false;
+        if (tab === 'upi' && p.paymentMethod !== 'upi') return false;
+        if (tab === 'cash' && p.paymentMethod !== 'cash_on_bench') return false;
+        if (tab === 'later' && p.paymentMethod !== 'pay_later') return false;
         
         // User permission filter
         if (userFilter === 'allowed' && p.allowPendingPayment === false) return false;
