@@ -545,45 +545,21 @@ const UserManagement = () => {
                                 const daysLeft  = Math.ceil((endDate - new Date()) / (1000 * 60 * 60 * 24));
 
                                 const onStartDateChange = (val) => {
-                                    const newStart = new Date(val);
-                                    if (isNaN(newStart.getTime())) return;
-                                    const duration = mem.planDuration || 0;
-                                    const newEnd = new Date(newStart);
-                                    newEnd.setDate(newEnd.getDate() + duration);
                                     setEditingUser({
                                         ...editingUser,
                                         latestMembership: {
                                             ...mem,
-                                            startDate: newStart.toISOString(),
-                                            endDate: newEnd.toISOString()
-                                        }
-                                    });
-                                };
-
-                                const onDurationChange = (val) => {
-                                    const days = parseInt(val) || 0;
-                                    const newEnd = new Date(startDate);
-                                    newEnd.setDate(newEnd.getDate() + days);
-                                    setEditingUser({
-                                        ...editingUser,
-                                        latestMembership: {
-                                            ...mem,
-                                            planDuration: days,
-                                            endDate: newEnd.toISOString()
+                                            startDate: val
                                         }
                                     });
                                 };
 
                                 const onEndDateChange = (val) => {
-                                    const newEnd = new Date(val);
-                                    if (isNaN(newEnd.getTime())) return;
-                                    const diffDays = Math.ceil((newEnd - startDate) / (1000 * 60 * 60 * 24));
                                     setEditingUser({
                                         ...editingUser,
                                         latestMembership: {
                                             ...mem,
-                                            planDuration: diffDays > 0 ? diffDays : 0,
-                                            endDate: newEnd.toISOString()
+                                            endDate: val
                                         }
                                     });
                                 };
@@ -613,7 +589,7 @@ const UserManagement = () => {
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <div>
                                                 <label className="block text-xs font-semibold text-gray-500 mb-1">Start Date</label>
                                                 <input
@@ -622,18 +598,6 @@ const UserManagement = () => {
                                                     value={fmtInput(mem.startDate)}
                                                     onChange={(e) => onStartDateChange(e.target.value)}
                                                 />
-                                                <p className="text-[10px] text-gray-400 mt-1">→ auto-updates End Date</p>
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-semibold text-gray-500 mb-1">Duration (days)</label>
-                                                <input
-                                                    type="number"
-                                                    min="1"
-                                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                                    value={mem.planDuration || ''}
-                                                    onChange={(e) => onDurationChange(e.target.value)}
-                                                />
-                                                <p className="text-[10px] text-gray-400 mt-1">→ auto-updates End Date</p>
                                             </div>
                                             <div>
                                                 <label className="block text-xs font-semibold text-gray-500 mb-1">End Date</label>
@@ -643,7 +607,6 @@ const UserManagement = () => {
                                                     value={fmtInput(mem.endDate)}
                                                     onChange={(e) => onEndDateChange(e.target.value)}
                                                 />
-                                                <p className="text-[10px] text-gray-400 mt-1">→ auto-updates Duration</p>
                                             </div>
                                         </div>
                                         <p className="text-[10px] text-orange-500 italic">Changes are saved instantly on clicking "Save Changes".</p>
