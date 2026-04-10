@@ -488,15 +488,15 @@ const UserManagement = () => {
             {/* ── Edit User Modal ─────────────────────────────────────────── */}
             {editingUser && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col" style={{ maxHeight: '90vh' }}>
+                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center shrink-0">
                             <h2 className="text-lg font-bold text-gray-900">Edit User</h2>
                             <button onClick={() => setEditingUser(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
 
-                        <form onSubmit={handleUpdate} className="p-6 space-y-4">
+                        <form onSubmit={handleUpdate} className="overflow-y-auto p-6 space-y-4">
                             {[
                                 { label: 'Full Name', key: 'name', type: 'text', required: true },
                                 { label: 'Email', key: 'email', type: 'email', required: true },
@@ -509,7 +509,7 @@ const UserManagement = () => {
                                         type={type}
                                         required={required}
                                         className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                                        value={editingUser[key] || ''}
+                                        value={type === 'date' ? fmtInput(editingUser[key]) : (editingUser[key] || '')}
                                         onChange={(e) => setEditingUser({ ...editingUser, [key]: e.target.value })}
                                     />
                                 </div>
@@ -614,7 +614,7 @@ const UserManagement = () => {
                                 );
                             })()}
 
-                            <div className="pt-2 flex justify-end gap-3">
+                            <div className="pt-2 pb-2 flex justify-end gap-3 shrink-0">
                                 <button
                                     type="button"
                                     onClick={() => setEditingUser(null)}
