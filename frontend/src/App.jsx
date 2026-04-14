@@ -72,7 +72,9 @@ function App() {
                   <Route path="/media" element={<Media />} />
                   <Route path="/contact" element={<Contact />} />
                   <Route path="/portal" element={<PrivateRoute><Portal /></PrivateRoute>} />
-                  <Route path="/smart-nutrition" element={<PrivateRoute><SmartNutrition /></PrivateRoute>} />
+                  <Route element={<AdminRoute />}>
+                    <Route path="/smart-nutrition" element={<SmartNutrition />} />
+                  </Route>
                   <Route path="/dashboard" element={<Navigate to="/settings" replace />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/reset-password" element={<ResetPassword />} />

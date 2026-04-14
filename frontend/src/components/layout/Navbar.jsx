@@ -64,6 +64,7 @@ const Navbar = () => {
                     {!isAuthPage && (
                         <div className="hidden xl:flex items-center gap-1">
                             {navItems.map((item) => {
+                                if (item.path === '/smart-nutrition' && user?.role !== 'admin') return null;
                                 const isActive = location.pathname === item.path;
                                 return (
                                     <Link
@@ -134,6 +135,7 @@ const Navbar = () => {
                     >
                         <div className="px-4 py-6 space-y-1">
                             {navItems.map((item, index) => {
+                                if (item.path === '/smart-nutrition' && user?.role !== 'admin') return null;
                                 const isActive = location.pathname === item.path;
                                 return (
                                     <motion.div
