@@ -313,7 +313,7 @@ const SmartNutrition = () => {
                                     <label className="block text-xs font-bold text-white/70 uppercase tracking-wider mb-2">Plan Type *</label>
                                     <select name="plan_type" value={formData.plan_type} onChange={handleChange} className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none appearance-none">
                                         {/* <option value="both">Both (Diet & Workout)</option> */}
-                                        <option value="">Diet Plan Only</option>
+                                        <option value="diet">Diet Plan Only</option>
                                         <option value="workout">Workout Plan Only</option>
                                     </select>
                                 </div>
