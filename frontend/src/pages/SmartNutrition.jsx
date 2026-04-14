@@ -156,9 +156,13 @@ const SmartNutrition = () => {
         setLoading(true);
         startLoadingAnimation();
         try {
+            const token = localStorage.getItem('gymToken');
             const res = await fetch('/api/nutrition/generate', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify(payload)
             });
 
