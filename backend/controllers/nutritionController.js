@@ -55,7 +55,7 @@ async function callGroq(groq, systemPrompt, userPrompt) {
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
         ],
-        temperature: 0.3,
+        temperature: 0.85,
         max_tokens: 4500,
         response_format: { type: "json_object" }
     });
@@ -123,7 +123,8 @@ const generatePlan = async (req, res) => {
         const dCal = Math.round(p.target_calories * 0.20);
         const waterL = ((35 * p.weight_kg + 700) / 1000).toFixed(1);
 
-        const userCtx = `Name:${p.name} Age:${p.age} Gender:${p.gender} Weight:${p.weight_kg}kg Height:${p.height_cm}cm Goal:${p.goal} Calories:${p.target_calories}/day Macros:${macroMap[p.goal]} Diet:${p.food_preference}(${foodRules[p.food_preference]}) Cuisine:${cuisine} Allergies:${p.allergies?.join(',') || 'none'} Injuries:${p.injuries?.join(',') || 'none'} Medical:${p.medical_conditions?.join(',') || 'none'}`;
+        const seed = Math.floor(Math.random() * 1000000);
+        const userCtx = `Name:${p.name} Age:${p.age} Gender:${p.gender} Weight:${p.weight_kg}kg Height:${p.height_cm}cm Goal:${p.goal} Calories:${p.target_calories}/day Macros:${macroMap[p.goal]} Diet:${p.food_preference}(${foodRules[p.food_preference]}) Cuisine:${cuisine} Allergies:${p.allergies?.join(',') || 'none'} Injuries:${p.injuries?.join(',') || 'none'} Medical:${p.medical_conditions?.join(',') || 'none'}\nCRITICAL: Ensure EXTREME variety and creativity! Do NOT output generic stock plans. Use the random seed to make this completely unique: Seed-${seed}`;
 
         // ── DIET PROMPT ────────────────────────────────────────────────────
         // CRITICAL: quantity MUST be a plain number (e.g. 2, 100, 0.5)
