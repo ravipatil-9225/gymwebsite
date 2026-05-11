@@ -10,6 +10,7 @@ const Gallery = require('./models/Gallery');
 const Content = require('./models/Content');
 const Payment = require('./models/Payment');
 const Membership = require('./models/Membership');
+const Transformation = require('./models/Transformation');
 const socket = require('./socket');
 const emailService = require('./services/emailService');
 const whatsappService = require('./services/whatsappService');
@@ -957,4 +958,60 @@ router.delete('/payments/:id', async (req, res) => {
     }
 });
 
+// ==========================================
+// TRANSFORMATIONS MANAGEMENT
+// ==========================================
+router.get('/transformations', async (req, res) => {
+    try {
+        const transformations = await Transformation.find().sort({ createdAt: -1 });
+        res.json(transformations);
+    } catch (err) {
+        res.status(500).json({ message: 'Error fetching transformations' });
+    }
+});
+
+router.post('/transformations', async (req, res) => {
+    try {
+        const data = { ...req.body };
+        if (data.beforeImage) data.beforeImage = await processBase64Image(data.beforeImage, 'gym_transformations');
+        if (data.afterImage) data.afterImage = await processBase64Image(data.afterImage, 'gym_transformations');
+        const transformation = await Transformation.create(data);
+        res.status(201).json(transformation);
+        socket.getIO().emit('db_changed');
+    } catch (err) {
+        console.error('Create transformation error:', err);
+        res.status(500).json({ message: err.message || 'Error creating transformation' });
+    }
+});
+
+router.put('/transformations/:id', async (req, res) => {
+    try {
+        const data = { ...req.body };
+        if (data.beforeImage && data.beforeImage.startsWith('data:image')) {
+            data.beforeImage = await processBase64Image(data.beforeImage, 'gym_transformations');
+        }
+        if (data.afterImage && data.afterImage.startsWith('data:image')) {
+            data.afterImage = await processBase64Image(data.afterImage, 'gym_transformations');
+        }
+        const updated = await Transformation.findByIdAndUpdate(req.params.id, data, { new: true });
+        if (!updated) return res.status(404).json({ message: 'Transformation not found' });
+        res.json(updated);
+        socket.getIO().emit('db_changed');
+    } catch (err) {
+        console.error('Update transformation error:', err);
+        res.status(500).json({ message: 'Error updating transformation' });
+    }
+});
+
+router.delete('/transformations/:id', async (req, res) => {
+    try {
+        await Transformation.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Transformation deleted' });
+        socket.getIO().emit('db_changed');
+    } catch (err) {
+        res.status(500).json({ message: 'Error deleting transformation' });
+    }
+});
+
 module.exports = router;
+

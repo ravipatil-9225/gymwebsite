@@ -27,6 +27,7 @@ import ParQForm from './pages/forms/ParQForm';
 import TrialWaiverForm from './pages/forms/TrialWaiverForm';
 import PTContractForm from './pages/forms/PTContractForm';
 import GalleryPage from './pages/GalleryPage';
+import TransformationsPage from './pages/TransformationsPage';
 import MembershipPlans from './pages/MembershipPlans';
 import CategoryPlans from './pages/CategoryPlans';
 import OffersPage from './pages/OffersPage';
@@ -92,6 +93,7 @@ function App() {
 
                   {/* Media Routes */}
                   <Route path="/media/gallery" element={<GalleryPage />} />
+                  <Route path="/media/transformations" element={<TransformationsPage />} />
 
                   {/* Contact Routes */}
                   <Route path="/contact/info" element={<ContactInfo />} />

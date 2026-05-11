@@ -231,6 +231,16 @@ app.get('/api/public/gallery', async (req, res) => {
     }
 });
 
+app.get('/api/public/transformations', async (req, res) => {
+    try {
+        const Transformation = require('./models/Transformation');
+        const transformations = await Transformation.find({ isActive: true }).sort({ createdAt: -1 });
+        res.json(transformations);
+    } catch (err) {
+        res.status(500).json({ message: 'Error fetching transformations' });
+    }
+});
+
 app.get('/api/public/content/:section', async (req, res) => {
     try {
         const content = await Content.findOne({ section: req.params.section });
