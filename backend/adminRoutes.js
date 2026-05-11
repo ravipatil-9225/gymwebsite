@@ -13,7 +13,18 @@ const Membership = require('./models/Membership');
 const socket = require('./socket');
 const emailService = require('./services/emailService');
 const whatsappService = require('./services/whatsappService');
-const { deleteFromCloudinary } = require('./utils/imageHandler');
+const { deleteFromCloudinary, uploadToCloudinary } = require('./utils/imageHandler');
+
+// Helper to intercept base64 from React/React Native payloads and upload to Cloudinary
+const processBase64Image = async (imageString, folder) => {
+    if (imageString && imageString.startsWith('data:image')) {
+        const base64Data = imageString.replace(/^data:image\/\w+;base64,/, "");
+        const buffer = Buffer.from(base64Data, 'base64');
+        const result = await uploadToCloudinary(buffer, folder);
+        return result.url;
+    }
+    return imageString;
+};
 
 // Protect all admin routes
 router.use(verifyAdmin);
@@ -262,6 +273,8 @@ router.post('/users', async (req, res) => {
 
         const newUser = new User({ name, email, phone, dob, password, role: role || 'user' });
         await newUser.save();
+
+        whatsappService.sendWelcomeMessage(newUser).catch(console.error);
 
         res.status(201).json({ message: "User created successfully", user: { _id: newUser._id, name, email, role } });
         socket.getIO().emit('db_changed');
@@ -518,6 +531,9 @@ router.get('/trainers', async (req, res) => {
 
 router.post('/trainers', async (req, res) => {
     try {
+        if (req.body.photo) {
+            req.body.photo = await processBase64Image(req.body.photo, 'gym_trainers');
+        }
         const trainer = await Trainer.create(req.body);
         res.status(201).json(trainer);
         socket.getIO().emit('db_changed');
@@ -553,6 +569,9 @@ router.post('/trainers/seed', async (req, res) => {
 
 router.put('/trainers/:id', async (req, res) => {
     try {
+        if (req.body.photo) {
+            req.body.photo = await processBase64Image(req.body.photo, 'gym_trainers');
+        }
         const updated = await Trainer.findByIdAndUpdate(req.params.id, req.body, { new: true });
         res.json(updated);
         socket.getIO().emit('db_changed');
@@ -585,11 +604,14 @@ router.get('/offers', async (req, res) => {
 
 router.post('/offers', async (req, res) => {
     try {
+        if (req.body.image) {
+            req.body.image = await processBase64Image(req.body.image, 'gym_offers');
+        }
         const offer = await Offer.create(req.body);
         res.status(201).json(offer);
         socket.getIO().emit('db_changed');
     } catch (err) {
-        res.status(500).json({ message: 'Error creating offer' });
+        res.status(500).json({ message: err.message || 'Error creating offer' });
     }
 });
 
@@ -657,6 +679,9 @@ router.post('/offers/seed', async (req, res) => {
 
 router.put('/offers/:id', async (req, res) => {
     try {
+        if (req.body.image) {
+            req.body.image = await processBase64Image(req.body.image, 'gym_offers');
+        }
         const updated = await Offer.findByIdAndUpdate(req.params.id, req.body, { new: true });
         res.json(updated);
         socket.getIO().emit('db_changed');
@@ -689,6 +714,9 @@ router.get('/gallery', async (req, res) => {
 
 router.post('/gallery', async (req, res) => {
     try {
+        if (req.body.imageUrl) {
+            req.body.imageUrl = await processBase64Image(req.body.imageUrl, 'gym_gallery');
+        }
         const image = await Gallery.create(req.body);
         res.status(201).json(image);
         socket.getIO().emit('db_changed');
@@ -699,6 +727,9 @@ router.post('/gallery', async (req, res) => {
 
 router.put('/gallery/:id', async (req, res) => {
     try {
+        if (req.body.imageUrl) {
+            req.body.imageUrl = await processBase64Image(req.body.imageUrl, 'gym_gallery');
+        }
         const updated = await Gallery.findByIdAndUpdate(req.params.id, req.body, { new: true });
         res.json(updated);
         socket.getIO().emit('db_changed');

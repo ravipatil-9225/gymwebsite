@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const emailService = require('../services/emailService');
+const whatsappService = require('../services/whatsappService');
 const socket = require('../socket');
 const { compressProfileImage, uploadToCloudinary, deleteFromCloudinary } = require('../utils/imageHandler');
 
@@ -39,6 +40,7 @@ const registerUser = async (req, res) => {
 
         emailService.sendWelcomeEmail(user).catch(console.error);
         emailService.sendAdminNewUserAlert(user).catch(console.error);
+        whatsappService.sendWelcomeMessage(user).catch(console.error);
 
         res.status(201).json({
             token,
@@ -130,6 +132,7 @@ const googleAuth = async (req, res) => {
 
             emailService.sendGoogleWelcomeEmail(user).catch(console.error);
             emailService.sendAdminGoogleUserAlert(user).catch(console.error);
+            whatsappService.sendWelcomeMessage(user).catch(console.error);
 
         } else {
             if (isAdminEmail(email) && user.role !== 'admin') {

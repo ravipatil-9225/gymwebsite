@@ -244,6 +244,7 @@ app.get('/api/public/reviews', async (req, res) => {
     try {
         const FormSubmission = require('./models/FormSubmission');
         const reviews = await FormSubmission.find({
+            
             type: 'feedback',
             rating: { $gte: 4 }
         }).sort({ createdAt: -1 }).limit(50);
@@ -261,6 +262,29 @@ app.get('/api/public/all-feedbacks', async (req, res) => {
         res.json(feedbacks);
     } catch (err) {
         res.status(500).json({ message: 'Error fetching feedbacks' });
+    }
+});
+
+app.get('/api/public/stats', async (req, res) => {
+    try {
+        const [members, trainers, services] = await Promise.all([
+            User.countDocuments({ role: 'member' }),
+            Trainer.countDocuments(),
+            Package.distinct('category')
+        ]);
+
+        const gymStartYear = 2015;
+        const currentYear = new Date().getFullYear();
+        const yearsOfExperience = currentYear - gymStartYear;
+
+        res.json({
+            members: members + 500, // Offset to match branding "500+"
+            trainers: trainers,
+            services: services.length,
+            years: yearsOfExperience >= 10 ? yearsOfExperience : 10
+        });
+    } catch (err) {
+        res.status(500).json({ message: 'Error fetching stats' });
     }
 });
 

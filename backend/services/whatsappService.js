@@ -23,7 +23,12 @@ async function sendWhatsAppTemplate(to, templateName, components = []) {
 
     try {
         // Format the number: remove +, space, dashes
-        const formattedNumber = to.replace(/\D/g, '');
+        let formattedNumber = to.replace(/\D/g, '');
+        
+        // Auto-prefix Indian country code '91' if missing (assume 10 digits without it)
+        if (formattedNumber.length === 10) {
+            formattedNumber = '91' + formattedNumber;
+        }
 
         const response = await fetch(`${WHATSAPP_API_URL}/${phoneId}/messages`, {
             method: 'POST',
@@ -114,6 +119,19 @@ exports.sendPaymentConfirmation = async ({ name, email, packageName, amountPaid,
                 { type: 'text', text: String(amountPaid) },
                 { type: 'text', text: startLocal },
                 { type: 'text', text: endLocal }
+            ]
+        }
+    ]);
+};
+
+exports.sendWelcomeMessage = async (user) => {
+    if (!user || !user.phone) return;
+
+    await sendWhatsAppTemplate(user.phone, 'welcome_message_template', [
+        {
+            type: 'body',
+            parameters: [
+                { type: 'text', text: user.name }
             ]
         }
     ]);
