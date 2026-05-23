@@ -30,7 +30,7 @@ router.get('/', (req, res) => {
     const token = req.query['hub.verify_token'] || (req.query.hub && req.query.hub.verify_token);
     const challenge = req.query['hub.challenge'] || (req.query.hub && req.query.hub.challenge);
 
-    const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;
+    const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'tara_fitness_whatsapp_verify_2024';
 
     console.log('🔍 Parsed values — mode:', mode, '| token:', token, '| VERIFY_TOKEN:', VERIFY_TOKEN);
 
