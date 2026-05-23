@@ -22,11 +22,17 @@ const router = express.Router();
  * If everything matches, respond with the challenge to confirm.
  */
 router.get('/', (req, res) => {
-    const mode = req.query['hub.mode'];
-    const token = req.query['hub.verify_token'];
-    const challenge = req.query['hub.challenge'];
+    // Debug: log raw query to diagnose issues
+    console.log('🔍 WhatsApp Webhook GET received. Query:', JSON.stringify(req.query));
+
+    // Express may parse "hub.mode" as req.query['hub.mode'] OR as req.query.hub.mode (nested)
+    const mode = req.query['hub.mode'] || (req.query.hub && req.query.hub.mode);
+    const token = req.query['hub.verify_token'] || (req.query.hub && req.query.hub.verify_token);
+    const challenge = req.query['hub.challenge'] || (req.query.hub && req.query.hub.challenge);
 
     const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;
+
+    console.log('🔍 Parsed values — mode:', mode, '| token:', token, '| VERIFY_TOKEN:', VERIFY_TOKEN);
 
     if (mode === 'subscribe' && token === VERIFY_TOKEN) {
         console.log('✅ WhatsApp Webhook verified successfully!');
