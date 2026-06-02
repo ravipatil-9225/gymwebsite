@@ -287,8 +287,12 @@ exports.verifyAndUpload = async (req, res) => {
 
 exports.getMyPayments = async (req, res) => {
     try {
-        const email = req.user.email;
-        const payments = await Payment.find({ email }).sort({ createdAt: -1 });
+        // JWT only stores { id }, so we need to look up the user's email from the DB
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        const payments = await Payment.find({ email: user.email }).sort({ createdAt: -1 });
         res.json(payments);
     } catch (err) {
         res.status(500).json({ message: 'Error fetching payments' });
