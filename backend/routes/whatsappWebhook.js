@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const Payment = require('../models/Payment');
+const FormSubmission = require('../models/FormSubmission');
 const whatsappService = require('../services/whatsappService');
 
 // ──────────────────────────────────────────────────────────────
@@ -83,7 +84,21 @@ router.post('/', (req, res) => {
 
                                 if (last10.length === 10) {
                                     // Match user in the database
-                                    const user = await User.findOne({ phone: { $regex: last10 + '$' } });
+                                    let user = await User.findOne({ phone: { $regex: last10 + '$' } });
+
+                                    // Fallback: check Lead FormSubmissions if no registered user account exists
+                                    if (!user) {
+                                        const submission = await FormSubmission.findOne({ phone: { $regex: last10 + '$' } }).sort({ createdAt: -1 });
+                                        if (submission) {
+                                            user = {
+                                                name: submission.name,
+                                                email: submission.email,
+                                                phone: submission.phone
+                                            };
+                                            console.log(`📝 Matched incoming WhatsApp number to lead submission: ${user.name} (${user.email})`);
+                                        }
+                                    }
+
                                     if (user) {
                                         console.log(`👤 Matched incoming WhatsApp number to user: ${user.name} (${user.email})`);
 
