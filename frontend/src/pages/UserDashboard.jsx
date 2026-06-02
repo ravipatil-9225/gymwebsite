@@ -62,107 +62,99 @@ const UserDashboard = () => {
 
     const downloadReceipt = (payment) => {
         const formattedDate = new Date(payment.createdAt).toLocaleDateString('en-IN', {
-            year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+            year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
         });
         
         const startDateStr = payment.startDate ? new Date(payment.startDate).toLocaleDateString('en-IN') : 'N/A';
         const endDateStr = payment.expiryDate ? new Date(payment.expiryDate).toLocaleDateString('en-IN') : 'N/A';
 
-        // Create a temporary container styled for PDF generation
+        const isVerified = ['auto_verified', 'manually_verified', 'cash_collected'].includes(payment.verificationStatus);
+        const statusLabel = isVerified ? '✅ Active' : payment.verificationStatus === 'failed_verification' ? '❌ Failed' : payment.verificationStatus === 'rejected' ? '❌ Rejected' : '⏳ Pending';
+        const statusColor = isVerified ? '#16a34a' : payment.verificationStatus === 'failed_verification' || payment.verificationStatus === 'rejected' ? '#dc2626' : '#ca8a04';
+        const titleText = isVerified ? 'Payment Confirmed! 🎉' : 'Payment Receipt';
+        const subtitleText = isVerified ? 'MEMBERSHIP RECEIPT' : 'TRANSACTION RECORD';
+        const messageText = isVerified 
+            ? `Hi <b>${payment.userName}</b>, your payment has been successfully processed. Welcome to your new membership!`
+            : `Hi <b>${payment.userName}</b>, here is a record of your payment transaction.`;
+        const footerText = isVerified
+            ? 'Your membership is now active! Visit us at the gym and our team will be happy to assist you in getting started.'
+            : 'Your payment is being processed. We will notify you once it is confirmed.';
+
+        const methodLabels = { upi: 'UPI', cash_on_bench: 'Cash', pay_later: 'Pay Later' };
+        const methodDisplay = methodLabels[payment.paymentMethod] || payment.paymentMethod || 'UPI';
+
         const element = document.createElement('div');
-        element.style.padding = '30px';
+        element.style.padding = '0';
         element.style.background = '#ffffff';
-        element.style.fontFamily = "'Inter', Arial, sans-serif";
+        element.style.fontFamily = "Arial, Helvetica, sans-serif";
         
         element.innerHTML = `
-            <div style="max-width: 600px; margin: 0 auto; border: 1px solid #eaeaea; padding: 40px; border-radius: 12px; background: #ffffff;">
-                <table style="width: 100%; border-bottom: 2px solid #E34A29; padding-bottom: 20px; margin-bottom: 30px; border-collapse: collapse;">
-                    <tr>
-                        <td style="vertical-align: middle; padding: 0;">
-                            <h1 style="font-size: 24px; font-weight: 800; color: #111; margin: 0; letter-spacing: 0.05em; text-transform: uppercase; font-family: 'Inter', Arial, sans-serif;">
-                                TARA <span style="color: #E34A29;">FITNESS</span>
-                            </h1>
-                            <p style="font-size: 11px; color: #666; margin: 5px 0 0 0; text-transform: uppercase; letter-spacing: 0.1em; font-family: 'Inter', Arial, sans-serif;">
-                                Strength & Conditioning Centre
-                            </p>
-                        </td>
-                        <td style="vertical-align: middle; text-align: right; padding: 0;">
-                            <h2 style="font-size: 20px; font-weight: 700; margin: 0; color: #E34A29; font-family: 'Inter', Arial, sans-serif;">RECEIPT</h2>
-                            <p style="font-size: 12px; color: #666; margin: 5px 0 0 0; font-family: 'Inter', Arial, sans-serif;">ID: ${payment._id}</p>
-                        </td>
-                    </tr>
-                </table>
+            <div style="max-width: 600px; margin: 0 auto; background: #ffffff;">
+                <!-- Header -->
+                <div style="background: linear-gradient(135deg, #1a1a1a 0%, #2d1f1a 100%); padding: 40px 30px; text-align: center; border-radius: 0;">
+                    <h1 style="margin: 0; font-size: 28px; letter-spacing: 0.1em; font-family: Arial, Helvetica, sans-serif;">
+                        <span style="color: #E34A29; font-weight: 800;">TARA</span><span style="color: #ffffff; font-weight: 800;">FITNESS</span>
+                    </h1>
+                    <p style="margin: 8px 0 0 0; color: #999; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; font-family: Arial, Helvetica, sans-serif;">Elite Fitness Centre</p>
+                </div>
 
-                <table style="width: 100%; margin-bottom: 40px; border-collapse: collapse;">
-                    <tr>
-                        <td style="width: 50%; vertical-align: top; padding: 0;">
-                            <h3 style="font-size: 12px; color: #888; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 0.05em; font-family: 'Inter', Arial, sans-serif;">Billed To</h3>
-                            <p style="font-size: 14px; margin: 0 0 5px 0; color: #333; font-weight: 700; font-family: 'Inter', Arial, sans-serif;">${payment.userName}</p>
-                            <p style="font-size: 13px; margin: 0; color: #666; font-family: 'Inter', Arial, sans-serif;">${payment.email}</p>
-                        </td>
-                        <td style="width: 50%; vertical-align: top; text-align: right; padding: 0;">
-                            <h3 style="font-size: 12px; color: #888; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 0.05em; font-family: 'Inter', Arial, sans-serif;">Receipt Info</h3>
-                            <p style="font-size: 13px; margin: 0 0 5px 0; color: #333; font-family: 'Inter', Arial, sans-serif;">Date: ${formattedDate}</p>
-                            <p style="font-size: 13px; margin: 0 0 5px 0; color: #333; font-family: 'Inter', Arial, sans-serif;">Method: <span style="text-transform: uppercase;">${payment.paymentMethod || 'UPI'}</span></p>
-                            ${payment.transactionId ? `<p style="font-size: 13px; margin: 0; color: #333; font-family: 'Inter', Arial, sans-serif;">Txn ID: ${payment.transactionId}</p>` : ''}
-                        </td>
-                    </tr>
-                </table>
+                <!-- Body -->
+                <div style="padding: 40px 30px;">
+                    <h2 style="font-size: 22px; font-weight: 700; color: #111; margin: 0 0 6px 0; font-family: Arial, Helvetica, sans-serif;">${titleText}</h2>
+                    <p style="font-size: 12px; color: #E34A29; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin: 0 0 20px 0; font-family: Arial, Helvetica, sans-serif;">${subtitleText}</p>
+                    <p style="font-size: 14px; color: #555; line-height: 1.6; margin: 0 0 30px 0; font-family: Arial, Helvetica, sans-serif;">${messageText}</p>
 
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 40px;">
-                    <thead>
-                        <tr>
-                            <th style="text-align: left; font-size: 12px; color: #888; text-transform: uppercase; border-bottom: 1px solid #eaeaea; padding-bottom: 12px; font-weight: 600; font-family: 'Inter', Arial, sans-serif;">Description</th>
-                            <th style="text-align: left; font-size: 12px; color: #888; text-transform: uppercase; border-bottom: 1px solid #eaeaea; padding-bottom: 12px; font-weight: 600; font-family: 'Inter', Arial, sans-serif;">Duration</th>
-                            <th style="text-align: right; font-size: 12px; color: #888; text-transform: uppercase; border-bottom: 1px solid #eaeaea; padding-bottom: 12px; font-weight: 600; font-family: 'Inter', Arial, sans-serif;">Amount</th>
+                    <!-- Details Table -->
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; border: 1px solid #eee;">
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 14px 16px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; width: 40%; background: #fafafa; font-family: Arial, Helvetica, sans-serif;">Member Name</td>
+                            <td style="padding: 14px 16px; font-size: 14px; color: #111; font-weight: 500; font-family: Arial, Helvetica, sans-serif;">${payment.userName}</td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td style="padding: 16px 0; font-size: 14px; border-bottom: 1px solid #f5f5f5; font-family: 'Inter', Arial, sans-serif;">
-                                <span style="font-weight: 600; color: #111;">${payment.planName}</span>
-                                <div style="font-size: 11px; color: #888; margin-top: 4px;">
-                                    Validity: ${startDateStr} to ${endDateStr}
-                                </div>
-                            </td>
-                            <td style="padding: 16px 0; font-size: 14px; border-bottom: 1px solid #f5f5f5; color: #333; font-family: 'Inter', Arial, sans-serif;">
-                                ${payment.startDate && payment.expiryDate ? Math.ceil((new Date(payment.expiryDate) - new Date(payment.startDate)) / (1000 * 60 * 60 * 24)) + ' Days' : '—'}
-                            </td>
-                            <td style="padding: 16px 0; font-size: 14px; border-bottom: 1px solid #f5f5f5; text-align: right; font-weight: 600; color: #111; font-family: 'Inter', Arial, sans-serif;">
-                                ₹${payment.planPrice}
-                            </td>
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 14px 16px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; background: #fafafa; font-family: Arial, Helvetica, sans-serif;">Package</td>
+                            <td style="padding: 14px 16px; font-size: 14px; color: #111; font-weight: 500; font-family: Arial, Helvetica, sans-serif;">${payment.planName}</td>
                         </tr>
-                    </tbody>
-                </table>
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 14px 16px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; background: #fafafa; font-family: Arial, Helvetica, sans-serif;">Amount Paid</td>
+                            <td style="padding: 14px 16px; font-size: 14px; color: #111; font-weight: 700; font-family: Arial, Helvetica, sans-serif;">₹${payment.planPrice}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 14px 16px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; background: #fafafa; font-family: Arial, Helvetica, sans-serif;">Payment Method</td>
+                            <td style="padding: 14px 16px; font-size: 14px; color: #111; font-weight: 500; font-family: Arial, Helvetica, sans-serif;">${methodDisplay}</td>
+                        </tr>
+                        ${payment.transactionId ? `<tr style="border-bottom: 1px solid #eee;"><td style="padding: 14px 16px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; background: #fafafa; font-family: Arial, Helvetica, sans-serif;">Transaction ID</td><td style="padding: 14px 16px; font-size: 14px; color: #111; font-weight: 500; font-family: monospace;">${payment.transactionId}</td></tr>` : ''}
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 14px 16px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; background: #fafafa; font-family: Arial, Helvetica, sans-serif;">Membership Start</td>
+                            <td style="padding: 14px 16px; font-size: 14px; color: #111; font-weight: 500; font-family: Arial, Helvetica, sans-serif;">${startDateStr}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 14px 16px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; background: #fafafa; font-family: Arial, Helvetica, sans-serif;">Membership End</td>
+                            <td style="padding: 14px 16px; font-size: 14px; color: #111; font-weight: 500; font-family: Arial, Helvetica, sans-serif;">${endDateStr}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 14px 16px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; background: #fafafa; font-family: Arial, Helvetica, sans-serif;">Payment Date</td>
+                            <td style="padding: 14px 16px; font-size: 14px; color: #111; font-weight: 500; font-family: Arial, Helvetica, sans-serif;">${formattedDate}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 14px 16px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; background: #fafafa; font-family: Arial, Helvetica, sans-serif;">Status</td>
+                            <td style="padding: 14px 16px; font-size: 14px; color: ${statusColor}; font-weight: 700; font-family: Arial, Helvetica, sans-serif;">${statusLabel}</td>
+                        </tr>
+                    </table>
 
-                <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-                    <tr>
-                        <td style="width: 50%; border: none;"></td>
-                        <td style="width: 50%; border: none;">
-                            <table style="width: 100%; border-collapse: collapse;">
-                                <tr>
-                                    <td style="font-size: 14px; padding: 8px 0; color: #555; font-family: 'Inter', Arial, sans-serif;">Subtotal</td>
-                                    <td style="font-size: 14px; padding: 8px 0; color: #555; text-align: right; font-family: 'Inter', Arial, sans-serif;">₹${payment.planPrice}</td>
-                                </tr>
-                                <tr style="border-top: 1px solid #eaeaea;">
-                                    <td style="font-size: 18px; font-weight: 700; color: #E34A29; padding: 15px 0 8px 0; font-family: 'Inter', Arial, sans-serif;">Paid Total</td>
-                                    <td style="font-size: 18px; font-weight: 700; color: #E34A29; padding: 15px 0 8px 0; text-align: right; font-family: 'Inter', Arial, sans-serif;">₹${payment.planPrice}</td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-                </table>
+                    <p style="font-size: 13px; color: #666; line-height: 1.6; margin: 0 0 20px 0; font-family: Arial, Helvetica, sans-serif;">${footerText}</p>
+                </div>
 
-                <div style="margin-top: 50px; border-top: 1px solid #f5f5f5; padding-top: 20px; text-align: center; font-size: 11px; color: #888; font-family: 'Inter', Arial, sans-serif;">
-                    <p style="margin: 5px 0;">Thank you for training with us! Keep crushing your goals.</p>
-                    <p style="margin: 5px 0;">Shop No 1, Kalamba Rd, opp. Surveynagar, Kolhapur, Maharashtra 416007</p>
+                <!-- Footer -->
+                <div style="background: #f9f9f9; padding: 20px 30px; text-align: center; border-top: 1px solid #eee;">
+                    <p style="margin: 0 0 4px 0; font-size: 11px; color: #999; font-family: Arial, Helvetica, sans-serif;">Tara Fitness Centre — Shop No 1, Kalamba Rd, opp. Surveynagar, Kolhapur, Maharashtra 416007</p>
+                    <p style="margin: 0; font-size: 11px; color: #bbb; font-family: Arial, Helvetica, sans-serif;">© ${new Date().getFullYear()} Tara Fitness Centre. All rights reserved.</p>
                 </div>
             </div>
         `;
 
         const opt = {
             margin: [10, 10],
-            filename: `Receipt_${payment._id}.pdf`,
+            filename: `Receipt_TaraFitness_${payment.userName.replace(/\s+/g, '_')}_${new Date(payment.createdAt).toLocaleDateString('en-IN').replace(/\//g, '-')}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -580,28 +572,22 @@ const UserDashboard = () => {
                                                         </td>
                                                         <td className="py-4 text-right">
                                                             <div className="flex justify-end items-center gap-2">
-                                                                {isVerified ? (
-                                                                    <>
-                                                                        <button
-                                                                            onClick={() => downloadReceipt(payment)}
-                                                                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-primary/20 hover:bg-primary text-primary hover:text-white border border-primary/30 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02] active:scale-95"
-                                                                            title="Download PDF"
-                                                                        >
-                                                                            <Download className="w-3.5 h-3.5" />
-                                                                            Download
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={() => printReceipt(payment)}
-                                                                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02] active:scale-95"
-                                                                            title="Print Receipt"
-                                                                        >
-                                                                            <Printer className="w-3.5 h-3.5" />
-                                                                            Print
-                                                                        </button>
-                                                                    </>
-                                                                ) : (
-                                                                    <span className="text-gray-600 text-xs italic">Not Available</span>
-                                                                )}
+                                                                <button
+                                                                    onClick={() => downloadReceipt(payment)}
+                                                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-primary/20 hover:bg-primary text-primary hover:text-white border border-primary/30 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02] active:scale-95"
+                                                                    title="Download PDF"
+                                                                >
+                                                                    <Download className="w-3.5 h-3.5" />
+                                                                    Download
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => printReceipt(payment)}
+                                                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02] active:scale-95"
+                                                                    title="Print Receipt"
+                                                                >
+                                                                    <Printer className="w-3.5 h-3.5" />
+                                                                    Print
+                                                                </button>
                                                             </div>
                                                         </td>
                                                     </tr>
