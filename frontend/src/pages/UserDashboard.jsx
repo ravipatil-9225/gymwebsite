@@ -1,9 +1,10 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LogOut, User, Activity, CalendarDays, TrendingUp, X, Download, Printer, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import html2pdf from 'html2pdf.js';
+import socket from '../utils/socket';
 import { AuthContext } from '../context/AuthContext';
 import SubscriptionCard from '../components/dashboard/SubscriptionCard';
 
@@ -35,6 +36,29 @@ const UserDashboard = () => {
             setHistoryLoading(false);
         }
     };
+
+    const fetchHistorySilent = async () => {
+        if (!token) return;
+        try {
+            const res = await axios.get('/api/payments/my-payments', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setPayments(res.data);
+        } catch (err) {
+            console.error('Error silently refreshing payment history:', err);
+        }
+    };
+
+    useEffect(() => {
+        if (!token) return;
+        const handleDbChange = () => {
+            fetchHistorySilent();
+        };
+        socket.on('db_changed', handleDbChange);
+        return () => {
+            socket.off('db_changed', handleDbChange);
+        };
+    }, [token]);
 
     const downloadReceipt = (payment) => {
         const formattedDate = new Date(payment.createdAt).toLocaleDateString('en-IN', {
