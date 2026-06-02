@@ -47,6 +47,7 @@ const emailService = require('./services/emailService');
 const { protect } = require('./middleware/authMiddleware');
 
 const app = express();
+app.set('trust proxy', 1); // Trust proxy headers from Render/Vercel
 const httpServer = http.createServer(app);
 socket.init(httpServer);
 
