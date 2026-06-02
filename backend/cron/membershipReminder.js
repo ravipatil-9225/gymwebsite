@@ -28,11 +28,10 @@ const startMembershipReminderCron = () => {
                     if (!membership.reminderExpirySent) {
                         await sendExpiryReminder(membership, 0);
                         // Trigger WhatsApp expiry reminder (expired)
-                        await whatsappService.sendExpiryReminder({
+                        await whatsappService.sendExpiredAlert({
                             name: membership.userName,
                             email: membership.userEmail,
-                            planName: membership.packageName,
-                            daysLeft: 0
+                            planName: membership.packageName
                         }).catch(console.error);
 
                         membership.reminderExpirySent = true;
