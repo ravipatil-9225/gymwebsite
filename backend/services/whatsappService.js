@@ -136,3 +136,34 @@ exports.sendWelcomeMessage = async (user) => {
         }
     ]);
 };
+
+exports.sendExpiryReminder = async ({ name, email, planName, daysLeft }) => {
+    const user = await User.findOne({ email });
+    if (!user || !user.phone) return;
+
+    await sendWhatsAppTemplate(user.phone, 'membership_expiry_reminder_template', [
+        {
+            type: 'body',
+            parameters: [
+                { type: 'text', text: name },
+                { type: 'text', text: planName },
+                { type: 'text', text: String(daysLeft) }
+            ]
+        }
+    ]);
+};
+
+exports.sendOverdueReminder = async ({ name, email, planName }) => {
+    const user = await User.findOne({ email });
+    if (!user || !user.phone) return;
+
+    await sendWhatsAppTemplate(user.phone, 'membership_overdue_reminder_template', [
+        {
+            type: 'body',
+            parameters: [
+                { type: 'text', text: name },
+                { type: 'text', text: planName }
+            ]
+        }
+    ]);
+};

@@ -39,7 +39,7 @@ const TopBar = () => {
 
                 {/* WhatsApp */}
                 <a
-                    href="https://wa.me/919960552750"
+                    href="https://wa.me/917387452750"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="hover:text-[#25D366] transition-colors flex items-center"

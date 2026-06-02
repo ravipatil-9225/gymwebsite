@@ -50,7 +50,7 @@ const ContactInfo = () => {
                                     </div>
                                     <div>
                                         <p className="text-gray-400 text-sm font-sans mb-1 uppercase tracking-wider">WhatsApp Us</p>
-                                        <a href="https://wa.me/919960552750" target="_blank" rel="noopener noreferrer" className="text-white font-semibold text-lg hover:text-[#25D366] transition-colors block">
+                                        <a href="https://wa.me/917387452750" target="_blank" rel="noopener noreferrer" className="text-white font-semibold text-lg hover:text-[#25D366] transition-colors block">
                                             Message on WhatsApp
                                         </a>
                                     </div>

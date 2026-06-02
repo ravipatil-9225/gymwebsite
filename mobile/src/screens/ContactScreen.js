@@ -48,7 +48,7 @@ export default function ContactScreen({ navigation }) {
           </TouchableOpacity>
 
           {/* WhatsApp */}
-          <TouchableOpacity style={styles.contactCard} onPress={() => openLink('https://wa.me/919960552750')}>
+          <TouchableOpacity style={styles.contactCard} onPress={() => openLink('https://wa.me/917387452750')}>
             <View style={[styles.iconBoxPrimary, { backgroundColor: 'rgba(37,211,102,0.1)', borderColor: 'rgba(37,211,102,0.2)' }]}>
               {/* Fallback to phone icon tinted green for Whatsapp since we don't have lucide whatsapp icon */}
               <Phone color="#25D366" size={20} />

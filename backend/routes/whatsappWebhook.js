@@ -1,5 +1,8 @@
 const express = require('express');
 const router = express.Router();
+const User = require('../models/User');
+const Payment = require('../models/Payment');
+const whatsappService = require('../services/whatsappService');
 
 // ──────────────────────────────────────────────────────────────
 // WhatsApp Cloud API Webhook
@@ -62,7 +65,7 @@ router.post('/', (req, res) => {
 
                 // ── Incoming Messages ──
                 if (value.messages) {
-                    value.messages.forEach(message => {
+                    value.messages.forEach(async (message) => {
                         const from = message.from;           // Sender's phone number
                         const msgType = message.type;        // text, image, document, etc.
                         const timestamp = message.timestamp;
@@ -70,15 +73,58 @@ router.post('/', (req, res) => {
                         console.log(`📩 WhatsApp message from ${from} [${msgType}] at ${new Date(timestamp * 1000).toLocaleString()}`);
 
                         if (msgType === 'text') {
-                            console.log(`   Message: "${message.text.body}"`);
-                        }
+                            const messageText = message.text.body;
+                            console.log(`   Message: "${messageText}"`);
 
-                        // TODO: Add your custom logic here
-                        // Examples:
-                        //   - Auto-reply with gym info
-                        //   - Save enquiry to database
-                        //   - Forward to admin notification system
-                        //   - Trigger chatbot responses
+                            try {
+                                // Normalize phone number: strip non-digits and extract last 10 digits
+                                const cleanFrom = from.replace(/\D/g, '');
+                                const last10 = cleanFrom.slice(-10);
+
+                                if (last10.length === 10) {
+                                    // Match user in the database
+                                    const user = await User.findOne({ phone: { $regex: last10 + '$' } });
+                                    if (user) {
+                                        console.log(`👤 Matched incoming WhatsApp number to user: ${user.name} (${user.email})`);
+
+                                        // Find a payment created in the last 2 hours
+                                        const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+                                        const recentPayment = await Payment.findOne({
+                                            email: user.email,
+                                            createdAt: { $gte: twoHoursAgo }
+                                        }).sort({ createdAt: -1 });
+
+                                        if (recentPayment) {
+                                            console.log(`💳 Found recent payment for user: ${recentPayment.planName} (${recentPayment.paymentMethod})`);
+                                            
+                                            if (recentPayment.paymentMethod === 'cash_on_bench' && recentPayment.verificationStatus === 'cash_pending') {
+                                                await whatsappService.sendCashPaymentPendingUser({
+                                                    userName: user.name,
+                                                    email: user.email,
+                                                    planName: recentPayment.planName,
+                                                    planPrice: recentPayment.planPrice
+                                                });
+                                            } else if (recentPayment.paymentMethod === 'upi') {
+                                                await whatsappService.sendUpiPaymentPendingUser({
+                                                    userName: user.name,
+                                                    email: user.email,
+                                                    planName: recentPayment.planName,
+                                                    planPrice: recentPayment.planPrice,
+                                                    transactionId: recentPayment.transactionId
+                                                });
+                                            }
+                                        } else {
+                                            // No recent payment, send the welcome message
+                                            await whatsappService.sendWelcomeMessage(user);
+                                        }
+                                    } else {
+                                        console.log(`❓ Phone number ${from} not matched to any registered gym user.`);
+                                    }
+                                }
+                            } catch (err) {
+                                console.error('Error handling incoming WhatsApp message:', err);
+                            }
+                        }
                     });
                 }
 

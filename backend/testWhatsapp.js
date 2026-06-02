@@ -52,5 +52,5 @@ async function testHelloWorld(to) {
 }
 
 // Replace with your personal phone number to test!
-// For example: testHelloWorld('919876543210');
-console.log('Edit the file to uncomment the test function at the bottom with your phone number.');
+testHelloWorld('919699169574');
+

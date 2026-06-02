@@ -6,6 +6,7 @@
 const cron = require('node-cron');
 const Membership = require('../models/Membership');
 const { sendExpiryReminder } = require('../services/emailService');
+const whatsappService = require('../services/whatsappService');
 
 const startMembershipReminderCron = () => {
     // Runs every day at 9:00 AM IST (3:30 AM UTC)
@@ -26,19 +27,35 @@ const startMembershipReminderCron = () => {
                 if (daysLeft <= 0) {
                     if (!membership.reminderExpirySent) {
                         await sendExpiryReminder(membership, 0);
+                        // Trigger WhatsApp expiry reminder (expired)
+                        await whatsappService.sendExpiryReminder({
+                            name: membership.userName,
+                            email: membership.userEmail,
+                            planName: membership.packageName,
+                            daysLeft: 0
+                        }).catch(console.error);
+
                         membership.reminderExpirySent = true;
                         membership.status = 'expired';
                         await membership.save();
-                        console.log(`⚠️  Expiry email sent to ${membership.userEmail}`);
+                        console.log(`⚠️  Expiry email & WhatsApp sent to ${membership.userEmail}`);
                         processed++;
                     }
                 }
                 // 3-day reminder
                 else if (daysLeft <= 3 && !membership.reminder3Sent) {
                     await sendExpiryReminder(membership, daysLeft);
+                    // Trigger WhatsApp expiry reminder
+                    await whatsappService.sendExpiryReminder({
+                        name: membership.userName,
+                        email: membership.userEmail,
+                        planName: membership.packageName,
+                        daysLeft: daysLeft
+                    }).catch(console.error);
+
                     membership.reminder3Sent = true;
                     await membership.save();
-                    console.log(`⏳ 3-day reminder sent to ${membership.userEmail}`);
+                    console.log(`⏳ 3-day reminder email & WhatsApp sent to ${membership.userEmail}`);
                     processed++;
                 }
                 // 7-day reminder
@@ -46,7 +63,7 @@ const startMembershipReminderCron = () => {
                     await sendExpiryReminder(membership, daysLeft);
                     membership.reminder7Sent = true;
                     await membership.save();
-                    console.log(`📅 7-day reminder sent to ${membership.userEmail}`);
+                    console.log(`📅 7-day reminder email sent to ${membership.userEmail}`);
                     processed++;
                 }
             }

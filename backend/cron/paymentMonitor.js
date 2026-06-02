@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const Payment = require('../models/Payment');
 const emailService = require('../services/emailService');
+const whatsappService = require('../services/whatsappService');
 
 const startPaymentMonitorCron = () => {
     // Run daily at midnight
@@ -24,14 +25,23 @@ const startPaymentMonitorCron = () => {
                     await payment.save();
                     console.log(`[CRON] Payment ${payment._id} marked as overdue.`);
                     
-                    // Optional: send overdue reminder via email/WhatsApp
-                    // emailService.sendOverdueReminder(payment).catch(console.error);
+                    // Trigger overdue reminder via WhatsApp
+                    whatsappService.sendOverdueReminder({
+                        name: payment.userName,
+                        email: payment.email,
+                        planName: payment.planName
+                    }).catch(console.error);
                 } else {
-                    // Optional: Check if expiry is in exactly 2 days
+                    // Check if expiry is in exactly 2 days
                     const daysLeft = Math.ceil((payment.expiryDate - now) / (1000 * 60 * 60 * 24));
                     if (daysLeft === 2) {
-                        // emailService.sendExpiryReminder(payment).catch(console.error);
-                        console.log(`[CRON] Payment ${payment._id} is expiring in 2 days.`);
+                        whatsappService.sendExpiryReminder({
+                            name: payment.userName,
+                            email: payment.email,
+                            planName: payment.planName,
+                            daysLeft: 2
+                        }).catch(console.error);
+                        console.log(`[CRON] Payment ${payment._id} is expiring in 2 days. WhatsApp sent.`);
                     }
                 }
             }
