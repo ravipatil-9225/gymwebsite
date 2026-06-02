@@ -129,6 +129,20 @@ exports.sendWelcomeMessage = async (user) => {
 
     await sendWhatsAppTemplate(user.phone, 'welcome_message_template', [
         {
+            type: 'header',
+            parameters: [
+                {
+                    type: 'location',
+                    location: {
+                        latitude: '16.6913',
+                        longitude: '74.2449',
+                        name: 'Tara Fitness Centre',
+                        address: 'Shop No 1, Kalamba Rd, opp. Surveynagar, Kolhapur'
+                    }
+                }
+            ]
+        },
+        {
             type: 'body',
             parameters: [
                 { type: 'text', text: user.name }
@@ -136,6 +150,7 @@ exports.sendWelcomeMessage = async (user) => {
         }
     ]);
 };
+
 
 exports.sendExpiryReminder = async ({ name, email, planName, daysLeft }) => {
     const user = await User.findOne({ email });
