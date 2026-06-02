@@ -33,6 +33,7 @@ import CategoryPlans from './pages/CategoryPlans';
 import OffersPage from './pages/OffersPage';
 import SeeFeedbackPage from './pages/SeeFeedbackPage';
 import NotFound from './pages/NotFound';
+import UserDashboard from './pages/UserDashboard';
 
 // Admin Imports
 import AdminLayout from './components/layout/AdminLayout';
@@ -76,7 +77,7 @@ function App() {
                   <Route element={<AdminRoute />}>
                     <Route path="/smart-nutrition" element={<SmartNutrition />} />
                   </Route>
-                  <Route path="/dashboard" element={<Navigate to="/settings" replace />} />
+                  <Route path="/dashboard" element={<PrivateRoute><UserDashboard /></PrivateRoute>} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/join" element={<JoinUs />} />
