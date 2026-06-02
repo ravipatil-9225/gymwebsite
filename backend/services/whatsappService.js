@@ -158,6 +158,20 @@ exports.sendExpiryReminder = async ({ name, email, planName, daysLeft }) => {
 
     await sendWhatsAppTemplate(user.phone, 'membership_expiry_reminder_template', [
         {
+            type: 'header',
+            parameters: [
+                {
+                    type: 'location',
+                    location: {
+                        latitude: '16.6913',
+                        longitude: '74.2449',
+                        name: 'Tara Fitness Centre',
+                        address: 'Shop No 1, Kalamba Rd, opp. Surveynagar, Kolhapur'
+                    }
+                }
+            ]
+        },
+        {
             type: 'body',
             parameters: [
                 { type: 'text', text: name },
@@ -174,6 +188,20 @@ exports.sendOverdueReminder = async ({ name, email, planName }) => {
 
     await sendWhatsAppTemplate(user.phone, 'membership_overdue_reminder_template', [
         {
+            type: 'header',
+            parameters: [
+                {
+                    type: 'location',
+                    location: {
+                        latitude: '16.6913',
+                        longitude: '74.2449',
+                        name: 'Tara Fitness Centre',
+                        address: 'Shop No 1, Kalamba Rd, opp. Surveynagar, Kolhapur'
+                    }
+                }
+            ]
+        },
+        {
             type: 'body',
             parameters: [
                 { type: 'text', text: name },
@@ -182,3 +210,4 @@ exports.sendOverdueReminder = async ({ name, email, planName }) => {
         }
     ]);
 };
+
