@@ -78,64 +78,10 @@ router.post('/', (req, res) => {
                             console.log(`   Message: "${messageText}"`);
 
                             try {
-                                // Normalize phone number: strip non-digits and extract last 10 digits
-                                const cleanFrom = from.replace(/\D/g, '');
-                                const last10 = cleanFrom.slice(-10);
-
-                                if (last10.length === 10) {
-                                    // Match user in the database
-                                    let user = await User.findOne({ phone: { $regex: last10 + '$' } });
-
-                                    // Fallback: check Lead FormSubmissions if no registered user account exists
-                                    if (!user) {
-                                        const submission = await FormSubmission.findOne({ phone: { $regex: last10 + '$' } }).sort({ createdAt: -1 });
-                                        if (submission) {
-                                            user = {
-                                                name: submission.name,
-                                                email: submission.email,
-                                                phone: submission.phone
-                                            };
-                                            console.log(`📝 Matched incoming WhatsApp number to lead submission: ${user.name} (${user.email})`);
-                                        }
-                                    }
-
-                                    if (user) {
-                                        console.log(`👤 Matched incoming WhatsApp number to user: ${user.name} (${user.email})`);
-
-                                        // Find a payment created in the last 2 hours
-                                        const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
-                                        const recentPayment = await Payment.findOne({
-                                            email: user.email,
-                                            createdAt: { $gte: twoHoursAgo }
-                                        }).sort({ createdAt: -1 });
-
-                                        if (recentPayment) {
-                                            console.log(`💳 Found recent payment for user: ${recentPayment.planName} (${recentPayment.paymentMethod})`);
-                                            
-                                            if (recentPayment.paymentMethod === 'cash_on_bench' && recentPayment.verificationStatus === 'cash_pending') {
-                                                await whatsappService.sendCashPaymentPendingUser({
-                                                    userName: user.name,
-                                                    email: user.email,
-                                                    planName: recentPayment.planName,
-                                                    planPrice: recentPayment.planPrice
-                                                });
-                                            } else if (recentPayment.paymentMethod === 'upi') {
-                                                await whatsappService.sendUpiPaymentPendingUser({
-                                                    userName: user.name,
-                                                    email: user.email,
-                                                    planName: recentPayment.planName,
-                                                    planPrice: recentPayment.planPrice,
-                                                    transactionId: recentPayment.transactionId
-                                                });
-                                            }
-                                        } else {
-                                            // No recent payment, send the welcome message
-                                            await whatsappService.sendWelcomeMessage(user);
-                                        }
-                                    } else {
-                                        console.log(`❓ Phone number ${from} not matched to any registered gym user.`);
-                                    }
-                                }
+                                // Simply log the incoming message for now. 
+                                // Auto-replies are handled directly by the controllers (e.g., paymentController)
+                                // to prevent duplicate messages or incorrect fallback templates.
+                                console.log(`📩 Logged incoming text message from ${from}`);
                             } catch (err) {
                                 console.error('Error handling incoming WhatsApp message:', err);
                             }
