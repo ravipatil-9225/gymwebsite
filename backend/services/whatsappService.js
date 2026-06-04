@@ -65,15 +65,22 @@ async function sendWhatsAppTemplate(to, templateName, components = []) {
 // TRANSACTIONS / RECEIPTS LOGIC
 // ─────────────────────────────────────────────────────────────────
 
+// Static branded PDF used as the document header for templates that require it.
+// This is a simple one-page Tara Fitness branded PDF hosted on Cloudinary.
+const BRANDED_DOC_URL = 'https://res.cloudinary.com/dn6nxrrot/image/upload/v1/tara_fitness_receipt.pdf';
+
 exports.sendCashPaymentPendingUser = async ({ userName, email, planName, planPrice }) => {
-    // 1. Fetch user to get their phone number
     const user = await User.findOne({ email });
     if (!user || !user.phone) return;
 
-    // Example Template Components
-    // Suppose your template has variables like:
-    // Hi {{1}}, your cash payment request for {{2}} (₹{{3}}) is recorded. Next steps: Visit reception...
+    // Template: cash_payment_request_template | Header: DOCUMENT | Body: 3 vars (name, plan, price)
     await sendWhatsAppTemplate(user.phone, 'cash_payment_request_template', [
+        {
+            type: 'header',
+            parameters: [
+                { type: 'document', document: { link: BRANDED_DOC_URL, filename: 'TaraFitness_Registration.pdf' } }
+            ]
+        },
         {
             type: 'body',
             parameters: [
@@ -89,12 +96,27 @@ exports.sendUpiPaymentPendingUser = async ({ userName, email, planName, planPric
     const user = await User.findOne({ email });
     if (!user || !user.phone) return;
 
+    // Template: upi_payment_pending_template | Header: LOCATION | Body: 2 vars (name, txnId)
     await sendWhatsAppTemplate(user.phone, 'upi_payment_pending_template', [
+        {
+            type: 'header',
+            parameters: [
+                {
+                    type: 'location',
+                    location: {
+                        latitude: '16.6913',
+                        longitude: '74.2449',
+                        name: 'Tara Fitness Centre',
+                        address: 'Shop No 1, Kalamba Rd, opp. Surveynagar, Kolhapur'
+                    }
+                }
+            ]
+        },
         {
             type: 'body',
             parameters: [
                 { type: 'text', text: userName },
-                { type: 'text', text: transactionId } // Let them know this Txn is processing
+                { type: 'text', text: transactionId }
             ]
         }
     ]);
@@ -107,10 +129,14 @@ exports.sendPaymentConfirmation = async ({ name, email, packageName, amountPaid,
     const startLocal = new Date(startDate).toLocaleDateString('en-IN');
     const endLocal = new Date(endDate).toLocaleDateString('en-IN');
 
-    // Receipt Template setup: 
-    // Title/Header could be Payment Confirmed!
-    // Body variables: 1=Name, 2=Package, 3=Amount, 4=StartDate, 5=EndDate
+    // Template: payment_receipt_template | Header: DOCUMENT | Body: 5 vars (name, pkg, amt, start, end)
     await sendWhatsAppTemplate(user.phone, 'payment_receipt_template', [
+        {
+            type: 'header',
+            parameters: [
+                { type: 'document', document: { link: BRANDED_DOC_URL, filename: `Receipt_${name.replace(/\s+/g, '_')}.pdf` } }
+            ]
+        },
         {
             type: 'body',
             parameters: [
@@ -156,6 +182,7 @@ exports.sendExpiryReminder = async ({ name, email, planName, daysLeft }) => {
     const user = await User.findOne({ email });
     if (!user || !user.phone) return;
 
+    // Template: membership_expiry_reminder_template | Header: LOCATION | Body: 3 vars (name, plan, days)
     await sendWhatsAppTemplate(user.phone, 'membership_expiry_reminder_template', [
         {
             type: 'header',
@@ -186,6 +213,7 @@ exports.sendOverdueReminder = async ({ name, email, planName }) => {
     const user = await User.findOne({ email });
     if (!user || !user.phone) return;
 
+    // Template: membership_overdue_reminder_template | Header: LOCATION | Body: 2 vars (name, plan)
     await sendWhatsAppTemplate(user.phone, 'membership_overdue_reminder_template', [
         {
             type: 'header',
