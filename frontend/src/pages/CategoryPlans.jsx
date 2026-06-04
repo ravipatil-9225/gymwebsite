@@ -413,6 +413,7 @@ const CategoryPlans = () => {
                                                 </svg>
                                                 Get Cash Instructions
                                             </a>
+                                        </div>
                                     )}
                                     
                                     {payTab === 'pay_later' && (
@@ -429,7 +430,9 @@ const CategoryPlans = () => {
                                                 Notify on WhatsApp
                                             </a>
                                         </div>
-                                    )}                                    <button onClick={closeModal} className="mt-6 px-6 py-2.5 bg-primary hover:bg-primary-hover rounded-xl text-white font-semibold text-sm transition-colors w-full">Done</button>
+                                    )}
+                                    
+                                    <button onClick={closeModal} className="mt-6 px-6 py-2.5 bg-primary hover:bg-primary-hover rounded-xl text-white font-semibold text-sm transition-colors w-full">Done</button>
                                 </div>
                             ) : (
                                 <>
