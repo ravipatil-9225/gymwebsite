@@ -2,8 +2,8 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 
 const AdminRoute = () => {
-    const token = localStorage.getItem('gymToken');
-    const userStr = localStorage.getItem('gymUser');
+    const token = localStorage.getItem('adminToken');
+    const userStr = localStorage.getItem('adminUser');
 
     if (!token || !userStr) {
         return <Navigate to="/login" replace />;

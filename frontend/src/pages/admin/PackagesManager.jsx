@@ -29,7 +29,7 @@ const PackagesManager = () => {
     /* ── Fetch ── */
     const fetchPackages = async (silent = false) => {
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             const { data } = await axios.get('/api/admin/packages', {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -53,7 +53,7 @@ const PackagesManager = () => {
     const handleDelete = async (id) => {
         if (!window.confirm('Delete this package?')) return;
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             await axios.delete(`/api/admin/packages/${id}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -66,7 +66,7 @@ const PackagesManager = () => {
     const handleSave = async (e) => {
         e.preventDefault();
         try {
-            const token   = localStorage.getItem('gymToken');
+            const token   = localStorage.getItem('adminToken');
             const payload = {
                 ...formData,
                 features: typeof formData.features === 'string'
@@ -96,7 +96,7 @@ const PackagesManager = () => {
         if (!window.confirm(msg)) return;
         setResetMenu(false);
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             const { data } = await axios.post('/api/admin/packages/reset-category', { category }, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -111,7 +111,7 @@ const PackagesManager = () => {
     const handleLoadDefaults = async () => {
         if (!window.confirm('Add any missing default plans (existing ones are kept). Continue?')) return;
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             const { data } = await axios.post('/api/admin/packages/seed', {}, {
                 headers: { Authorization: `Bearer ${token}` },
             });

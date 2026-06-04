@@ -315,7 +315,7 @@ const PaymentsManager = () => {
 
     const fetchPayments = async () => {
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             const { data } = await axios.get('/api/admin/payments', {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -335,7 +335,7 @@ const PaymentsManager = () => {
 
     const updateStatus = async (id, status) => {
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             const { data: updated } = await axios.put(`/api/admin/payments/${id}`, { verificationStatus: status }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -349,7 +349,7 @@ const PaymentsManager = () => {
 
     const applyDiscount = async (id, discount, type) => {
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             const { data: updated } = await axios.put(`/api/admin/payments/${id}/apply-discount`, { discount: Number(discount), discountType: type }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -365,7 +365,7 @@ const PaymentsManager = () => {
     const deletePayment = async (id) => {
         if (!window.confirm('Are you sure you want to delete this payment record and its screenshot?')) return;
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             await axios.delete(`/api/admin/payments/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });

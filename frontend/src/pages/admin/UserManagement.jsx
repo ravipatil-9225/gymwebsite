@@ -69,7 +69,7 @@ const UserManagement = () => {
 
     const fetchUsers = async (silent = false) => {
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             const { data } = await axios.get('/api/admin/users', {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -108,7 +108,7 @@ const UserManagement = () => {
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to delete this user?')) return;
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             await axios.delete(`/api/admin/users/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -121,7 +121,7 @@ const UserManagement = () => {
     const handleUpdate = async (e) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             const { data: updatedUser } = await axios.put(`/api/admin/users/${editingUser._id}`, editingUser, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -139,7 +139,7 @@ const UserManagement = () => {
     const handleCreateUser = async (e) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             await axios.post(`/api/admin/users`, addingUser, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -337,7 +337,7 @@ const UserManagement = () => {
                                             <button
                                                 onClick={async () => {
                                                     try {
-                                                        const token = localStorage.getItem('gymToken');
+                                                        const token = localStorage.getItem('adminToken');
                                                         const { data } = await axios.put(`/api/admin/users/${user._id}/toggle-pending`, {}, {
                                                             headers: { Authorization: `Bearer ${token}` }
                                                         });

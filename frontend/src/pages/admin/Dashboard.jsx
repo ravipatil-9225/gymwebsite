@@ -19,7 +19,7 @@ const Dashboard = () => {
     useEffect(() => {
         const fetchAnalytics = async () => {
             try {
-                const token = localStorage.getItem('gymToken');
+                const token = localStorage.getItem('adminToken');
                 const { data } = await axios.get(`/api/admin/analytics?t=${Date.now()}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -33,7 +33,7 @@ const Dashboard = () => {
 
         const fetchAnalyticsSilent = async () => {
             try {
-                const token = localStorage.getItem('gymToken');
+                const token = localStorage.getItem('adminToken');
                 const { data } = await axios.get(`/api/admin/analytics?t=${Date.now()}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -80,7 +80,7 @@ const Dashboard = () => {
                     onClick={async () => {
                         if(window.confirm('Are you running this on the Live Server? This will instantly populate the database with your original Plans, Trainers, and Gallery photos. Continue?')) {
                             try {
-                                const t = localStorage.getItem('gymToken');
+                                const t = localStorage.getItem('adminToken');
                                 const {data} = await axios.post('/api/admin/system/restore-legacy', {}, { headers: { Authorization: `Bearer ${t}` } });
                                 alert(data.message);
                             } catch(err) { alert('Error restoring legacy data'); }

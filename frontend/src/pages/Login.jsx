@@ -43,7 +43,11 @@ const Login = () => {
             if (res.status === 404) { setNotFound(true); throw new Error(data.message); }
             if (!res.ok) throw new Error(data.message || 'Login failed');
             login(data.user, data.token);
-            navigate('/home');
+            if (data.user.role === 'admin') {
+                navigate('/admin');
+            } else {
+                navigate('/home');
+            }
         } catch (err) {
             setError(err.message);
         } finally {

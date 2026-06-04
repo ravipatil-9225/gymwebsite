@@ -31,11 +31,17 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     const login = (userData, authToken) => {
-        setUser(userData);
-        localStorage.setItem('gymUser', JSON.stringify(userData));
-        if (authToken) {
-            setToken(authToken);
-            localStorage.setItem('gymToken', authToken);
+        if (userData.role === 'admin') {
+            localStorage.setItem('adminUser', JSON.stringify(userData));
+            if (authToken) localStorage.setItem('adminToken', authToken);
+            // We do NOT set the local 'user' state, because this context is for the User Dashboard.
+        } else {
+            setUser(userData);
+            localStorage.setItem('gymUser', JSON.stringify(userData));
+            if (authToken) {
+                setToken(authToken);
+                localStorage.setItem('gymToken', authToken);
+            }
         }
     };
 

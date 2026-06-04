@@ -28,7 +28,7 @@ const GalleryManager = () => {
         weightBefore: '', weightAfter: '', testimonial: '', programme: ''
     });
 
-    const token = localStorage.getItem('gymToken');
+    const token = localStorage.getItem('adminToken');
     const authHeader = { headers: { Authorization: `Bearer ${token}` } };
 
     // ═══════════════════════════════════════

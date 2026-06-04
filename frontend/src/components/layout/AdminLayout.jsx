@@ -10,8 +10,8 @@ const AdminLayout = () => {
     const location = useLocation();
 
     const handleLogout = () => {
-        localStorage.removeItem('gymToken');
-        localStorage.removeItem('gymUser');
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminUser');
         navigate('/login');
     };
 
@@ -130,13 +130,13 @@ const AdminLayout = () => {
 
                     <div className="flex items-center gap-4">
                         <div className="text-right">
-                          <p className="text-sm font-bold text-gray-900">{localStorage.getItem('gymUser') ? JSON.parse(localStorage.getItem('gymUser')).name : 'Admin'}</p>
+                          <p className="text-sm font-bold text-gray-900">{localStorage.getItem('adminUser') ? JSON.parse(localStorage.getItem('adminUser')).name : 'Admin'}</p>
                           <p className="text-[10px] text-gray-500 font-sans tracking-wider uppercase">Gym Management</p>
                         </div>
                         <Link to="/settings" className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 p-0.5 overflow-hidden hover:scale-105 transition-transform active:scale-95">
-                          {localStorage.getItem('gymUser') && JSON.parse(localStorage.getItem('gymUser')).profileImage?.url ? (
+                          {localStorage.getItem('adminUser') && JSON.parse(localStorage.getItem('adminUser')).profileImage?.url ? (
                             <img 
-                              src={JSON.parse(localStorage.getItem('gymUser')).profileImage.url} 
+                              src={JSON.parse(localStorage.getItem('adminUser')).profileImage.url} 
                               alt="Profile" 
                               className="w-full h-full object-cover rounded-full"
                             />

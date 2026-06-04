@@ -45,7 +45,7 @@ const CMSManager = () => {
 
     const fetchContentSilent = async () => {
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             const { data } = await axios.get(`/api/admin/content/${activeSection}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -67,7 +67,7 @@ const CMSManager = () => {
     const fetchContent = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             const { data } = await axios.get(`/api/admin/content/${activeSection}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -85,7 +85,7 @@ const CMSManager = () => {
         e.preventDefault();
         setSaving(true);
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             await axios.put(`/api/admin/content/${activeSection}`, { data: contentData }, {
                 headers: { Authorization: `Bearer ${token}` }
             });

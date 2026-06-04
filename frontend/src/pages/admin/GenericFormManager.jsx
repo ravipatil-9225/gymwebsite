@@ -9,7 +9,7 @@ const GenericFormManager = ({ title, type }) => {
 
     const fetchForms = async () => {
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             const { data } = await axios.get(`/api/admin/forms/${type}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -45,7 +45,7 @@ const GenericFormManager = ({ title, type }) => {
 
     const fetchFormsSilent = async () => {
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             const { data } = await axios.get(`/api/admin/forms/${type}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -58,7 +58,7 @@ const GenericFormManager = ({ title, type }) => {
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to delete this submission?')) return;
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             await axios.delete(`/api/admin/forms/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -70,7 +70,7 @@ const GenericFormManager = ({ title, type }) => {
 
     const handleToggleStatus = async (form) => {
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             const newStatus = form.status === 'resolved' ? 'pending' : 'resolved';
             await axios.put(`/api/admin/forms/${form._id}`, { status: newStatus }, {
                 headers: { Authorization: `Bearer ${token}` }

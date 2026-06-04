@@ -12,7 +12,7 @@ const TrainersManager = () => {
 
     const fetchTrainers = async () => {
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             const { data } = await axios.get('/api/admin/trainers', {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -26,7 +26,7 @@ const TrainersManager = () => {
 
     const fetchTrainersSilent = async () => {
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             const { data } = await axios.get('/api/admin/trainers', {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -44,7 +44,7 @@ const TrainersManager = () => {
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to delete this trainer?')) return;
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             await axios.delete(`/api/admin/trainers/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -57,7 +57,7 @@ const TrainersManager = () => {
     const handleCreateOrUpdate = async (e) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             if (editingId) {
                 await axios.put(`/api/admin/trainers/${editingId}`, formData, {
                     headers: { Authorization: `Bearer ${token}` }
@@ -77,7 +77,7 @@ const TrainersManager = () => {
     const handleLoadDefaults = async () => {
         if (!window.confirm('Add default trainers (existing ones are kept)?')) return;
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             const { data } = await axios.post('/api/admin/trainers/seed', {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });

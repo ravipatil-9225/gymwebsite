@@ -12,7 +12,7 @@ const OffersManager = () => {
 
     const fetchOffers = async () => {
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             const { data } = await axios.get('/api/admin/offers', {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -26,7 +26,7 @@ const OffersManager = () => {
 
     const fetchOffersSilent = async () => {
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             const { data } = await axios.get('/api/admin/offers', {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -44,7 +44,7 @@ const OffersManager = () => {
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to delete this offer?')) return;
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             await axios.delete(`/api/admin/offers/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -57,7 +57,7 @@ const OffersManager = () => {
     const handleCreateOrUpdate = async (e) => {
         e.preventDefault();
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             if (editingId) {
                 await axios.put(`/api/admin/offers/${editingId}`, formData, {
                     headers: { Authorization: `Bearer ${token}` }
@@ -77,7 +77,7 @@ const OffersManager = () => {
     const handleLoadDefaults = async () => {
         if (!window.confirm('Add default offers (existing ones are kept)?')) return;
         try {
-            const token = localStorage.getItem('gymToken');
+            const token = localStorage.getItem('adminToken');
             const { data } = await axios.post('/api/admin/offers/seed', {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });

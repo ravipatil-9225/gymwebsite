@@ -13,7 +13,7 @@ const SummaryDashboard = () => {
         const fetchSummary = async () => {
             setIsSummaryLoading(true);
             try {
-                const token = localStorage.getItem('gymToken');
+                const token = localStorage.getItem('adminToken');
                 const { data } = await axios.get(`/api/admin/summary?month=${summaryMonth}&year=${summaryYear}&t=${Date.now()}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -27,7 +27,7 @@ const SummaryDashboard = () => {
 
         const fetchSummarySilent = async () => {
             try {
-                const token = localStorage.getItem('gymToken');
+                const token = localStorage.getItem('adminToken');
                 const { data } = await axios.get(`/api/admin/summary?month=${summaryMonth}&year=${summaryYear}&t=${Date.now()}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
