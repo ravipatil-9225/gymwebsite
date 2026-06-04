@@ -22,6 +22,12 @@ const Navbar = () => {
     const [scrolled, setScrolled] = useState(false);
     const location = useLocation();
     const { user } = useContext(AuthContext);
+    const [adminUser, setAdminUser] = useState(null);
+
+    useEffect(() => {
+        const storedAdmin = localStorage.getItem('adminUser');
+        if (storedAdmin) setAdminUser(JSON.parse(storedAdmin));
+    }, []);
 
     const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
 
@@ -106,7 +112,7 @@ const Navbar = () => {
                                     </Link>
                                 );
                             })}
-                            {user?.role === 'admin' && (
+                            {(user?.role === 'admin' || adminUser) && (
                                 <Link
                                     to="/admin"
                                     className="relative px-3 py-2 text-[11px] font-bold tracking-[0.18em] uppercase transition-all duration-200 rounded-md text-yellow-400/80 hover:text-yellow-400 group"
@@ -153,7 +159,7 @@ const Navbar = () => {
                     >
                         <div className="px-4 py-6 space-y-1">
                              {navItems.map((item, index) => {
-                                if (item.path === '/smart-nutrition' && user?.role !== 'admin') return null;
+                                if (item.path === '/smart-nutrition' && user?.role !== 'admin' && !adminUser) return null;
                                 if (item.isExternal) {
                                     return (
                                         <motion.div
@@ -199,7 +205,7 @@ const Navbar = () => {
                                 );
                             })}
 
-                            {user?.role === 'admin' && (
+                            {(user?.role === 'admin' || adminUser) && (
                                 <Link
                                     to="/admin"
                                     className="flex items-center gap-2 px-4 py-3 rounded-xl font-display text-sm tracking-wider text-yellow-400 hover:bg-yellow-400/10 transition-all"
