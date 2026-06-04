@@ -1,0 +1,84 @@
+permannat token of whatsaapp for gym website - EAALju4Ed84UBRhS4bJhXzIQDH1ul50PTU8JoMTeczPtZBOZBMTMhPXOZAi7WHnJwMzlJqdgp8ew1weyD55uWEDf367ntQ2xoU88pvNB50yqIJRLZBPu4xkB2TvfizZBad9QrkAgvkiLJykPQsA5BJT6xzKl7C8EOtNVIXo4LztOeH27w8lLV2Eu8a2XPT3QZDZD
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+📱 3. UPI Verification Pending             delete template after approval because of wrong pdf format uploaded
+Name: upi_payment_pending_template
+Category: Utility
+Header: None
+Body Text:
+text
+Hi *{{1}}*! 📱
+We have received your UPI payment details for verification:
+🆔 *Transaction ID:* {{2}}
+⏳ *Status:* Verification Pending
+Our team is verifying your payment. We will notify you here as soon as your access is active! Thank you for your patience. 🙏
+
+Buttons:
+URL Button: Visit Website -> https://tfc365.com/
+Phone Button: Call Support -> +919960552750
+
+🎉 4. Payment Receipt / Confirmation
+Name: payment_receipt_template
+Category: Utility
+Header: None
+Body Text:
+text
+Payment Confirmed! 🎉💳
+Hi *{{1}}*, your payment for the *{{2}}* package is successful. Welcome aboard!
+📊 *Receipt Details:*
+💰 *Amount Paid:* ₹{{3}}
+📅 *Start Date:* {{4}}
+📆 *End Date:* {{5}}
+Thank you for choosing *Tara Fitness Centre*. Your membership is now fully active. Let's get to work! 🔥💪
+
+Buttons:
+URL Button: Visit Website -> https://tfc365.com/
+Phone Button: Call Support -> +919960552750
+
+⏳ 5. Plan Expiration warning
+Name: membership_expiry_reminder_template
+Category: Utility
+Header: Select Location
+Body Text:
+text
+Membership Expiry Alert ⏳⚠️
+Hi *{{1}}*, your active plan *{{2}}* is expiring in *{{3}} days*.
+Keep up your momentum and don't break your streak! You can renew your package directly on our website or visit the reception.
+Let's keep crushing those goals! 🏋️🔥
+
+⚠️ 6. Pay Later Overdue Alert          delete after approval because phone no is not attached 
+Name: membership_overdue_reminder_template
+Category: Utility
+Header: Select Location
+Body Text:
+text
+Overdue Payment Notice ⚠️💳
+Hi *{{1}}*, your pay-later payment for the *{{2}}* package is now overdue.
+Please complete your payment on our portal or visit the gym reception as soon as possible to keep your membership active and avoid training interruptions.
+Thank you! 🙏
+
+
+🚫 7. Plan Expired Notice
+Name: membership_expired_template
+Category: Utility
+Header: Select Location
+Body Text:
+text
+Membership Expired 🚫🏋️
+Hi *{{1}}*, your membership for the *{{2}}* package has officially expired.
+We miss seeing you on the training floor! Renew your membership today to continue your fitness journey with us.
+Hope to see you back soon! 💪
