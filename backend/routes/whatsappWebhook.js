@@ -78,10 +78,56 @@ router.post('/', (req, res) => {
                             console.log(`   Message: "${messageText}"`);
 
                             try {
-                                // Simply log the incoming message for now. 
-                                // Auto-replies are handled directly by the controllers (e.g., paymentController)
-                                // to prevent duplicate messages or incorrect fallback templates.
-                                console.log(`📩 Logged incoming text message from ${from}`);
+                                const cleanFrom = from.replace(/\D/g, '');
+                                const last10 = cleanFrom.slice(-10);
+
+                                if (last10.length === 10) {
+                                    let user = await User.findOne({ phone: { $regex: last10 + '$' } });
+                                    if (!user) {
+                                        const submission = await FormSubmission.findOne({ phone: { $regex: last10 + '$' } }).sort({ createdAt: -1 });
+                                        if (submission) user = { name: submission.name, email: submission.email, phone: submission.phone };
+                                    }
+
+                                    if (user) {
+                                        console.log(`👤 Matched incoming WhatsApp number to user: ${user.name} (${user.email})`);
+                                        const textLower = messageText.toLowerCase();
+
+                                        // Fallbacks if no recent payment is found
+                                        let planName = 'Your Plan';
+                                        let planPrice = 0;
+                                        let transactionId = 'N/A';
+
+                                        const recentPayment = await Payment.findOne({ email: user.email }).sort({ createdAt: -1 });
+                                        if (recentPayment) {
+                                            planName = recentPayment.planName || planName;
+                                            planPrice = recentPayment.planPrice || planPrice;
+                                            transactionId = recentPayment.transactionId || transactionId;
+                                        }
+
+                                        if (textLower.includes('pay by cash') || textLower.includes('cash payment')) {
+                                            await whatsappService.sendCashPaymentPendingUser({
+                                                userName: user.name,
+                                                email: user.email,
+                                                planName,
+                                                planPrice
+                                            });
+                                        } else if (textLower.includes('upi') || textLower.includes('qr')) {
+                                            await whatsappService.sendUpiPaymentPendingUser({
+                                                userName: user.name,
+                                                email: user.email,
+                                                planName,
+                                                planPrice,
+                                                transactionId
+                                            });
+                                        } else if (textLower.includes('activate my account') || textLower.includes('register')) {
+                                            await whatsappService.sendWelcomeMessage(user);
+                                        } else {
+                                            console.log(`📩 Unmatched text message from ${from}: ${messageText}`);
+                                        }
+                                    } else {
+                                        console.log(`❓ Phone number ${from} not matched to any registered gym user.`);
+                                    }
+                                }
                             } catch (err) {
                                 console.error('Error handling incoming WhatsApp message:', err);
                             }
