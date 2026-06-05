@@ -62,9 +62,14 @@ export const AuthProvider = ({ children }) => {
     const login = useCallback((userData, authToken) => {
         if (userData.role === 'admin') {
             // Admin sessions go into their own isolated storage keys.
-            // Do NOT set the React state (user/token) — this context is for regular users only.
             localStorage.setItem('adminUser', JSON.stringify(userData));
             if (authToken) localStorage.setItem('adminToken', authToken);
+
+            // STRICT SEPARATION: Clear regular user session
+            setUser(null);
+            setToken(null);
+            localStorage.removeItem('gymUser');
+            localStorage.removeItem('gymToken');
         } else {
             setUser(userData);
             localStorage.setItem('gymUser', JSON.stringify(userData));
@@ -72,6 +77,10 @@ export const AuthProvider = ({ children }) => {
                 setToken(authToken);
                 localStorage.setItem('gymToken', authToken);
             }
+
+            // STRICT SEPARATION: Clear admin session
+            localStorage.removeItem('adminUser');
+            localStorage.removeItem('adminToken');
         }
     }, []);
 
