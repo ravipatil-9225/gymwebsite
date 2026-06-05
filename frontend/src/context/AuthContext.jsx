@@ -1,40 +1,70 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useCallback } from 'react';
 
 export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(() => {
-        const storedUser = localStorage.getItem('gymUser');
-        return storedUser ? JSON.parse(storedUser) : null;
+        try {
+            const storedUser = localStorage.getItem('gymUser');
+            return storedUser ? JSON.parse(storedUser) : null;
+        } catch {
+            localStorage.removeItem('gymUser');
+            return null;
+        }
     });
     const [token, setToken] = useState(() => localStorage.getItem('gymToken'));
-    const [backendReady, setBackendReady] = useState(true);   // optimistic: assume ready
+    const [backendReady, setBackendReady] = useState(true);
     const [checkingBackend, setCheckingBackend] = useState(false);
 
+    // ── Cross-Tab Sync ──────────────────────────────────────────────────
+    // When another tab changes gymUser/gymToken (e.g. logout), update this tab's state.
     useEffect(() => {
+        const handleStorageChange = (e) => {
+            if (e.key === 'gymUser') {
+                if (!e.newValue) {
+                    // gymUser was removed (logout from another tab)
+                    setUser(null);
+                    setToken(null);
+                } else {
+                    try {
+                        setUser(JSON.parse(e.newValue));
+                    } catch {
+                        setUser(null);
+                    }
+                }
+            }
+            if (e.key === 'gymToken') {
+                setToken(e.newValue);
+            }
+        };
 
-        // Quick, non-blocking health check — don't gate the UI on it
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, []);
+
+    // ── Startup health check (non-blocking) ─────────────────────────────
+    useEffect(() => {
         const startupCheck = async () => {
             try {
                 const controller = new AbortController();
-                const timeout = setTimeout(() => controller.abort(), 3000); // 3s max
+                const timeout = setTimeout(() => controller.abort(), 3000);
                 const res = await fetch('/api/health', { signal: controller.signal });
                 clearTimeout(timeout);
                 setBackendReady(res.ok);
             } catch {
-                // If backend is unreachable, still allow UI — actual API calls will fail with proper errors
                 setBackendReady(true);
             }
         };
-
         startupCheck();
     }, []);
 
-    const login = (userData, authToken) => {
+    // ── Login ────────────────────────────────────────────────────────────
+    const login = useCallback((userData, authToken) => {
         if (userData.role === 'admin') {
+            // Admin sessions go into their own isolated storage keys.
+            // Do NOT set the React state (user/token) — this context is for regular users only.
             localStorage.setItem('adminUser', JSON.stringify(userData));
             if (authToken) localStorage.setItem('adminToken', authToken);
-            // We do NOT set the local 'user' state, because this context is for the User Dashboard.
         } else {
             setUser(userData);
             localStorage.setItem('gymUser', JSON.stringify(userData));
@@ -43,15 +73,14 @@ export const AuthProvider = ({ children }) => {
                 localStorage.setItem('gymToken', authToken);
             }
         }
-    };
+    }, []);
 
-    const updateUser = async (fields) => {
-        // Optimistic local update
+    // ── Update user profile ──────────────────────────────────────────────
+    const updateUser = useCallback(async (fields) => {
         const updated = { ...user, ...fields };
         setUser(updated);
         localStorage.setItem('gymUser', JSON.stringify(updated));
 
-        // Persist to backend if we have a token
         const tok = token || localStorage.getItem('gymToken');
         if (tok) {
             try {
@@ -73,9 +102,10 @@ export const AuthProvider = ({ children }) => {
                 console.warn('Profile sync to backend failed (offline?):', err);
             }
         }
-    };
+    }, [user, token]);
 
-    const uploadPhoto = async (file) => {
+    // ── Upload photo ─────────────────────────────────────────────────────
+    const uploadPhoto = useCallback(async (file) => {
         const tok = token || localStorage.getItem('gymToken');
         if (!tok) return;
 
@@ -104,14 +134,16 @@ export const AuthProvider = ({ children }) => {
             console.error('Photo upload failed:', err);
             throw err;
         }
-    };
+    }, [user, token]);
 
-    const logout = () => {
+    // ── Logout ───────────────────────────────────────────────────────────
+    // Clears ONLY the regular user session. Admin logout is handled by AdminLayout.
+    const logout = useCallback(() => {
         setUser(null);
         setToken(null);
         localStorage.removeItem('gymUser');
         localStorage.removeItem('gymToken');
-    };
+    }, []);
 
     return (
         <AuthContext.Provider value={{ user, token, login, logout, updateUser, uploadPhoto, backendReady, checkingBackend }}>

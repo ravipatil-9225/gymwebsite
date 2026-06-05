@@ -69,7 +69,11 @@ const Register = () => {
             const data = await res.json();
             if (!res.ok) throw new Error(data.message || 'Registration failed');
             login(data.user, data.token);
-            navigate('/home');
+            if (data.user.role === 'admin') {
+                navigate('/admin');
+            } else {
+                navigate('/home');
+            }
         } catch (err) {
             setError(err.message);
         } finally {
