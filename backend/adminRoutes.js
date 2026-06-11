@@ -84,6 +84,24 @@ router.post('/system/restore-legacy', async (req, res) => {
 });
 
 // ==========================================
+// CRON TRIGGER
+// ==========================================
+router.post('/trigger-crons', async (req, res) => {
+    try {
+        const { runMembershipReminderLogic } = require('./cron/membershipReminder');
+        const { runPaymentMonitorLogic } = require('./cron/paymentMonitor');
+        
+        await runMembershipReminderLogic();
+        await runPaymentMonitorLogic();
+        
+        res.json({ message: 'Cron jobs triggered successfully.' });
+    } catch (err) {
+        console.error('Trigger crons error:', err);
+        res.status(500).json({ message: 'Error triggering crons.' });
+    }
+});
+
+// ==========================================
 // DASHBOARD ANALYTICS
 // ==========================================
 router.get('/analytics', async (req, res) => {

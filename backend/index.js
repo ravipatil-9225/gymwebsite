@@ -22,6 +22,7 @@ const connectDB = require('./config/db');
 const socket = require('./socket');
 const { startMembershipReminderCron } = require('./cron/membershipReminder');
 const { startPaymentMonitorCron } = require('./cron/paymentMonitor');
+const whatsappService = require('./services/whatsappService');
 
 // Models (for public routes and admin triggers)
 const User = require('./models/User');
@@ -323,6 +324,15 @@ app.post('/api/admin/confirm-payment', protect, async (req, res) => {
         });
 
         emailService.sendPaymentConfirmation({
+            name: user.name,
+            email: user.email,
+            packageName,
+            amountPaid,
+            startDate,
+            endDate,
+        }).catch(console.error);
+
+        whatsappService.sendPaymentConfirmation({
             name: user.name,
             email: user.email,
             packageName,

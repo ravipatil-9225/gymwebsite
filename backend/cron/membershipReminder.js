@@ -10,8 +10,8 @@ const whatsappService = require('../services/whatsappService');
 
 const startMembershipReminderCron = () => {
     // Runs every day at 9:00 AM IST (3:30 AM UTC)
-    cron.schedule('30 3 * * *', async () => {
-        console.log('🕒 Running membership expiry reminder cron job...');
+const runMembershipReminderLogic = async () => {
+    console.log('🕒 Running membership expiry reminder cron job...');
 
         try {
             const now = new Date();
@@ -71,11 +71,14 @@ const startMembershipReminderCron = () => {
         } catch (err) {
             console.error('❌ Membership cron error:', err.message);
         }
-    }, {
+    };
+
+const startMembershipReminderCron = () => {
+    cron.schedule('30 3 * * *', runMembershipReminderLogic, {
         timezone: 'Asia/Kolkata'
     });
 
     console.log('📅 Membership expiry reminder cron job registered (daily at 9:00 AM IST).');
 };
 
-module.exports = { startMembershipReminderCron };
+module.exports = { startMembershipReminderCron, runMembershipReminderLogic };

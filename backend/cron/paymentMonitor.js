@@ -4,9 +4,8 @@ const emailService = require('../services/emailService');
 const whatsappService = require('../services/whatsappService');
 
 const startPaymentMonitorCron = () => {
-    // Run daily at midnight
-    cron.schedule('0 0 * * *', async () => {
-        try {
+const runPaymentMonitorLogic = async () => {
+    try {
             console.log('[CRON] Running overdue payment monitor...');
             const now = new Date();
 
@@ -45,10 +44,13 @@ const startPaymentMonitorCron = () => {
                     }
                 }
             }
-        } catch (error) {
-            console.error('[CRON] Error in payment monitor cron:', error);
-        }
-    });
+    } catch (error) {
+        console.error('[CRON] Error in payment monitor cron:', error);
+    }
 };
 
-module.exports = { startPaymentMonitorCron };
+const startPaymentMonitorCron = () => {
+    cron.schedule('0 0 * * *', runPaymentMonitorLogic);
+};
+
+module.exports = { startPaymentMonitorCron, runPaymentMonitorLogic };
