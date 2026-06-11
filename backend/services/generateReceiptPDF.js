@@ -153,7 +153,7 @@ const generateAndUploadReceipt = async (paymentData) => {
 
         // Unique filename: receipt_[userId]_[paymentId]_[timestamp]
         const timestamp = Date.now();
-        const filename = \`receipt_\${paymentData.userId || 'user'}_\${paymentData.paymentId || 'payment'}_\${timestamp}\`;
+        const filename = `receipt_${paymentData.userId || 'user'}_${paymentData.paymentId || 'payment'}_${timestamp}`;
 
         console.log('Uploading PDF to Cloudinary as', filename);
 

@@ -3,7 +3,6 @@ const Payment = require('../models/Payment');
 const emailService = require('../services/emailService');
 const whatsappService = require('../services/whatsappService');
 
-const startPaymentMonitorCron = () => {
 const runPaymentMonitorLogic = async () => {
     try {
             console.log('[CRON] Running overdue payment monitor...');

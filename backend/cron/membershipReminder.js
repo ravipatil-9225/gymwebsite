@@ -8,8 +8,6 @@ const Membership = require('../models/Membership');
 const { sendExpiryReminder } = require('../services/emailService');
 const whatsappService = require('../services/whatsappService');
 
-const startMembershipReminderCron = () => {
-    // Runs every day at 9:00 AM IST (3:30 AM UTC)
 const runMembershipReminderLogic = async () => {
     console.log('🕒 Running membership expiry reminder cron job...');
 

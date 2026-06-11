@@ -8,7 +8,7 @@ process.on('unhandledRejection', (reason) => {
 });
 
 process.on('uncaughtException', (err) => {
-    console.error('🔴 [Uncaught Exception] Server survived:', err.message);
+    console.error('🔴 [Uncaught Exception] Server survived:', err.stack);
     // Do NOT crash the server — just log and keep running
 });
 const express = require('express');
