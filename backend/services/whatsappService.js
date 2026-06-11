@@ -25,10 +25,35 @@ async function sendWhatsAppTemplate(to, templateName, components = []) {
         // Format the number: remove +, space, dashes
         let formattedNumber = to.replace(/\D/g, '');
         
+        // Strip leading zero for Indian numbers if someone typed 09876543210
+        if (formattedNumber.startsWith('0') && formattedNumber.length === 11) {
+            formattedNumber = formattedNumber.substring(1);
+        }
+        
         // Auto-prefix Indian country code '91' if missing (assume 10 digits without it)
         if (formattedNumber.length === 10) {
             formattedNumber = '91' + formattedNumber;
         }
+
+        const payload = {
+            messaging_product: 'whatsapp',
+            to: formattedNumber,
+            type: 'template',
+            template: {
+                name: templateName,
+                language: {
+                    code: 'en' // Matches 'en' in testWhatsapp.js
+                },
+                components: components
+            }
+        };
+
+        console.log("\n========== WHATSAPP DEBUG ==========");
+        console.log("Template:", templateName);
+        console.log("Phone:", formattedNumber);
+        console.log("Payload:", JSON.stringify(payload, null, 2));
+        console.log("Sending request...");
+        console.log("====================================");
 
         const response = await fetch(`${WHATSAPP_API_URL}/${phoneId}/messages`, {
             method: 'POST',
@@ -36,28 +61,28 @@ async function sendWhatsAppTemplate(to, templateName, components = []) {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                messaging_product: 'whatsapp',
-                to: formattedNumber,
-                type: 'template',
-                template: {
-                    name: templateName,
-                    language: {
-                        code: 'en' // Change to en_US or en_GB based on your template
-                    },
-                    components: components
-                }
-            })
+            body: JSON.stringify(payload)
         });
 
         const data = await response.json();
+        
+        console.log("\n========== WHATSAPP RESPONSE ==========");
+        console.log("Status:", response.status);
+        console.log("Response:", JSON.stringify(data, null, 2));
+        console.log("=======================================\n");
+
         if (data.error) {
-            console.error('❌ WhatsApp API Error:', data.error.message);
+            console.error('❌ WhatsApp API Error for template', templateName, ':', data.error.message);
+            if (data.error.error_data) {
+                console.error('   Details:', JSON.stringify(data.error.error_data));
+            }
         } else {
-            console.log(`✅ WhatsApp sent successfully to ${formattedNumber}`);
+            console.log(`✅ WhatsApp ${templateName} sent successfully to ${formattedNumber}`);
         }
     } catch (err) {
-        console.error('WhatsApp Service Error:', err);
+        console.error("\n========== WHATSAPP FATAL ERROR ==========");
+        console.error(err.message);
+        console.error("==========================================\n");
     }
 }
 
@@ -70,7 +95,8 @@ async function sendWhatsAppTemplate(to, templateName, components = []) {
 const BRANDED_DOC_URL = 'https://res.cloudinary.com/dn6nxrrot/image/upload/v1/tara_fitness_receipt.pdf';
 
 exports.sendCashPaymentPendingUser = async ({ userName, email, planName, planPrice }) => {
-    const user = await User.findOne({ email });
+    if (!email) return;
+    const user = await User.findOne({ email: new RegExp(`^${email}$`, 'i') });
     if (!user || !user.phone) return;
 
     // Template: cash_payment_request_template | Header: DOCUMENT | Body: 3 vars (name, plan, price)
@@ -84,16 +110,17 @@ exports.sendCashPaymentPendingUser = async ({ userName, email, planName, planPri
         {
             type: 'body',
             parameters: [
-                { type: 'text', text: userName },
-                { type: 'text', text: planName },
-                { type: 'text', text: String(planPrice) }
+                { type: 'text', text: String(userName || 'User') },
+                { type: 'text', text: String(planName || 'Plan') },
+                { type: 'text', text: String(planPrice || '0') }
             ]
         }
     ]);
 };
 
 exports.sendUpiPaymentPendingUser = async ({ userName, email, planName, planPrice, transactionId }) => {
-    const user = await User.findOne({ email });
+    if (!email) return;
+    const user = await User.findOne({ email: new RegExp(`^${email}$`, 'i') });
     if (!user || !user.phone) return;
 
     // Template: upi_payment_pending_template | Header: LOCATION | Body: 2 vars (name, txnId)
@@ -115,36 +142,37 @@ exports.sendUpiPaymentPendingUser = async ({ userName, email, planName, planPric
         {
             type: 'body',
             parameters: [
-                { type: 'text', text: userName },
-                { type: 'text', text: transactionId }
+                { type: 'text', text: String(userName || 'User') },
+                { type: 'text', text: String(transactionId || 'N/A') }
             ]
         }
     ]);
 };
 
 exports.sendPaymentConfirmation = async ({ name, email, packageName, amountPaid, startDate, endDate }) => {
-    const user = await User.findOne({ email });
+    if (!email) return;
+    const user = await User.findOne({ email: new RegExp(`^${email}$`, 'i') });
     if (!user || !user.phone) return;
 
-    const startLocal = new Date(startDate).toLocaleDateString('en-IN');
-    const endLocal = new Date(endDate).toLocaleDateString('en-IN');
+    const startLocal = startDate ? new Date(startDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
+    const endLocal = endDate ? new Date(endDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
 
     // Template: payment_receipt_template | Header: DOCUMENT | Body: 5 vars (name, pkg, amt, start, end)
     await sendWhatsAppTemplate(user.phone, 'payment_receipt_template', [
         {
             type: 'header',
             parameters: [
-                { type: 'document', document: { link: BRANDED_DOC_URL, filename: `Receipt_${name.replace(/\s+/g, '_')}.pdf` } }
+                { type: 'document', document: { link: BRANDED_DOC_URL, filename: `Receipt_${String(name || 'User').replace(/\s+/g, '_')}.pdf` } }
             ]
         },
         {
             type: 'body',
             parameters: [
-                { type: 'text', text: name },
-                { type: 'text', text: packageName },
-                { type: 'text', text: String(amountPaid) },
-                { type: 'text', text: startLocal },
-                { type: 'text', text: endLocal }
+                { type: 'text', text: String(name || 'User') },
+                { type: 'text', text: String(packageName || 'Plan') },
+                { type: 'text', text: String(amountPaid || '0') },
+                { type: 'text', text: String(startLocal) },
+                { type: 'text', text: String(endLocal) }
             ]
         }
     ]);
@@ -171,7 +199,7 @@ exports.sendWelcomeMessage = async (user) => {
         {
             type: 'body',
             parameters: [
-                { type: 'text', text: user.name }
+                { type: 'text', text: String(user.name || 'User') }
             ]
         }
     ]);
@@ -179,7 +207,8 @@ exports.sendWelcomeMessage = async (user) => {
 
 
 exports.sendExpiryReminder = async ({ name, email, planName, daysLeft }) => {
-    const user = await User.findOne({ email });
+    if (!email) return;
+    const user = await User.findOne({ email: new RegExp(`^${email}$`, 'i') });
     if (!user || !user.phone) return;
 
     // Template: membership_expiry_reminder_template | Header: LOCATION | Body: 3 vars (name, plan, days)
@@ -201,16 +230,17 @@ exports.sendExpiryReminder = async ({ name, email, planName, daysLeft }) => {
         {
             type: 'body',
             parameters: [
-                { type: 'text', text: name },
-                { type: 'text', text: planName },
-                { type: 'text', text: String(daysLeft) }
+                { type: 'text', text: String(name || 'User') },
+                { type: 'text', text: String(planName || 'Plan') },
+                { type: 'text', text: String(daysLeft || '0') }
             ]
         }
     ]);
 };
 
 exports.sendOverdueReminder = async ({ name, email, planName }) => {
-    const user = await User.findOne({ email });
+    if (!email) return;
+    const user = await User.findOne({ email: new RegExp(`^${email}$`, 'i') });
     if (!user || !user.phone) return;
 
     // Template: membership_overdue_reminder_template | Header: LOCATION | Body: 2 vars (name, plan)
@@ -232,15 +262,16 @@ exports.sendOverdueReminder = async ({ name, email, planName }) => {
         {
             type: 'body',
             parameters: [
-                { type: 'text', text: name },
-                { type: 'text', text: planName }
+                { type: 'text', text: String(name || 'User') },
+                { type: 'text', text: String(planName || 'Plan') }
             ]
         }
     ]);
 };
 
 exports.sendExpiredAlert = async ({ name, email, planName }) => {
-    const user = await User.findOne({ email });
+    if (!email) return;
+    const user = await User.findOne({ email: new RegExp(`^${email}$`, 'i') });
     if (!user || !user.phone) return;
 
     await sendWhatsAppTemplate(user.phone, 'membership_expired_template', [
@@ -261,8 +292,8 @@ exports.sendExpiredAlert = async ({ name, email, planName }) => {
         {
             type: 'body',
             parameters: [
-                { type: 'text', text: name },
-                { type: 'text', text: planName }
+                { type: 'text', text: String(name || 'User') },
+                { type: 'text', text: String(planName || 'Plan') }
             ]
         }
     ]);

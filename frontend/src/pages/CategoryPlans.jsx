@@ -23,7 +23,7 @@ function rawPrice(priceStr) {
 
 const CategoryPlans = () => {
     const { categoryName } = useParams();
-    const { user, token } = useContext(AuthContext);
+    const { user, adminUser, token, adminToken } = useContext(AuthContext);
     const navigate = useNavigate();
     const [selected, setSelected] = useState(null);
     const [payTab, setPayTab] = useState('upi'); // 'upi' | 'cash' | 'later'
@@ -86,14 +86,14 @@ const CategoryPlans = () => {
     };
 
     const openModal = async (plan) => {
-        if (!user) {
+        if (!user && !adminUser) {
             alert('Please log in to purchase a membership plan.');
             navigate('/login');
             return;
         }
         setSelected(plan);
         setPayTab('upi');
-        setForm({ name: user?.name || '', email: user?.email || '', transactionId: '', screenshotFile: null });
+        setForm({ name: (user?.name || adminUser?.name) || '', email: (user?.email || adminUser?.email) || '', transactionId: '', screenshotFile: null });
         setPreview(null);
         setStatus('idle');
         setErrMsg('');
@@ -102,7 +102,7 @@ const CategoryPlans = () => {
         setDiscountInfo(null);
         
         try {
-            const tk = token || localStorage.getItem('gymToken');
+            const tk = token || adminToken || localStorage.getItem('gymToken') || localStorage.getItem('adminToken');
             const res = await axios.get(`/api/payments/check-discount?planName=${encodeURIComponent(plan.name)}`, {
                 headers: { Authorization: `Bearer ${tk}` }
             });
@@ -147,7 +147,7 @@ const CategoryPlans = () => {
         try {
             let bodyData;
             let headers = {
-                'Authorization': `Bearer ${token || localStorage.getItem('gymToken')}`
+                'Authorization': `Bearer ${token || adminToken || localStorage.getItem('gymToken') || localStorage.getItem('adminToken')}`
             };
 
             if (payTab === 'upi') {
