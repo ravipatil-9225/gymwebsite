@@ -28,6 +28,21 @@ export const AuthProvider = ({ children }) => {
     const [backendReady, setBackendReady] = useState(true);
     const [checkingBackend, setCheckingBackend] = useState(false);
 
+    // ── Startup: enforce mutual exclusivity ─────────────────────────────
+    // If both gymUser and adminUser exist in localStorage (stale data),
+    // keep only the regular user session and purge the admin one.
+    useEffect(() => {
+        const hasUser = localStorage.getItem('gymUser');
+        const hasAdmin = localStorage.getItem('adminUser');
+        if (hasUser && hasAdmin) {
+            // Regular user session takes priority — clear stale admin
+            setAdminUser(null);
+            setAdminToken(null);
+            localStorage.removeItem('adminUser');
+            localStorage.removeItem('adminToken');
+        }
+    }, []);
+
     // ── Cross-Tab Sync ──────────────────────────────────────────────────
     useEffect(() => {
         const handleStorageChange = (e) => {
