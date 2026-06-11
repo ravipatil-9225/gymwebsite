@@ -17,8 +17,11 @@ const FITNESS_GOALS = [
 
 const Settings = () => {
     const navigate = useNavigate();
-    const { user, logout, updateUser, uploadPhoto } = useContext(AuthContext);
+    const { user, adminUser, logout, updateUser, uploadPhoto } = useContext(AuthContext);
     const { theme, toggleTheme } = useTheme();
+
+    // Resolve whichever session is active
+    const activeUser = user || adminUser;
 
     // Local states
     const [uploading, setUploading] = useState(false);
@@ -29,11 +32,11 @@ const Settings = () => {
     const [saved, setSaved] = useState(false);
     const [error, setError] = useState('');
     const [form, setForm] = useState({
-        name: user?.name || '',
-        email: user?.email || '',
-        phone: user?.phone || '',
-        dob: user?.dob || '',
-        goal: user?.goal || '',
+        name: activeUser?.name || '',
+        email: activeUser?.email || '',
+        phone: activeUser?.phone || '',
+        dob: activeUser?.dob || '',
+        goal: activeUser?.goal || '',
     });
 
     // Photo upload
@@ -107,11 +110,11 @@ const Settings = () => {
 
     const handleCancel = () => {
         setForm({
-            name: user?.name || '',
-            email: user?.email || '',
-            phone: user?.phone || '',
-            dob: user?.dob || '',
-            goal: user?.goal || '',
+            name: activeUser?.name || '',
+            email: activeUser?.email || '',
+            phone: activeUser?.phone || '',
+            dob: activeUser?.dob || '',
+            goal: activeUser?.goal || '',
         });
         setError('');
         setEditing(false);
@@ -169,8 +172,8 @@ const Settings = () => {
                             {/* Avatar */}
                             <div className="flex flex-col items-center mb-6">
                                 <div className="relative w-24 h-24 mb-4">
-                                    {uploading || preview || user?.profileImage?.url ? (
-                                        <img src={preview || user?.profileImage?.url} alt="Profile" className={`w-24 h-24 rounded-full object-cover border-2 border-primary/50 shadow-lg ${uploading ? 'opacity-50' : ''}`} />
+                                    {uploading || preview || activeUser?.profileImage?.url ? (
+                                        <img src={preview || activeUser?.profileImage?.url} alt="Profile" className={`w-24 h-24 rounded-full object-cover border-2 border-primary/50 shadow-lg ${uploading ? 'opacity-50' : ''}`} />
                                     ) : (
                                         <div className="w-24 h-24 rounded-full bg-primary/20 flex items-center justify-center border-2 border-primary/50 shadow-lg">
                                             <User className="w-10 h-10 text-primary" />
@@ -194,8 +197,8 @@ const Settings = () => {
 
                                 {!editing ? (
                                     <div className="text-center">
-                                        <h2 className="text-xl font-display font-bold text-white capitalize">{user?.name || 'Member'}</h2>
-                                        <p className="text-gray-400 text-sm font-sans mt-1">{user?.email || ''}</p>
+                                        <h2 className="text-xl font-display font-bold text-white capitalize">{activeUser?.name || 'Member'}</h2>
+                                        <p className="text-gray-400 text-sm font-sans mt-1">{activeUser?.email || ''}</p>
                                         <span className="inline-block px-3 py-1 bg-green-500/20 text-green-400 text-xs font-bold rounded-full border border-green-500/30 mt-2">
                                             Active Member
                                         </span>
@@ -314,7 +317,7 @@ const Settings = () => {
                                         />
                                     ) : (
                                         <p className="text-white font-medium text-sm py-3 px-4 bg-white/5 rounded-xl border border-white/5">
-                                            {user?.name || <span className="text-gray-500 italic">Not set</span>}
+                                            {activeUser?.name || <span className="text-gray-500 italic">Not set</span>}
                                         </p>
                                     )}
                                 </div>
@@ -332,7 +335,7 @@ const Settings = () => {
                                         />
                                     ) : (
                                         <p className="text-white font-medium text-sm py-3 px-4 bg-white/5 rounded-xl border border-white/5">
-                                            {user?.email || <span className="text-gray-500 italic">Not set</span>}
+                                            {activeUser?.email || <span className="text-gray-500 italic">Not set</span>}
                                         </p>
                                     )}
                                 </div>
@@ -350,7 +353,7 @@ const Settings = () => {
                                         />
                                     ) : (
                                         <p className="text-white font-medium text-sm py-3 px-4 bg-white/5 rounded-xl border border-white/5">
-                                            {user?.phone || <span className="text-gray-500 italic">Not set</span>}
+                                            {activeUser?.phone || <span className="text-gray-500 italic">Not set</span>}
                                         </p>
                                     )}
                                 </div>
@@ -367,7 +370,7 @@ const Settings = () => {
                                         />
                                     ) : (
                                         <p className="text-white font-medium text-sm py-3 px-4 bg-white/5 rounded-xl border border-white/5">
-                                            {user?.dob || <span className="text-gray-500 italic">Not set</span>}
+                                            {activeUser?.dob || <span className="text-gray-500 italic">Not set</span>}
                                         </p>
                                     )}
                                 </div>
@@ -389,7 +392,7 @@ const Settings = () => {
                                         </select>
                                     ) : (
                                         <p className="text-white font-medium text-sm py-3 px-4 bg-white/5 rounded-xl border border-white/5">
-                                            {user?.goal || <span className="text-gray-500 italic">Not set</span>}
+                                            {activeUser?.goal || <span className="text-gray-500 italic">Not set</span>}
                                         </p>
                                     )}
                                 </div>
