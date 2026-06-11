@@ -859,8 +859,8 @@ router.put('/payments/:id', async (req, res) => {
         const payment = await Payment.findById(req.params.id);
         if (!payment) return res.status(404).json({ message: 'Payment not found' });
 
-        const wasPending = !['manually_verified', 'cash_collected', 'auto_verified'].includes(payment.verificationStatus);
-        const isApproved = ['manually_verified', 'cash_collected'].includes(req.body.verificationStatus);
+        const wasPending = !['manually_verified', 'cash_collected', 'auto_verified', 'verified'].includes(payment.verificationStatus);
+        const isApproved = ['manually_verified', 'cash_collected', 'verified'].includes(req.body.verificationStatus);
 
         const updated = await Payment.findByIdAndUpdate(req.params.id, req.body, { new: true });
 

@@ -1,7 +1,7 @@
 require('dotenv').config();
 
 const WHATSAPP_API_URL = 'https://graph.facebook.com/v19.0';
-const BRANDED_DOC_URL = 'https://res.cloudinary.com/dn6nxrrot/image/upload/v1/tara_fitness_receipt.pdf';
+const BRANDED_DOC_URL = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
 
 async function testTemplate(to, templateName, components, label) {
     const token = process.env.WHATSAPP_TOKEN;

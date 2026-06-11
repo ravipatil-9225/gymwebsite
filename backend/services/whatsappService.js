@@ -92,7 +92,7 @@ async function sendWhatsAppTemplate(to, templateName, components = []) {
 
 // Static branded PDF used as the document header for templates that require it.
 // This is a simple one-page Tara Fitness branded PDF hosted on Cloudinary.
-const BRANDED_DOC_URL = 'https://res.cloudinary.com/dn6nxrrot/image/upload/v1/tara_fitness_receipt.pdf';
+const BRANDED_DOC_URL = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
 
 exports.sendCashPaymentPendingUser = async ({ userName, email, planName, planPrice }) => {
     if (!email) return;
