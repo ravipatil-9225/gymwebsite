@@ -149,7 +149,7 @@ exports.sendUpiPaymentPendingUser = async ({ userName, email, planName, planPric
     ]);
 };
 
-exports.sendPaymentConfirmation = async ({ name, email, packageName, amountPaid, startDate, endDate }) => {
+exports.sendPaymentConfirmation = async ({ name, email, packageName, amountPaid, startDate, endDate, documentUrl }) => {
     if (!email) return;
     const user = await User.findOne({ email: new RegExp(`^${email}$`, 'i') });
     if (!user || !user.phone) return;
@@ -157,14 +157,8 @@ exports.sendPaymentConfirmation = async ({ name, email, packageName, amountPaid,
     const startLocal = startDate ? new Date(startDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
     const endLocal = endDate ? new Date(endDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
 
-    // Template: payment_receipt_template | Header: DOCUMENT | Body: 5 vars (name, pkg, amt, start, end)
-    await sendWhatsAppTemplate(user.phone, 'payment_receipt_template', [
-        {
-            type: 'header',
-            parameters: [
-                { type: 'document', document: { link: BRANDED_DOC_URL, filename: `Receipt_${String(name || 'User').replace(/\s+/g, '_')}.pdf` } }
-            ]
-        },
+    // Build components
+    const components = [
         {
             type: 'body',
             parameters: [
@@ -175,7 +169,25 @@ exports.sendPaymentConfirmation = async ({ name, email, packageName, amountPaid,
                 { type: 'text', text: String(endLocal) }
             ]
         }
-    ]);
+    ];
+
+    let templateName = 'payment_receipt_template';
+
+    // Approved Spec: Send plain text if PDF generation fails.
+    if (documentUrl) {
+        components.unshift({
+            type: 'header',
+            parameters: [
+                { type: 'document', document: { link: documentUrl, filename: `Receipt_${String(name || 'User').replace(/\s+/g, '_')}.pdf` } }
+            ]
+        });
+    } else {
+        // Fallback: If no document URL is generated due to error, we do NOT attach a dummy PDF.
+        // We omit the document header entirely and fallback to a plain text template.
+        templateName = 'payment_receipt_template_fallback';
+    }
+
+    await sendWhatsAppTemplate(user.phone, templateName, components);
 };
 
 exports.sendWelcomeMessage = async (user) => {

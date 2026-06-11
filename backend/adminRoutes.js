@@ -920,6 +920,26 @@ router.put('/payments/:id', async (req, res) => {
                     endDate,
                 });
 
+                // Generate PDF Receipt
+                let secureUrl = null;
+                try {
+                    const { generateAndUploadReceipt } = require('./services/generateReceiptPDF');
+                    secureUrl = await generateAndUploadReceipt({
+                        userId: user._id.toString(),
+                        paymentId: updated._id.toString(),
+                        userName: user.name,
+                        planName: payment.planName,
+                        planPrice: payment.planPrice,
+                        startDate,
+                        endDate,
+                        paymentDate: new Date(),
+                        paymentMethod: payment.paymentMethod || 'upi',
+                        status: 'Active'
+                    });
+                } catch (pdfErr) {
+                    console.error('Failed to generate PDF in adminRoutes, continuing...', pdfErr.message);
+                }
+
                 // Send confirmation receipt to user
                 emailService.sendPaymentConfirmation({
                     name: user.name,
@@ -937,6 +957,7 @@ router.put('/payments/:id', async (req, res) => {
                     amountPaid: payment.planPrice,
                     startDate,
                     endDate,
+                    documentUrl: secureUrl
                 }).catch(console.error);
 
                 // Send approval alert to owner

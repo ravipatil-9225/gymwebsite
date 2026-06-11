@@ -267,8 +267,28 @@ exports.verifyAndUpload = async (req, res) => {
 
             try { socket.getIO().emit('db_changed', { type: 'membership_created', userId: user._id }); } catch (_) {}
 
+            // Generate PDF Receipt
+            let secureUrl = null;
+            try {
+                const { generateAndUploadReceipt } = require('../services/generateReceiptPDF');
+                secureUrl = await generateAndUploadReceipt({
+                    userId: user._id.toString(),
+                    paymentId: newPayment._id.toString(),
+                    userName: user.name,
+                    planName: actualPlanName,
+                    planPrice: numericPrice,
+                    startDate,
+                    endDate,
+                    paymentDate: new Date(),
+                    paymentMethod: 'UPI',
+                    status: 'Active'
+                });
+            } catch (pdfErr) {
+                console.error('Failed to generate PDF in paymentController, continuing...', pdfErr.message);
+            }
+
             emailService.sendPaymentConfirmation({ name: user.name, email: user.email, packageName: actualPlanName, amountPaid: numericPrice, startDate, endDate }).catch(console.error);
-            whatsappService.sendPaymentConfirmation({ name: user.name, email: user.email, packageName: actualPlanName, amountPaid: numericPrice, startDate, endDate }).catch(console.error);
+            whatsappService.sendPaymentConfirmation({ name: user.name, email: user.email, packageName: actualPlanName, amountPaid: numericPrice, startDate, endDate, documentUrl: secureUrl }).catch(console.error);
             emailService.sendPaymentApprovedOwner({ userName: user.name, email: user.email, planName: actualPlanName, planPrice: numericPrice, paymentMethod: 'upi', startDate, endDate }).catch(console.error);
         }
 
