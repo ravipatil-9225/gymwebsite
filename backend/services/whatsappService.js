@@ -90,21 +90,37 @@ async function sendWhatsAppTemplate(to, templateName, components = []) {
 // TRANSACTIONS / RECEIPTS LOGIC
 // ─────────────────────────────────────────────────────────────────
 
-// Static branded PDF used as the document header for templates that require it.
-// This is a simple one-page Tara Fitness branded PDF hosted on Cloudinary.
-const BRANDED_DOC_URL = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
+// Fallback dummy PDF if dynamic generation fails
+const FALLBACK_DOC_URL = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
+const { generateAndUploadReceipt } = require('./generateReceiptPDF');
 
-exports.sendCashPaymentPendingUser = async ({ userName, email, planName, planPrice }) => {
+exports.sendCashPaymentPendingUser = async ({ userName, email, planName, planPrice, paymentId, registeredAt }) => {
     if (!email) return;
     const user = await User.findOne({ email: new RegExp(`^${email}$`, 'i') });
     if (!user || !user.phone) return;
+
+    let secureUrl = FALLBACK_DOC_URL;
+    try {
+        secureUrl = await generateAndUploadReceipt({
+            receiptType: 'CASH_PENDING',
+            userId: user._id.toString(),
+            paymentId: paymentId ? paymentId.toString() : '',
+            userName: userName || user.name,
+            planName,
+            planPrice,
+            paymentDate: registeredAt || new Date(),
+            paymentMethod: 'cash_on_bench'
+        });
+    } catch (err) {
+        console.error('Failed to generate CASH_PENDING PDF for WhatsApp, falling back to dummy PDF.', err.message);
+    }
 
     // Template: cash_payment_request_template | Header: DOCUMENT | Body: 3 vars (name, plan, price)
     await sendWhatsAppTemplate(user.phone, 'cash_payment_request_template', [
         {
             type: 'header',
             parameters: [
-                { type: 'document', document: { link: BRANDED_DOC_URL, filename: 'TaraFitness_Registration.pdf' } }
+                { type: 'document', document: { link: secureUrl, filename: 'TaraFitness_Registration.pdf' } }
             ]
         },
         {

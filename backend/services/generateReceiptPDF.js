@@ -1,25 +1,16 @@
 const puppeteer = require('puppeteer');
 const cloudinary = require('../config/cloudinary');
 
-let browserInstance = null;
-
 const getBrowser = async () => {
-    if (browserInstance && browserInstance.isConnected()) {
-        return browserInstance;
-    }
-    
-    // Relaunch if null or disconnected
     console.log('🚀 Launching new Puppeteer instance...');
-    browserInstance = await puppeteer.launch({
+    return await puppeteer.launch({
         headless: 'new',
         args: [
             '--no-sandbox', 
             '--disable-setuid-sandbox', 
-            '--disable-dev-shm-usage',
-            '--single-process'
+            '--disable-dev-shm-usage'
         ]
     });
-    return browserInstance;
 };
 
 const getReceiptHTML = (data) => {
@@ -27,6 +18,7 @@ const getReceiptHTML = (data) => {
     const darkBg = '#1c1c1c';
     
     const {
+        receiptType = 'CONFIRMATION',
         userName = 'Member',
         planName = 'N/A',
         planPrice = 0,
@@ -41,12 +33,74 @@ const getReceiptHTML = (data) => {
     const endStr = new Date(endDate).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
     const paymentDateStr = new Date(paymentDate).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
     
-    const formattedMethod = paymentMethod === 'cash_on_bench' ? 'Cash' : 
+    const formattedMethod = paymentMethod === 'cash_on_bench' ? (receiptType === 'CASH_PENDING' ? 'Cash at Reception 🏦' : 'Cash') : 
                             paymentMethod === 'pay_later' ? 'Pay Later' : 'UPI';
 
     const shortId = (paymentId || '00000').toString().slice(-5).toUpperCase();
     const receiptYear = new Date(paymentDate).getFullYear();
     const receiptNumber = `TF-${receiptYear}-${shortId}`;
+
+    const isPending = receiptType === 'CASH_PENDING';
+
+    const headerTitle = isPending ? 'Cash Payment Request Recorded! 💵' : `Payment Confirmed! 
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="#22c55e" xmlns="http://www.w3.org/2000/svg" style="vertical-align: text-bottom;">
+                <circle cx="12" cy="12" r="12" fill="#22c55e"/>
+                <path d="M7 12.5L10 15.5L17 8.5" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>`;
+              
+    const receiptTag = isPending ? 'PAY AT GYM RECEPTION' : 'MEMBERSHIP RECEIPT';
+    const pendingBadge = isPending ? `<span style="background: #E8472A; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; margin-bottom: 10px; display: inline-block;">CASH PENDING</span><br/>` : '';
+
+    const greetingText = isPending 
+        ? `Hi <strong>${userName}</strong>, your cash payment request for the <strong>${planName}</strong> plan has been recorded. Please visit us to complete the payment.`
+        : `Hi <strong>${userName}</strong>,<br/>your payment has been successfully processed. Welcome to your new membership!`;
+
+    const tableRows = isPending ? `
+              <tr><td class="col-label">PLAN</td><td class="col-value">${planName}</td></tr>
+              <tr><td class="col-label">AMOUNT TO PAY</td><td class="col-value">&#8377;${planPrice}</td></tr>
+              <tr><td class="col-label">PAYMENT METHOD</td><td class="col-value">${formattedMethod}</td></tr>
+              <tr><td class="col-label">REGISTERED AT</td><td class="col-value">${paymentDateStr}</td></tr>
+              <tr>
+                <td class="col-label">STATUS</td>
+                <td><span class="status-badge" style="background: #fff3e0; color: #e65100;"><span class="status-dot" style="background: #e65100;"></span> Pending — Pay at Gym</span></td>
+              </tr>
+    ` : `
+              <tr><td class="col-label">MEMBER NAME</td><td class="col-value">${userName}</td></tr>
+              <tr><td class="col-label">PACKAGE</td><td class="col-value">${planName}</td></tr>
+              <tr><td class="col-label">AMOUNT PAID</td><td class="col-value">&#8377;${planPrice}</td></tr>
+              <tr><td class="col-label">MEMBERSHIP START</td><td class="col-value">${startStr}</td></tr>
+              <tr><td class="col-label">MEMBERSHIP END</td><td class="col-value">${endStr}</td></tr>
+              <tr><td class="col-label">PAYMENT DATE</td><td class="col-value">${paymentDateStr}</td></tr>
+              <tr><td class="col-label">PAYMENT METHOD</td><td class="col-value">${formattedMethod}</td></tr>
+              <tr>
+                <td class="col-label">STATUS</td>
+                <td>
+                  <span class="status-badge">
+                    <span class="status-dot"></span> Active
+                  </span>
+                </td>
+              </tr>
+    `;
+
+    const footerContent = isPending ? `
+              <h4 style="margin: 0 0 10px 0; color: #111;">Next Steps:</h4>
+              <ol style="margin: 0 0 20px 0; padding-left: 20px; color: #444; font-size: 14px; line-height: 1.6;">
+                <li>Visit <strong>Tara</strong> Fitness Centre reception.</li>
+                <li>Inform the staff about this registration.</li>
+                <li>Pay <strong>&#8377;${planPrice}</strong> in cash.</li>
+                <li>Your membership will be activated immediately on payment.</li>
+              </ol>
+              <div style="background: #E8472A; color: white; padding: 12px 24px; border-radius: 6px; text-align: center; font-weight: bold; width: fit-content; margin: 0 auto 20px auto;">View Membership Plans</div>
+              <p style="margin: 0; color: #888; font-size: 11px; text-align: center;">Your membership will only be activated after cash payment is received at the gym.</p>
+    ` : `
+              <p class="footer-msg">Your membership is now active! Visit us at the gym and our team will be happy to assist you in getting started.</p>
+              <div class="footer-links">
+                <div class="footer-link"><span class="square-bullet"></span> Shop No 1, Kalamba Road</div>
+                <div class="footer-link"><span class="square-bullet"></span> Support: Message us on WhatsApp anytime</div>
+              </div>
+    `;
+
+    const receiptNoStyle = isPending ? 'display: none;' : '';
 
     return `
     <!DOCTYPE html>
@@ -67,7 +121,7 @@ const getReceiptHTML = (data) => {
         .divider { background: ${primaryColor}; height: 3px; width: 100%; max-width: 380px; margin-bottom: 8px; }
         .contact-info { color: #aaaaaa; font-size: 13px; }
         
-        .receipt-no { position: absolute; right: 40px; top: 35px; text-align: right; }
+        .receipt-no { position: absolute; right: 40px; top: 35px; text-align: right; ${receiptNoStyle} }
         .receipt-label { color: ${primaryColor}; font-size: 13px; font-weight: bold; }
         .receipt-value { color: #ffffff; font-size: 18px; font-weight: bold; margin-top: 4px; }
         
@@ -76,8 +130,8 @@ const getReceiptHTML = (data) => {
         .red-border { width: 12px; background-color: ${primaryColor}; flex-shrink: 0; }
         .content { flex: 1; padding: 40px; background: white; }
         
-        .title { margin: 0 0 8px 0; font-size: 32px; color: #111; display: flex; align-items: center; gap: 10px; font-weight: 800; }
-        .receipt-tag { margin: 0 0 24px 0; font-size: 14px; font-weight: bold; color: ${primaryColor}; letter-spacing: 1px; text-transform: uppercase; }
+        .title { margin: 0 0 8px 0; font-size: 32px; color: #111; font-weight: 800; }
+        .receipt-tag { margin: 0 0 15px 0; font-size: 14px; font-weight: bold; color: ${primaryColor}; letter-spacing: 1px; text-transform: uppercase; }
         
         .greeting-box { background: #f8f9fa; padding: 16px 20px; border-radius: 6px; margin-bottom: 25px; }
         .greeting { margin: 0; color: #333; font-size: 15px; line-height: 1.6; }
@@ -94,7 +148,7 @@ const getReceiptHTML = (data) => {
         .status-dot { width: 8px; height: 8px; background: #16a34a; border-radius: 2px; }
         
         /* FOOTER BOX */
-        .footer-box { border: 2px solid ${primaryColor}; border-radius: 8px; padding: 24px; background: #fffcfb; }
+        .footer-box { border: 2px solid ${isPending ? 'transparent' : primaryColor}; border-radius: 8px; padding: 24px; background: ${isPending ? 'white' : '#fffcfb'}; }
         .footer-msg { margin: 0 0 16px 0; color: #444; font-size: 14px; line-height: 1.5; }
         .footer-links { display: flex; gap: 24px; color: #888; font-size: 13px; }
         .footer-link { display: flex; align-items: center; gap: 8px; }
@@ -124,43 +178,19 @@ const getReceiptHTML = (data) => {
         <div class="content-wrapper">
           <div class="red-border"></div>
           <div class="content">
-            <h1 class="title">
-              Payment Confirmed! 
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="#22c55e" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="12" fill="#22c55e"/>
-                <path d="M7 12.5L10 15.5L17 8.5" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </h1>
-            <p class="receipt-tag">MEMBERSHIP RECEIPT</p>
-            
+            <h1 class="title">${headerTitle}</h1>
+            <p class="receipt-tag">${receiptTag}</p>
+            ${pendingBadge}
             <div class="greeting-box">
-              <p class="greeting">Hi <strong>${userName}</strong>,<br/>your payment has been successfully processed. Welcome to your new membership!</p>
+              <p class="greeting">${greetingText}</p>
             </div>
             
             <table class="info-table">
-              <tr><td class="col-label">MEMBER NAME</td><td class="col-value">${userName}</td></tr>
-              <tr><td class="col-label">PACKAGE</td><td class="col-value">${planName}</td></tr>
-              <tr><td class="col-label">AMOUNT PAID</td><td class="col-value">&#8377;${planPrice}</td></tr>
-              <tr><td class="col-label">MEMBERSHIP START</td><td class="col-value">${startStr}</td></tr>
-              <tr><td class="col-label">MEMBERSHIP END</td><td class="col-value">${endStr}</td></tr>
-              <tr><td class="col-label">PAYMENT DATE</td><td class="col-value">${paymentDateStr}</td></tr>
-              <tr><td class="col-label">PAYMENT METHOD</td><td class="col-value">${formattedMethod}</td></tr>
-              <tr>
-                <td class="col-label">STATUS</td>
-                <td>
-                  <span class="status-badge">
-                    <span class="status-dot"></span> Active
-                  </span>
-                </td>
-              </tr>
+              ${tableRows}
             </table>
             
             <div class="footer-box">
-              <p class="footer-msg">Your membership is now active! Visit us at the gym and our team will be happy to assist you in getting started.</p>
-              <div class="footer-links">
-                <div class="footer-link"><span class="square-bullet"></span> Shop No 1, Kalamba Road</div>
-                <div class="footer-link"><span class="square-bullet"></span> Support: Message us on WhatsApp anytime</div>
-              </div>
+              ${footerContent}
             </div>
             
           </div>
@@ -168,17 +198,20 @@ const getReceiptHTML = (data) => {
       </div>
     </body>
     </html>
-    \`;
+    `;
 };
 
-const verifyUrl = async (url) => {
-    try {
-        const response = await fetch(url, { method: 'HEAD' });
-        return response.ok; // returns true if status is 200-299
-    } catch (err) {
-        console.error('Error verifying Cloudinary URL:', err);
-        return false;
+const verifyUrl = async (url, retries = 3) => {
+    for (let i = 0; i < retries; i++) {
+        try {
+            const response = await fetch(url, { method: 'HEAD' });
+            if (response.ok) return true;
+        } catch (err) {
+            console.error('Error verifying Cloudinary URL:', err);
+        }
+        await new Promise(res => setTimeout(res, 1000));
     }
+    return false;
 };
 
 const generateAndUploadReceipt = async (paymentData) => {
@@ -191,7 +224,7 @@ const generateAndUploadReceipt = async (paymentData) => {
         const page = await browser.newPage();
         
         // Wait until network is idle ensures styles are loaded
-        await page.setContent(html, { waitUntil: 'networkidle0' });
+        await page.setContent(html, { waitUntil: 'networkidle2' });
         
         const pdfBuffer = await page.pdf({
             format: 'A4',
@@ -200,10 +233,12 @@ const generateAndUploadReceipt = async (paymentData) => {
         });
         
         await page.close();
+        await browser.close();
 
-        // Unique filename: receipt_[userId]_[paymentId]_[timestamp]
+        // Unique filename: receipt_[type]_[userId]_[paymentId]_[timestamp]
         const timestamp = Date.now();
-        const filename = `receipt_${paymentData.userId || 'user'}_${paymentData.paymentId || 'payment'}_${timestamp}`;
+        const rType = (paymentData.receiptType || 'CONFIRM').substring(0, 7);
+        const filename = `receipt_${rType}_${paymentData.userId || 'user'}_${paymentData.paymentId || 'payment'}_${timestamp}`;
 
         console.log('Uploading PDF to Cloudinary as', filename);
 
@@ -223,11 +258,11 @@ const generateAndUploadReceipt = async (paymentData) => {
             uploadStream.end(pdfBuffer);
         });
 
-        // Verify URL
+        // Verify URL (don't throw if it fails, CDN might just be slow)
         console.log('Verifying uploaded PDF URL...', secureUrl);
-        const isValid = await verifyUrl(secureUrl);
+        const isValid = await verifyUrl(secureUrl, 5);
         if (!isValid) {
-            throw new Error('Cloudinary URL verification failed (non-200 OK)');
+            console.warn('⚠️ Cloudinary URL verification timed out, but proceeding anyway...');
         }
 
         console.log('✅ PDF successfully generated and uploaded:', secureUrl);

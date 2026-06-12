@@ -149,7 +149,7 @@ exports.verifyAndUpload = async (req, res) => {
                 paymentMethod: 'cash_on_bench', verificationStatus: 'cash_pending',
             });
             emailService.sendCashPaymentPendingUser({ userName, email, planName: actualPlanName, planPrice: numericPrice }).catch(console.error);
-            whatsappService.sendCashPaymentPendingUser({ userName, email, planName: actualPlanName, planPrice: numericPrice }).catch(console.error);
+            whatsappService.sendCashPaymentPendingUser({ userName, email, planName: actualPlanName, planPrice: numericPrice, paymentId: newPayment._id, registeredAt: newPayment.createdAt }).catch(console.error);
             emailService.sendCashPaymentPendingOwner({ userName, email, planName: actualPlanName, planPrice: numericPrice }).catch(console.error);
             try { socket.getIO().emit('db_changed', { type: 'payment_cash', data: newPayment }); } catch (_) {}
             
