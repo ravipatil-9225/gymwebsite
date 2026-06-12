@@ -222,7 +222,7 @@ const verifyUrl = async (url, retries = 3) => {
 
 const generateAndUploadReceipt = async (paymentData, type) => {
     try {
-        console.log(\`Generating \${type} PDF receipt for:\`, paymentData.userId, paymentData.paymentId);
+        console.log(`Generating ${type} PDF receipt for:`, paymentData.userId, paymentData.paymentId);
         
         const html = getReceiptHTML(paymentData, type);
         
@@ -240,7 +240,7 @@ const generateAndUploadReceipt = async (paymentData, type) => {
         await browser.close();
 
         const timestamp = Date.now();
-        const filename = \`receipt_\${type}_\${paymentData.userId || 'user'}_\${paymentData.paymentId || 'payment'}_\${timestamp}\`;
+        const filename = `receipt_${type}_${paymentData.userId || 'user'}_${paymentData.paymentId || 'payment'}_${timestamp}`;
 
         console.log('Uploading PDF to Cloudinary as', filename);
 
