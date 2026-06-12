@@ -947,13 +947,12 @@ router.put('/payments/:id', async (req, res) => {
                         paymentId: updated._id.toString(),
                         userName: user.name,
                         planName: payment.planName,
-                        planPrice: payment.planPrice,
+                        amount: payment.planPrice,
                         startDate,
                         endDate,
                         paymentDate: new Date(),
-                        paymentMethod: payment.paymentMethod || 'upi',
-                        status: 'Active'
-                    });
+                        paymentMethod: payment.paymentMethod || 'upi'
+                    }, 'confirmed');
                     
                     console.log(`[DATE CHECK] Membership: ${startDate.toISOString()} to ${endDate.toISOString()} | PDF: ${startDate.toISOString()} to ${endDate.toISOString()} | Match: ${true}`);
                 } catch (pdfErr) {
@@ -970,15 +969,15 @@ router.put('/payments/:id', async (req, res) => {
                     endDate,
                 }).catch(console.error);
 
-                whatsappService.sendPaymentConfirmation({
-                    name: user.name,
-                    email: user.email,
-                    packageName: payment.planName,
-                    amountPaid: payment.planPrice,
-                    startDate,
-                    endDate,
-                    documentUrl: secureUrl
-                }).catch(console.error);
+                const startStr = startDate ? new Date(startDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
+                const endStr = endDate ? new Date(endDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
+
+                whatsappService.sendPaymentConfirmedMessage(user, {
+                    planName: payment.planName,
+                    amount: payment.planPrice,
+                    startDate: startStr,
+                    endDate: endStr
+                }, secureUrl).catch(console.error);
 
                 // Send approval alert to owner
                 emailService.sendPaymentApprovedOwner({

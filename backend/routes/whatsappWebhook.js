@@ -105,12 +105,22 @@ router.post('/', (req, res) => {
                                         }
 
                                         if (textLower.includes('pay by cash') || textLower.includes('cash payment')) {
-                                            await whatsappService.sendCashPaymentPendingUser({
-                                                userName: user.name,
-                                                email: user.email,
-                                                planName,
-                                                planPrice
-                                            });
+                                            let secureUrl = null;
+                                            try {
+                                                const { generateAndUploadReceipt } = require('../services/generateReceiptPDF');
+                                                secureUrl = await generateAndUploadReceipt({
+                                                    userId: user._id.toString(),
+                                                    paymentId: recentPayment ? recentPayment._id.toString() : '',
+                                                    userName: user.name,
+                                                    planName,
+                                                    amount: planPrice,
+                                                    paymentDate: new Date(),
+                                                    paymentMethod: 'Cash'
+                                                }, 'pending');
+                                            } catch (pdfErr) {
+                                                console.error('Failed to generate pending PDF for webhook, continuing...', pdfErr.message);
+                                            }
+                                            await whatsappService.sendPaymentPendingMessage(user, { planName, amount: planPrice }, secureUrl);
                                         } else if (textLower.includes('upi') || textLower.includes('qr')) {
                                             await whatsappService.sendUpiPaymentPendingUser({
                                                 userName: user.name,

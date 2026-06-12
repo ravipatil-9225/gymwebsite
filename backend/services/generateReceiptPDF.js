@@ -13,85 +13,74 @@ const getBrowser = async () => {
     });
 };
 
-const getReceiptHTML = (data) => {
-    const primaryColor = '#E8472A';
-    const darkBg = '#1c1c1c';
+const getReceiptHTML = (data, type) => {
+    const isPending = type === 'pending';
+    const primaryColor = isPending ? '#F59E0B' : '#E8472A';
+    const darkBg = '#1a1a1a';
+    const goldColor = '#C9A84C';
     
     const {
-        receiptType = 'CONFIRMATION',
         userName = 'Member',
         planName = 'N/A',
-        planPrice = 0,
-        startDate = new Date(),
-        endDate = new Date(),
+        amount = 0,
+        startDate = null,
+        endDate = null,
         paymentDate = new Date(),
-        paymentMethod = 'UPI',
-        paymentId = ''
+        paymentMethod = 'Cash',
+        receiptNo = 'TF-0000-00000',
+        status = isPending ? 'Pending Verification' : 'Active'
     } = data;
 
-    const startStr = new Date(startDate).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
-    const endStr = new Date(endDate).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
     const paymentDateStr = new Date(paymentDate).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
     
-    const formattedMethod = paymentMethod === 'cash_on_bench' ? (receiptType === 'CASH_PENDING' ? 'Cash at Reception 🏦' : 'Cash') : 
-                            paymentMethod === 'pay_later' ? 'Pay Later' : 'UPI';
+    // Format dates or show "—"
+    const startStr = isPending || !startDate ? '—' : new Date(startDate).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+    const endStr = isPending || !endDate ? '—' : new Date(endDate).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
 
-    const shortId = (paymentId || '00000').toString().slice(-5).toUpperCase();
-    const receiptYear = new Date(paymentDate).getFullYear();
-    const receiptNumber = `TF-${receiptYear}-${shortId}`;
-
-    const isPending = receiptType === 'CASH_PENDING';
-
-    const headerTitle = isPending ? 'Cash Payment Request Recorded! 💵' : `Payment Confirmed! 
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="#22c55e" xmlns="http://www.w3.org/2000/svg" style="vertical-align: text-bottom;">
+    const headerTitle = isPending ? `Payment Received <span style="display:inline-block; width: 24px; height: 24px; background: #F59E0B; border-radius: 50%; color: white; text-align: center; line-height: 24px; font-size: 16px; margin-left: 10px;">■</span>` : `Payment Confirmed! <svg width="32" height="32" viewBox="0 0 24 24" fill="#22c55e" xmlns="http://www.w3.org/2000/svg" style="vertical-align: text-bottom; margin-left: 8px;">
                 <circle cx="12" cy="12" r="12" fill="#22c55e"/>
                 <path d="M7 12.5L10 15.5L17 8.5" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>`;
               
-    const receiptTag = isPending ? 'PAY AT GYM RECEPTION' : 'MEMBERSHIP RECEIPT';
-    const pendingBadge = isPending ? `<span style="background: #E8472A; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; margin-bottom: 10px; display: inline-block;">CASH PENDING</span><br/>` : '';
+    const receiptTag = isPending ? 'AWAITING VERIFICATION' : 'MEMBERSHIP RECEIPT';
 
     const greetingText = isPending 
-        ? `Hi <strong>${userName}</strong>, your cash payment request for the <strong>${planName}</strong> plan has been recorded. Please visit us to complete the payment.`
+        ? `Hi <strong>${userName}</strong>,<br/>we've received your cash payment request. Our team will verify it shortly and your membership will be activated upon confirmation.`
         : `Hi <strong>${userName}</strong>,<br/>your payment has been successfully processed. Welcome to your new membership!`;
 
     const tableRows = isPending ? `
-              <tr><td class="col-label">PLAN</td><td class="col-value">${planName}</td></tr>
-              <tr><td class="col-label">AMOUNT TO PAY</td><td class="col-value">&#8377;${planPrice}</td></tr>
-              <tr><td class="col-label">PAYMENT METHOD</td><td class="col-value">${formattedMethod}</td></tr>
-              <tr><td class="col-label">REGISTERED AT</td><td class="col-value">${paymentDateStr}</td></tr>
+              <tr><td class="col-label">MEMBER NAME</td><td class="col-value">${userName}</td></tr>
+              <tr><td class="col-label">PACKAGE REQUESTED</td><td class="col-value">${planName}</td></tr>
+              <tr><td class="col-label">AMOUNT</td><td class="col-value"><span style="font-family: sans-serif;">&#8377;</span>${amount}</td></tr>
+              <tr><td class="col-label">REQUEST DATE</td><td class="col-value">${paymentDateStr}</td></tr>
+              <tr><td class="col-label">PAYMENT METHOD</td><td class="col-value">${paymentMethod}</td></tr>
               <tr>
                 <td class="col-label">STATUS</td>
-                <td><span class="status-badge" style="background: #fff3e0; color: #e65100;"><span class="status-dot" style="background: #e65100;"></span> Pending — Pay at Gym</span></td>
+                <td><span class="status-badge" style="background: #fef3c7; color: #b45309;"><span class="status-dot" style="background: #d97706;"></span> ${status}</span></td>
               </tr>
     ` : `
               <tr><td class="col-label">MEMBER NAME</td><td class="col-value">${userName}</td></tr>
               <tr><td class="col-label">PACKAGE</td><td class="col-value">${planName}</td></tr>
-              <tr><td class="col-label">AMOUNT PAID</td><td class="col-value">&#8377;${planPrice}</td></tr>
+              <tr><td class="col-label">AMOUNT PAID</td><td class="col-value"><span style="font-family: sans-serif;">&#8377;</span>${amount}</td></tr>
               <tr><td class="col-label">MEMBERSHIP START</td><td class="col-value">${startStr}</td></tr>
               <tr><td class="col-label">MEMBERSHIP END</td><td class="col-value">${endStr}</td></tr>
               <tr><td class="col-label">PAYMENT DATE</td><td class="col-value">${paymentDateStr}</td></tr>
-              <tr><td class="col-label">PAYMENT METHOD</td><td class="col-value">${formattedMethod}</td></tr>
+              <tr><td class="col-label">PAYMENT METHOD</td><td class="col-value">${paymentMethod}</td></tr>
               <tr>
                 <td class="col-label">STATUS</td>
                 <td>
                   <span class="status-badge">
-                    <span class="status-dot"></span> Active
+                    <span class="status-dot"></span> ${status}
                   </span>
                 </td>
               </tr>
     `;
 
     const footerContent = isPending ? `
-              <h4 style="margin: 0 0 10px 0; color: #111;">Next Steps:</h4>
-              <ol style="margin: 0 0 20px 0; padding-left: 20px; color: #444; font-size: 14px; line-height: 1.6;">
-                <li>Visit <strong>Tara</strong> Fitness Centre reception.</li>
-                <li>Inform the staff about this registration.</li>
-                <li>Pay <strong>&#8377;${planPrice}</strong> in cash.</li>
-                <li>Your membership will be activated immediately on payment.</li>
-              </ol>
-              <div style="background: #E8472A; color: white; padding: 12px 24px; border-radius: 6px; text-align: center; font-weight: bold; width: fit-content; margin: 0 auto 20px auto;">View Membership Plans</div>
-              <p style="margin: 0; color: #888; font-size: 11px; text-align: center;">Your membership will only be activated after cash payment is received at the gym.</p>
+              <h4 style="margin: 0 0 10px 0; color: #b45309; font-size: 15px;">What happens next?</h4>
+              <p style="margin: 0 0 6px 0; color: #333; font-size: 13px;">• Please complete your cash payment at the gym reception if you haven't already.</p>
+              <p style="margin: 0 0 6px 0; color: #333; font-size: 13px;">• Our staff will verify your payment and activate your membership.</p>
+              <p style="margin: 0; color: #333; font-size: 13px;">• You'll receive a confirmation receipt on WhatsApp once verified.</p>
     ` : `
               <p class="footer-msg">Your membership is now active! Visit us at the gym and our team will be happy to assist you in getting started.</p>
               <div class="footer-links">
@@ -100,7 +89,9 @@ const getReceiptHTML = (data) => {
               </div>
     `;
 
-    const receiptNoStyle = isPending ? 'display: none;' : '';
+    const bottomBandText = isPending 
+        ? 'Questions about your payment? Message us on WhatsApp anytime — we\'re happy to help! <span class="square-bullet" style="background:#888;"></span>' 
+        : 'Thank you for choosing Tara Fitness Centre — Let\'s make every workout count! <span class="square-bullet" style="background:#888;"></span>';
 
     return `
     <!DOCTYPE html>
@@ -108,56 +99,64 @@ const getReceiptHTML = (data) => {
     <head>
       <meta charset="UTF-8">
       <style>
-        body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Segoe UI', Arial, sans-serif; }
-        .container { width: 100%; max-width: 800px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 24px rgba(0,0,0,0.10); }
+        body { margin: 0; padding: 0; background-color: #f9fafb; font-family: 'Segoe UI', Arial, sans-serif; display: flex; flex-direction: column; min-height: 1122px; /* A4 height approx */ }
+        .container { width: 100%; max-width: 800px; margin: 0 auto; background-color: #ffffff; flex: 1; display: flex; flex-direction: column; }
         
         /* HEADER */
-        .header { display: flex; position: relative; background: ${darkBg}; padding: 30px 40px; color: white; align-items: center; }
-        .logo-container { margin-right: 25px; }
-        .logo { width: 100px; height: 100px; border-radius: 50%; box-shadow: 0 0 15px rgba(232, 71, 42, 0.4); }
+        .header-top-gold { height: 6px; background-color: ${goldColor}; width: 100%; }
+        .header { display: flex; position: relative; background: ${darkBg}; padding: 35px 45px; color: white; align-items: center; }
+        .logo-container { margin-right: 30px; }
+        .logo { width: 110px; height: 110px; border-radius: 50%; box-shadow: 0 0 20px rgba(201, 168, 76, 0.2); border: 2px solid #333; }
         .header-text { flex: 1; display: flex; flex-direction: column; justify-content: center; }
-        .brand-title { font-size: 34px; font-weight: 900; font-family: 'Segoe UI Black', Arial, sans-serif; margin-bottom: 2px; }
-        .brand-subtitle { color: ${primaryColor}; font-size: 16px; letter-spacing: 1px; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; }
-        .divider { background: ${primaryColor}; height: 3px; width: 100%; max-width: 380px; margin-bottom: 8px; }
-        .contact-info { color: #aaaaaa; font-size: 13px; }
+        .brand-title { font-size: 36px; font-weight: 900; font-family: 'Segoe UI Black', Arial, sans-serif; margin-bottom: 4px; letter-spacing: 0.5px; }
+        .brand-subtitle { color: ${goldColor}; font-size: 15px; letter-spacing: 1.5px; margin-bottom: 12px; font-weight: 600; text-transform: uppercase; }
+        .divider { background: #444; height: 1px; width: 100%; max-width: 380px; margin-bottom: 10px; }
+        .contact-info { color: #aaaaaa; font-size: 12px; }
         
-        .receipt-no { position: absolute; right: 40px; top: 35px; text-align: right; ${receiptNoStyle} }
-        .receipt-label { color: ${primaryColor}; font-size: 13px; font-weight: bold; }
-        .receipt-value { color: #ffffff; font-size: 18px; font-weight: bold; margin-top: 4px; }
+        .receipt-no { position: absolute; right: 45px; top: 40px; text-align: right; }
+        .receipt-label { color: ${goldColor}; font-size: 12px; font-weight: bold; margin-bottom: 4px; }
+        .receipt-value { color: #ffffff; font-size: 16px; font-weight: bold; font-family: monospace; }
         
         /* BODY */
-        .content-wrapper { display: flex; }
-        .red-border { width: 12px; background-color: ${primaryColor}; flex-shrink: 0; }
-        .content { flex: 1; padding: 40px; background: white; }
+        .content-wrapper { display: flex; flex: 1; }
+        .side-border { width: 10px; background-color: ${primaryColor}; flex-shrink: 0; }
+        .content { flex: 1; padding: 40px 45px; background: white; }
         
-        .title { margin: 0 0 8px 0; font-size: 32px; color: #111; font-weight: 800; }
-        .receipt-tag { margin: 0 0 15px 0; font-size: 14px; font-weight: bold; color: ${primaryColor}; letter-spacing: 1px; text-transform: uppercase; }
+        .title { margin: 0 0 8px 0; font-size: 32px; color: #111; font-weight: 800; display: flex; align-items: center; }
+        .receipt-tag { margin: 0 0 25px 0; font-size: 14px; font-weight: bold; color: ${primaryColor}; letter-spacing: 1px; text-transform: uppercase; }
         
-        .greeting-box { background: #f8f9fa; padding: 16px 20px; border-radius: 6px; margin-bottom: 25px; }
+        .greeting-box { background: #f9fafb; padding: 16px 0px; border-radius: 0px; margin-bottom: 30px; }
         .greeting { margin: 0; color: #333; font-size: 15px; line-height: 1.6; }
         
         /* TABLE */
-        .info-table { width: 100%; border-collapse: collapse; border: 1px solid #e0e0e0; margin-bottom: 35px; }
-        .info-table td { padding: 16px 20px; border-bottom: 1px solid #eeeeee; }
+        .info-table { width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb; margin-bottom: 40px; }
+        .info-table td { padding: 18px 24px; border-bottom: 1px solid #f3f4f6; }
         .info-table tr:nth-child(odd) td { background-color: #ffffff; }
-        .info-table tr:nth-child(even) td { background-color: #f9f9f9; }
-        .col-label { width: 40%; color: #888; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-        .col-value { color: #111; font-weight: bold; font-size: 15px; }
+        .info-table tr:nth-child(even) td { background-color: #f9fafb; }
+        .col-label { width: 40%; color: #9ca3af; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .col-value { color: #1f2937; font-weight: 700; font-size: 15px; }
         
         .status-badge { background: #dcfce7; color: #16a34a; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: bold; display: inline-flex; align-items: center; gap: 6px; }
         .status-dot { width: 8px; height: 8px; background: #16a34a; border-radius: 2px; }
         
         /* FOOTER BOX */
-        .footer-box { border: 2px solid ${isPending ? 'transparent' : primaryColor}; border-radius: 8px; padding: 24px; background: ${isPending ? 'white' : '#fffcfb'}; }
+        .footer-box { border: 2px solid ${isPending ? '#fcd34d' : primaryColor}; border-radius: 8px; padding: 24px; background: ${isPending ? '#fef3c7' : '#fffcfb'}; }
         .footer-msg { margin: 0 0 16px 0; color: #444; font-size: 14px; line-height: 1.5; }
         .footer-links { display: flex; gap: 24px; color: #888; font-size: 13px; }
         .footer-link { display: flex; align-items: center; gap: 8px; }
-        .square-bullet { width: 8px; height: 8px; background: #888; display: inline-block; }
+        .square-bullet { width: 6px; height: 6px; background: #888; display: inline-block; }
+        
+        /* BOTTOM BAND */
+        .bottom-band { background: ${darkBg}; padding: 20px; text-align: center; border-top: 4px solid ${goldColor}; margin-top: auto; }
+        .bottom-text { color: #9ca3af; font-size: 12px; margin: 0 0 8px 0; }
+        .bottom-links { color: ${goldColor}; font-size: 11px; font-weight: 600; }
+        .bottom-links a { color: ${goldColor}; text-decoration: none; }
       </style>
     </head>
     <body>
       <div class="container">
         <!-- HEADER -->
+        <div class="header-top-gold"></div>
         <div class="header">
           <div class="logo-container">
             <img src="https://res.cloudinary.com/dn6nxrrot/image/upload/v1781240702/gym_assets/tara_fitness_logo.png" class="logo" />
@@ -169,18 +168,17 @@ const getReceiptHTML = (data) => {
             <div class="contact-info">Shop No 1, Kalamba Road | WhatsApp Support Available</div>
           </div>
           <div class="receipt-no">
-            <div class="receipt-label">Receipt No.</div>
-            <div class="receipt-value">${receiptNumber}</div>
+            <div class="receipt-label">${isPending ? 'Reference No.' : 'Receipt No.'}</div>
+            <div class="receipt-value">${receiptNo}</div>
           </div>
         </div>
         
         <!-- CONTENT -->
         <div class="content-wrapper">
-          <div class="red-border"></div>
+          <div class="side-border"></div>
           <div class="content">
             <h1 class="title">${headerTitle}</h1>
             <p class="receipt-tag">${receiptTag}</p>
-            ${pendingBadge}
             <div class="greeting-box">
               <p class="greeting">${greetingText}</p>
             </div>
@@ -193,6 +191,14 @@ const getReceiptHTML = (data) => {
               ${footerContent}
             </div>
             
+          </div>
+        </div>
+        
+        <!-- BOTTOM BAND -->
+        <div class="bottom-band">
+          <p class="bottom-text">${bottomBandText}</p>
+          <div class="bottom-links">
+            <a href="https://www.tarafitness.in">www.tarafitness.in</a> | Shop No 1, Kalamba Road
           </div>
         </div>
       </div>
@@ -214,31 +220,27 @@ const verifyUrl = async (url, retries = 3) => {
     return false;
 };
 
-const generateAndUploadReceipt = async (paymentData) => {
+const generateAndUploadReceipt = async (paymentData, type) => {
     try {
-        console.log('Generating PDF receipt for:', paymentData.userId, paymentData.paymentId);
+        console.log(\`Generating \${type} PDF receipt for:\`, paymentData.userId, paymentData.paymentId);
         
-        const html = getReceiptHTML(paymentData);
+        const html = getReceiptHTML(paymentData, type);
         
         const browser = await getBrowser();
         const page = await browser.newPage();
         
-        // Wait until network is idle ensures styles are loaded
-        await page.setContent(html, { waitUntil: 'networkidle2' });
+        await page.setContent(html, { waitUntil: 'networkidle0' });
         
         const pdfBuffer = await page.pdf({
             format: 'A4',
-            printBackground: true,
-            margin: { top: '20px', bottom: '20px' }
+            printBackground: true
         });
         
         await page.close();
         await browser.close();
 
-        // Unique filename: receipt_[type]_[userId]_[paymentId]_[timestamp]
         const timestamp = Date.now();
-        const rType = (paymentData.receiptType || 'CONFIRM').substring(0, 7);
-        const filename = `receipt_${rType}_${paymentData.userId || 'user'}_${paymentData.paymentId || 'payment'}_${timestamp}`;
+        const filename = \`receipt_\${type}_\${paymentData.userId || 'user'}_\${paymentData.paymentId || 'payment'}_\${timestamp}\`;
 
         console.log('Uploading PDF to Cloudinary as', filename);
 
@@ -258,11 +260,10 @@ const generateAndUploadReceipt = async (paymentData) => {
             uploadStream.end(pdfBuffer);
         });
 
-        // Verify URL (don't throw if it fails, CDN might just be slow)
         console.log('Verifying uploaded PDF URL...', secureUrl);
         const isValid = await verifyUrl(secureUrl, 5);
         if (!isValid) {
-            console.warn('⚠️ Cloudinary URL verification timed out, but proceeding anyway...');
+            throw new Error("Cloudinary URL not accessible after upload");
         }
 
         console.log('✅ PDF successfully generated and uploaded:', secureUrl);

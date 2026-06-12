@@ -94,44 +94,27 @@ async function sendWhatsAppTemplate(to, templateName, components = []) {
 const FALLBACK_DOC_URL = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
 const { generateAndUploadReceipt } = require('./generateReceiptPDF');
 
-exports.sendCashPaymentPendingUser = async ({ userName, email, planName, planPrice, paymentId, registeredAt }) => {
-    if (!email) return;
-    const user = await User.findOne({ email: new RegExp(`^${email}$`, 'i') });
+exports.sendPaymentPendingMessage = async (user, paymentData, documentUrl) => {
     if (!user || !user.phone) return;
 
-    let secureUrl = FALLBACK_DOC_URL;
-    try {
-        secureUrl = await generateAndUploadReceipt({
-            receiptType: 'CASH_PENDING',
-            userId: user._id.toString(),
-            paymentId: paymentId ? paymentId.toString() : '',
-            userName: userName || user.name,
-            planName,
-            planPrice,
-            paymentDate: registeredAt || new Date(),
-            paymentMethod: 'cash_on_bench'
-        });
-    } catch (err) {
-        console.error('Failed to generate CASH_PENDING PDF for WhatsApp, falling back to dummy PDF.', err.message);
-    }
-
-    // Template: cash_payment_request_template | Header: DOCUMENT | Body: 3 vars (name, plan, price)
-    await sendWhatsAppTemplate(user.phone, 'cash_payment_request_template', [
+    const components = [
         {
             type: 'header',
             parameters: [
-                { type: 'document', document: { link: secureUrl, filename: 'TaraFitness_Registration.pdf' } }
+                { type: 'document', document: { link: documentUrl, filename: `Payment_Pending_${user.name.replace(/\s+/g,'_')}.pdf` } }
             ]
         },
         {
             type: 'body',
             parameters: [
-                { type: 'text', text: String(userName || 'User') },
-                { type: 'text', text: String(planName || 'Plan') },
-                { type: 'text', text: String(planPrice || '0') }
+                { type: 'text', text: String(user.name) },
+                { type: 'text', text: String(paymentData.planName) },
+                { type: 'text', text: String(paymentData.amount).replace(/[^0-9.]/g, '') }
             ]
         }
-    ]);
+    ];
+
+    await sendWhatsAppTemplate(user.phone, 'cash_payment_request_template', components);
 };
 
 exports.sendUpiPaymentPendingUser = async ({ userName, email, planName, planPrice, transactionId }) => {
@@ -139,22 +122,8 @@ exports.sendUpiPaymentPendingUser = async ({ userName, email, planName, planPric
     const user = await User.findOne({ email: new RegExp(`^${email}$`, 'i') });
     if (!user || !user.phone) return;
 
-    // Template: upi_payment_pending_template | Header: LOCATION | Body: 2 vars (name, txnId)
+    // Template: upi_payment_pending_template | No Header | Body: 2 vars (name, txnId)
     await sendWhatsAppTemplate(user.phone, 'upi_payment_pending_template', [
-        {
-            type: 'header',
-            parameters: [
-                {
-                    type: 'location',
-                    location: {
-                        latitude: '16.6913',
-                        longitude: '74.2449',
-                        name: 'Tara Fitness Centre',
-                        address: 'Shop No 1, Kalamba Rd, opp. Surveynagar, Kolhapur'
-                    }
-                }
-            ]
-        },
         {
             type: 'body',
             parameters: [
@@ -165,47 +134,37 @@ exports.sendUpiPaymentPendingUser = async ({ userName, email, planName, planPric
     ]);
 };
 
-exports.sendPaymentConfirmation = async ({ name, email, packageName, amountPaid, startDate, endDate, documentUrl }) => {
-    if (!email) return;
-    const user = await User.findOne({ email: new RegExp(`^${email}$`, 'i') });
+exports.sendPaymentConfirmedMessage = async (user, paymentData, documentUrl) => {
     if (!user || !user.phone) return;
 
-    const startLocal = startDate ? new Date(startDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
-    const endLocal = endDate ? new Date(endDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
-
-    // Build components
     const components = [
         {
             type: 'body',
             parameters: [
-                { type: 'text', text: String(name || 'User') },
-                { type: 'text', text: String(packageName || 'Plan') },
-                { type: 'text', text: String(amountPaid || '0') },
-                { type: 'text', text: String(startLocal) },
-                { type: 'text', text: String(endLocal) }
+                { type: 'text', text: String(user.name) },
+                { type: 'text', text: String(paymentData.planName) },
+                { type: 'text', text: String(paymentData.amount).replace(/[^0-9.]/g, '') },
+                { type: 'text', text: String(paymentData.startDate) },
+                { type: 'text', text: String(paymentData.endDate) }
             ]
         }
     ];
 
     let templateName = 'payment_receipt_template';
 
-    // Approved Spec: Send plain text if PDF generation fails.
     if (documentUrl) {
         components.unshift({
             type: 'header',
             parameters: [
-                { type: 'document', document: { link: documentUrl, filename: `Receipt_${String(name || 'User').replace(/\s+/g, '_')}.pdf` } }
+                { type: 'document', document: { link: documentUrl, filename: `Receipt_${user.name.replace(/\s+/g,'_')}.pdf` } }
             ]
         });
     } else {
-        // Fallback: If no document URL is generated due to error, we do NOT attach a dummy PDF.
-        // We omit the document header entirely and fallback to a plain text template.
         templateName = 'payment_receipt_template_fallback';
     }
 
     await sendWhatsAppTemplate(user.phone, templateName, components);
 };
-
 exports.sendWelcomeMessage = async (user) => {
     if (!user || !user.phone) return;
 

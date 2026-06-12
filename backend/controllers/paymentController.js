@@ -149,7 +149,28 @@ exports.verifyAndUpload = async (req, res) => {
                 paymentMethod: 'cash_on_bench', verificationStatus: 'cash_pending',
             });
             emailService.sendCashPaymentPendingUser({ userName, email, planName: actualPlanName, planPrice: numericPrice }).catch(console.error);
-            whatsappService.sendCashPaymentPendingUser({ userName, email, planName: actualPlanName, planPrice: numericPrice, paymentId: newPayment._id, registeredAt: newPayment.createdAt }).catch(console.error);
+            
+            const user = await User.findOne({ email });
+            if (user && user.phone) {
+                let secureUrl = null;
+                try {
+                    const { generateAndUploadReceipt } = require('../services/generateReceiptPDF');
+                    secureUrl = await generateAndUploadReceipt({
+                        userId: user._id.toString(),
+                        paymentId: newPayment._id.toString(),
+                        userName: user.name,
+                        planName: actualPlanName,
+                        amount: numericPrice,
+                        paymentDate: new Date(),
+                        paymentMethod: 'Cash'
+                    }, 'pending');
+                } catch (pdfErr) {
+                    console.error('Failed to generate pending PDF, continuing...', pdfErr.message);
+                }
+                
+                whatsappService.sendPaymentPendingMessage(user, { planName: actualPlanName, amount: numericPrice }, secureUrl).catch(console.error);
+            }
+
             emailService.sendCashPaymentPendingOwner({ userName, email, planName: actualPlanName, planPrice: numericPrice }).catch(console.error);
             try { socket.getIO().emit('db_changed', { type: 'payment_cash', data: newPayment }); } catch (_) {}
             
@@ -295,13 +316,12 @@ exports.verifyAndUpload = async (req, res) => {
                     paymentId: newPayment._id.toString(),
                     userName: user.name,
                     planName: actualPlanName,
-                    planPrice: numericPrice,
+                    amount: numericPrice,
                     startDate,
                     endDate,
                     paymentDate: new Date(),
-                    paymentMethod: 'UPI',
-                    status: 'Active'
-                });
+                    paymentMethod: 'UPI'
+                }, 'confirmed');
                 
                 console.log(`[DATE CHECK] Membership: ${startDate.toISOString()} to ${endDate.toISOString()} | PDF: ${startDate.toISOString()} to ${endDate.toISOString()} | Match: ${true}`);
 
@@ -310,7 +330,17 @@ exports.verifyAndUpload = async (req, res) => {
             }
 
             emailService.sendPaymentConfirmation({ name: user.name, email: user.email, packageName: actualPlanName, amountPaid: numericPrice, startDate, endDate }).catch(console.error);
-            whatsappService.sendPaymentConfirmation({ name: user.name, email: user.email, packageName: actualPlanName, amountPaid: numericPrice, startDate, endDate, documentUrl: secureUrl }).catch(console.error);
+            
+            const startStr = startDate ? new Date(startDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
+            const endStr = endDate ? new Date(endDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
+
+            whatsappService.sendPaymentConfirmedMessage(user, {
+                planName: actualPlanName,
+                amount: numericPrice,
+                startDate: startStr,
+                endDate: endStr
+            }, secureUrl).catch(console.error);
+            
             emailService.sendPaymentApprovedOwner({ userName: user.name, email: user.email, planName: actualPlanName, planPrice: numericPrice, paymentMethod: 'upi', startDate, endDate }).catch(console.error);
         }
 
