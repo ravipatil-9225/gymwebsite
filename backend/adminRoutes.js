@@ -905,9 +905,27 @@ router.put('/payments/:id', async (req, res) => {
                     planDuration = parseDurationDays(payment.planName);
                 };
 
-                const startDate = new Date();
-                const endDate = new Date();
-                endDate.setDate(endDate.getDate() + planDuration);
+                let startDate = payment.startDate;
+                let endDate = payment.expiryDate;
+
+                if (!startDate || !endDate || endDate < new Date()) {
+                    const activeMembership = await Membership.findOne({
+                        userId: user._id,
+                        status: 'active',
+                        endDate: { $gt: new Date() }
+                    }).sort({ endDate: -1 });
+
+                    if (activeMembership) {
+                        startDate = new Date(activeMembership.endDate);
+                        endDate = new Date(startDate);
+                        endDate.setDate(endDate.getDate() + planDuration);
+                    } else {
+                        startDate = new Date();
+                        endDate = new Date();
+                        endDate.setDate(endDate.getDate() + planDuration);
+                    }
+                }
+
 
                 await Membership.create({
                     userId: user._id,
@@ -936,6 +954,8 @@ router.put('/payments/:id', async (req, res) => {
                         paymentMethod: payment.paymentMethod || 'upi',
                         status: 'Active'
                     });
+                    
+                    console.log(`[DATE CHECK] Membership: ${startDate.toISOString()} to ${endDate.toISOString()} | PDF: ${startDate.toISOString()} to ${endDate.toISOString()} | Match: ${true}`);
                 } catch (pdfErr) {
                     console.error('Failed to generate PDF in adminRoutes, continuing...', pdfErr.message);
                 }

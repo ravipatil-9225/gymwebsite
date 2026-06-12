@@ -24,7 +24,7 @@ const getBrowser = async () => {
 
 const getReceiptHTML = (data) => {
     const primaryColor = '#E8472A';
-    const darkBg = '#1a1a1a';
+    const darkBg = '#1c1c1c';
     
     const {
         userName = 'Member',
@@ -33,15 +33,20 @@ const getReceiptHTML = (data) => {
         startDate = new Date(),
         endDate = new Date(),
         paymentDate = new Date(),
-        paymentMethod = 'UPI'
+        paymentMethod = 'UPI',
+        paymentId = ''
     } = data;
 
-    const startStr = new Date(startDate).toLocaleDateString('en-IN');
-    const endStr = new Date(endDate).toLocaleDateString('en-IN');
+    const startStr = new Date(startDate).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+    const endStr = new Date(endDate).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
     const paymentDateStr = new Date(paymentDate).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
     
     const formattedMethod = paymentMethod === 'cash_on_bench' ? 'Cash' : 
                             paymentMethod === 'pay_later' ? 'Pay Later' : 'UPI';
+
+    const shortId = (paymentId || '00000').toString().slice(-5).toUpperCase();
+    const receiptYear = new Date(paymentDate).getFullYear();
+    const receiptNumber = `TF-${receiptYear}-${shortId}`;
 
     return `
     <!DOCTYPE html>
@@ -50,75 +55,120 @@ const getReceiptHTML = (data) => {
       <meta charset="UTF-8">
       <style>
         body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Segoe UI', Arial, sans-serif; }
-        .container { width: 100%; max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.10); }
+        .container { width: 100%; max-width: 800px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 24px rgba(0,0,0,0.10); }
         
         /* HEADER */
-        .header { background: linear-gradient(135deg, ${darkBg} 0%, #2d1f1a 50%, #3a1a0e 100%); padding: 36px 40px; text-align: center; }
-        .logo-text { font-size: 28px; font-weight: 900; letter-spacing: 2px; font-family: 'Segoe UI Black', Arial, sans-serif; display: inline-block; margin-bottom: 12px; }
-        .logo-brand { color: ${primaryColor}; }
-        .logo-fitness { color: #ffffff; }
-        .divider-short { width: 50px; height: 3px; background: ${primaryColor}; margin: 0 auto; border-radius: 2px; }
-        .subtitle { font-size: 11px; color: #aaaaaa; letter-spacing: 3px; text-transform: uppercase; margin-top: 8px; }
+        .header { display: flex; position: relative; background: ${darkBg}; padding: 30px 40px; color: white; align-items: center; }
+        .logo-container { margin-right: 25px; }
+        .logo { width: 100px; height: 100px; border-radius: 50%; box-shadow: 0 0 15px rgba(232, 71, 42, 0.4); }
+        .header-text { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+        .brand-title { font-size: 34px; font-weight: 900; font-family: 'Segoe UI Black', Arial, sans-serif; margin-bottom: 2px; }
+        .brand-subtitle { color: ${primaryColor}; font-size: 16px; letter-spacing: 1px; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; }
+        .divider { background: ${primaryColor}; height: 3px; width: 100%; max-width: 380px; margin-bottom: 8px; }
+        .contact-info { color: #aaaaaa; font-size: 13px; }
+        
+        .receipt-no { position: absolute; right: 40px; top: 35px; text-align: right; }
+        .receipt-label { color: ${primaryColor}; font-size: 13px; font-weight: bold; }
+        .receipt-value { color: #ffffff; font-size: 18px; font-weight: bold; margin-top: 4px; }
         
         /* BODY */
-        .content { padding: 40px 40px 32px 40px; }
-        .title { margin: 0 0 8px 0; font-size: 26px; font-weight: 800; color: #1a1a1a; line-height: 1.3; }
-        .receipt-tag { margin: 0 0 24px 0; font-size: 14px; color: ${primaryColor}; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
-        .greeting { margin: 0 0 16px 0; font-size: 15px; color: #444444; line-height: 1.7; }
+        .content-wrapper { display: flex; }
+        .red-border { width: 12px; background-color: ${primaryColor}; flex-shrink: 0; }
+        .content { flex: 1; padding: 40px; background: white; }
+        
+        .title { margin: 0 0 8px 0; font-size: 32px; color: #111; display: flex; align-items: center; gap: 10px; font-weight: 800; }
+        .receipt-tag { margin: 0 0 24px 0; font-size: 14px; font-weight: bold; color: ${primaryColor}; letter-spacing: 1px; text-transform: uppercase; }
+        
+        .greeting-box { background: #f8f9fa; padding: 16px 20px; border-radius: 6px; margin-bottom: 25px; }
+        .greeting { margin: 0; color: #333; font-size: 15px; line-height: 1.6; }
         
         /* TABLE */
-        .info-table { width: 100%; border-collapse: collapse; background: #f9f9f9; border-radius: 8px; border: 1px solid #eeeeee; margin: 20px 0; overflow: hidden; }
-        .info-table td { padding: 12px 16px; border-bottom: 1px solid #eeeeee; }
-        .info-table tr:last-child td { border-bottom: none; }
-        .col-label { width: 38%; font-size: 13px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-        .col-value { font-size: 14px; color: #333; font-weight: 500; }
+        .info-table { width: 100%; border-collapse: collapse; border: 1px solid #e0e0e0; margin-bottom: 35px; }
+        .info-table td { padding: 16px 20px; border-bottom: 1px solid #eeeeee; }
+        .info-table tr:nth-child(odd) td { background-color: #ffffff; }
+        .info-table tr:nth-child(even) td { background-color: #f9f9f9; }
+        .col-label { width: 40%; color: #888; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .col-value { color: #111; font-weight: bold; font-size: 15px; }
         
-        .status-badge { display: inline-block; background: #16a34a; color: #fff; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; letter-spacing: 1px; }
+        .status-badge { background: #dcfce7; color: #16a34a; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: bold; display: inline-flex; align-items: center; gap: 6px; }
+        .status-dot { width: 8px; height: 8px; background: #16a34a; border-radius: 2px; }
         
-        /* FOOTER */
-        .footer { background-color: #f8f8f8; padding: 24px 40px; border-top: 2px solid #eeeeee; text-align: center; }
-        .address { margin: 0 0 8px 0; font-size: 13px; color: #888888; }
-        .support { margin: 0; font-size: 11px; color: #aaaaaa; }
+        /* FOOTER BOX */
+        .footer-box { border: 2px solid ${primaryColor}; border-radius: 8px; padding: 24px; background: #fffcfb; }
+        .footer-msg { margin: 0 0 16px 0; color: #444; font-size: 14px; line-height: 1.5; }
+        .footer-links { display: flex; gap: 24px; color: #888; font-size: 13px; }
+        .footer-link { display: flex; align-items: center; gap: 8px; }
+        .square-bullet { width: 8px; height: 8px; background: #888; display: inline-block; }
       </style>
     </head>
     <body>
       <div class="container">
         <!-- HEADER -->
         <div class="header">
-          <div class="logo-text"><span class="logo-brand">TARA</span><span class="logo-fitness"> FITNESS</span></div>
-          <div class="divider-short"></div>
-          <div class="subtitle">Elite Fitness Centre</div>
+          <div class="logo-container">
+            <img src="https://res.cloudinary.com/dn6nxrrot/image/upload/v1781240702/gym_assets/tara_fitness_logo.png" class="logo" />
+          </div>
+          <div class="header-text">
+            <div class="brand-title">TARA FITNESS</div>
+            <div class="brand-subtitle">ELITE FITNESS CENTRE</div>
+            <div class="divider"></div>
+            <div class="contact-info">Shop No 1, Kalamba Road | WhatsApp Support Available</div>
+          </div>
+          <div class="receipt-no">
+            <div class="receipt-label">Receipt No.</div>
+            <div class="receipt-value">${receiptNumber}</div>
+          </div>
         </div>
         
         <!-- CONTENT -->
-        <div class="content">
-          <h1 class="title">Payment Confirmed! 🎉</h1>
-          <p class="receipt-tag">MEMBERSHIP RECEIPT</p>
-          <p class="greeting">Hi <strong>${userName}</strong>, your payment has been successfully processed.<br/>Welcome to your new membership!</p>
-          
-          <table class="info-table">
-            <tr><td class="col-label">Member Name</td><td class="col-value">${userName}</td></tr>
-            <tr><td class="col-label">Package</td><td class="col-value">${planName}</td></tr>
-            <tr><td class="col-label">Amount Paid</td><td class="col-value">₹${planPrice}</td></tr>
-            <tr><td class="col-label">Membership Start</td><td class="col-value">${startStr}</td></tr>
-            <tr><td class="col-label">Membership End</td><td class="col-value">${endStr}</td></tr>
-            <tr><td class="col-label">Payment Date</td><td class="col-value">${paymentDateStr}</td></tr>
-            <tr><td class="col-label">Payment Method</td><td class="col-value">${formattedMethod}</td></tr>
-            <tr><td class="col-label">Status</td><td class="col-value"><span class="status-badge">✅ Active</span></td></tr>
-          </table>
-          
-          <p class="greeting">Your membership is now active! Visit us at the gym and our team will be happy to assist you in getting started.</p>
-        </div>
-        
-        <!-- FOOTER -->
-        <div class="footer">
-          <p class="address">📍 Shop No 1, Kalamba Road | Tara Fitness Centre</p>
-          <p class="support">Feel free to message us on WhatsApp anytime for support.</p>
+        <div class="content-wrapper">
+          <div class="red-border"></div>
+          <div class="content">
+            <h1 class="title">
+              Payment Confirmed! 
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="#22c55e" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="12" fill="#22c55e"/>
+                <path d="M7 12.5L10 15.5L17 8.5" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </h1>
+            <p class="receipt-tag">MEMBERSHIP RECEIPT</p>
+            
+            <div class="greeting-box">
+              <p class="greeting">Hi <strong>${userName}</strong>,<br/>your payment has been successfully processed. Welcome to your new membership!</p>
+            </div>
+            
+            <table class="info-table">
+              <tr><td class="col-label">MEMBER NAME</td><td class="col-value">${userName}</td></tr>
+              <tr><td class="col-label">PACKAGE</td><td class="col-value">${planName}</td></tr>
+              <tr><td class="col-label">AMOUNT PAID</td><td class="col-value">&#8377;${planPrice}</td></tr>
+              <tr><td class="col-label">MEMBERSHIP START</td><td class="col-value">${startStr}</td></tr>
+              <tr><td class="col-label">MEMBERSHIP END</td><td class="col-value">${endStr}</td></tr>
+              <tr><td class="col-label">PAYMENT DATE</td><td class="col-value">${paymentDateStr}</td></tr>
+              <tr><td class="col-label">PAYMENT METHOD</td><td class="col-value">${formattedMethod}</td></tr>
+              <tr>
+                <td class="col-label">STATUS</td>
+                <td>
+                  <span class="status-badge">
+                    <span class="status-dot"></span> Active
+                  </span>
+                </td>
+              </tr>
+            </table>
+            
+            <div class="footer-box">
+              <p class="footer-msg">Your membership is now active! Visit us at the gym and our team will be happy to assist you in getting started.</p>
+              <div class="footer-links">
+                <div class="footer-link"><span class="square-bullet"></span> Shop No 1, Kalamba Road</div>
+                <div class="footer-link"><span class="square-bullet"></span> Support: Message us on WhatsApp anytime</div>
+              </div>
+            </div>
+            
+          </div>
         </div>
       </div>
     </body>
     </html>
-    `;
+    \`;
 };
 
 const verifyUrl = async (url) => {
