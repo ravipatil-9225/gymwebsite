@@ -1,3 +1,4 @@
+require('dotenv').config({ path: '../.env' });
 const { generateAndUploadReceipt } = require('../services/generateReceiptPDF');
 
 async function test() {

@@ -122,8 +122,22 @@ exports.sendUpiPaymentPendingUser = async ({ userName, email, planName, planPric
     const user = await User.findOne({ email: new RegExp(`^${email}$`, 'i') });
     if (!user || !user.phone) return;
 
-    // Template: upi_payment_pending_template | No Header | Body: 2 vars (name, txnId)
+    // Template: upi_payment_pending_template | Header: LOCATION | Body: 2 vars (name, txnId)
     await sendWhatsAppTemplate(user.phone, 'upi_payment_pending_template', [
+        {
+            type: 'header',
+            parameters: [
+                {
+                    type: 'location',
+                    location: {
+                        latitude: '16.6913',
+                        longitude: '74.2449',
+                        name: 'Tara Fitness Centre',
+                        address: 'Shop No 1, Kalamba Rd, opp. Surveynagar, Kolhapur'
+                    }
+                }
+            ]
+        },
         {
             type: 'body',
             parameters: [
