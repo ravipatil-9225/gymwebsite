@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import * as Icons from 'lucide-react';
 import { ArrowRight } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
 
 const containerVariants = {
     hidden: { opacity: 0 },
@@ -68,7 +68,7 @@ const SectionLanding = ({ title, subtitle, items }) => {
                     }
                 >
                     {items.map((item, index) => {
-                        const Icon = LucideIcons[item.icon] || LucideIcons.Circle;
+                        const Icon = Icons[item.icon] || Icons.Circle;
                         const isHash = item.path.startsWith('#');
 
                         const CardInner = (
