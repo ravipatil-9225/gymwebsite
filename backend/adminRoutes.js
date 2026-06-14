@@ -868,54 +868,30 @@ router.put('/payments/:id', async (req, res) => {
         if (wasPending && isApproved) {
             const user = await User.findOne({ email: payment.email });
             if (user) {
-                // Parse duration in days from planName / package
                 const parseDurationDays = (name = '') => {
                     const n = typeof name === 'string' ? name.toLowerCase() : '';
-                    if (n.includes('year')) {
-                        const m = n.match(/(\d+)\s*year/);
-                        return (m ? parseInt(m[1]) : 1) * 365;
-                    } else if (n.includes('month')) {
-                        const m = n.match(/(\d+)\s*month/);
-                        return (m ? parseInt(m[1]) : 1) * 30;
-                    } else if (n.includes('week')) {
-                        const m = n.match(/(\d+)\s*week/);
-                        return (m ? parseInt(m[1]) : 1) * 7;
-                    } else if (n.includes('day')) {
-                        const m = n.match(/(\d+)\s*day/);
-                        return m ? parseInt(m[1]) : 30;
-                    }
+                    if (n.includes('year')) { const m = n.match(/(\d+)\s*year/); return (m ? parseInt(m[1]) : 1) * 365; }
+                    if (n.includes('month')) { const m = n.match(/(\d+)\s*month/); return (m ? parseInt(m[1]) : 1) * 30; }
+                    if (n.includes('week')) { const m = n.match(/(\d+)\s*week/); return (m ? parseInt(m[1]) : 1) * 7; }
+                    if (n.includes('day')) { const m = n.match(/(\d+)\s*day/); return m ? parseInt(m[1]) : 30; }
                     return 30;
                 };
 
                 let planDuration = 30;
                 try {
                     let pkg = null;
-                    if (payment.packageId) {
-                        pkg = await Package.findById(payment.packageId);
-                    }
-                    if (!pkg) {
-                        // Fallback: match Name AND Price to avoid taking the first plan match only
-                        pkg = await Package.findOne({ name: payment.planName, price: payment.originalAmount || payment.planPrice });
-                    }
-                    if (pkg && pkg.duration) {
-                        planDuration = parseDurationDays(pkg.duration);
-                    } else {
-                        planDuration = parseDurationDays(payment.planName);
-                    }
-                } catch (e) {
-                    planDuration = parseDurationDays(payment.planName);
-                };
+                    if (payment.packageId) pkg = await Package.findById(payment.packageId);
+                    if (!pkg) pkg = await Package.findOne({ name: payment.planName, price: payment.originalAmount || payment.planPrice });
+                    planDuration = (pkg && pkg.duration) ? parseDurationDays(pkg.duration) : parseDurationDays(payment.planName);
+                } catch (e) { planDuration = parseDurationDays(payment.planName); }
 
                 let startDate = payment.startDate;
                 let endDate = payment.expiryDate;
 
                 if (!startDate || !endDate || endDate < new Date()) {
                     const activeMembership = await Membership.findOne({
-                        userId: user._id,
-                        status: 'active',
-                        endDate: { $gt: new Date() }
+                        userId: user._id, status: 'active', endDate: { $gt: new Date() }
                     }).sort({ endDate: -1 });
-
                     if (activeMembership) {
                         startDate = new Date(activeMembership.endDate);
                         endDate = new Date(startDate);
@@ -927,61 +903,57 @@ router.put('/payments/:id', async (req, res) => {
                     }
                 }
 
-
                 await Membership.create({
-                    userId: user._id,
-                    userName: user.name,
-                    userEmail: user.email,
-                    packageName: payment.planName,
-                    planDuration,
-                    amountPaid: payment.planPrice,
-                    startDate,
-                    endDate,
+                    userId: user._id, userName: user.name, userEmail: user.email,
+                    packageName: payment.planName, planDuration,
+                    amountPaid: payment.planPrice, startDate, endDate,
                 });
 
-                // startDate/endDate captured above — used in background task
+                // Capture for closure — all vars are in scope here
+                const bgUser = user;
+                const bgPayment = payment;
+                const bgUpdated = updated;
+                const bgStartDate = startDate;
+                const bgEndDate = endDate;
+
+                // Fire-and-forget: PDF + WhatsApp + emails (non-blocking)
+                setImmediate(async () => {
+                    try {
+                        const startStr = new Date(bgStartDate).toLocaleDateString('en-IN');
+                        const endStr   = new Date(bgEndDate).toLocaleDateString('en-IN');
+                        let secureUrl = null;
+                        try {
+                            const { generateAndUploadReceipt } = require('./services/generateReceiptPDF');
+                            secureUrl = await generateAndUploadReceipt({
+                                userId: bgUser._id.toString(),
+                                paymentId: bgUpdated._id.toString(),
+                                userName: bgUser.name,
+                                planName: bgPayment.planName,
+                                amount: bgPayment.planPrice,
+                                startDate: bgStartDate,
+                                endDate: bgEndDate,
+                                paymentDate: new Date(),
+                                paymentMethod: bgPayment.paymentMethod || 'cash'
+                            }, 'confirmed');
+                        } catch (pdfErr) {
+                            console.error('[BG] PDF generation failed:', pdfErr.message);
+                        }
+                        emailService.sendPaymentConfirmation({ name: bgUser.name, email: bgUser.email, packageName: bgPayment.planName, amountPaid: bgPayment.planPrice, startDate: bgStartDate, endDate: bgEndDate }).catch(console.error);
+                        emailService.sendPaymentApprovedOwner({ userName: bgUser.name, email: bgUser.email, planName: bgPayment.planName, planPrice: bgPayment.planPrice, paymentMethod: bgPayment.paymentMethod || 'cash', startDate: bgStartDate, endDate: bgEndDate }).catch(console.error);
+                        notificationEmitter.emit('payment_confirmed', {
+                            user: bgUser,
+                            paymentData: { planName: bgPayment.planName, amount: bgPayment.planPrice, startDate: startStr, endDate: endStr },
+                            documentUrl: secureUrl
+                        });
+                        console.log(`[BG] Payment approval tasks done for ${bgUser.email}`);
+                    } catch (bgErr) {
+                        console.error('[BG] Admin approval background task failed:', bgErr.message);
+                    }
+                });
             }
         }
-
         res.json(updated);
-        // Emit after membership creation so User Management reflects immediately
         socket.getIO().emit('db_changed', { type: 'membership_created' });
-
-        // ── Fire-and-forget: PDF generation + WhatsApp + emails (non-blocking) ──
-        if (wasPending && isApproved && user) {
-            setImmediate(async () => {
-                try {
-                    const startStr = startDate ? new Date(startDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
-                    const endStr   = endDate   ? new Date(endDate).toLocaleDateString('en-IN')   : new Date().toLocaleDateString('en-IN');
-                    let secureUrl = null;
-                    try {
-                        const { generateAndUploadReceipt } = require('./services/generateReceiptPDF');
-                        secureUrl = await generateAndUploadReceipt({
-                            userId: user._id.toString(),
-                            paymentId: updated._id.toString(),
-                            userName: user.name,
-                            planName: payment.planName,
-                            amount: payment.planPrice,
-                            startDate,
-                            endDate,
-                            paymentDate: new Date(),
-                            paymentMethod: payment.paymentMethod || 'cash'
-                        }, 'confirmed');
-                    } catch (pdfErr) {
-                        console.error('[BG] PDF generation failed:', pdfErr.message);
-                    }
-                    emailService.sendPaymentConfirmation({ name: user.name, email: user.email, packageName: payment.planName, amountPaid: payment.planPrice, startDate, endDate }).catch(console.error);
-                    emailService.sendPaymentApprovedOwner({ userName: user.name, email: user.email, planName: payment.planName, planPrice: payment.planPrice, paymentMethod: payment.paymentMethod || 'cash', startDate, endDate }).catch(console.error);
-                    notificationEmitter.emit('payment_confirmed', {
-                        user,
-                        paymentData: { planName: payment.planName, amount: payment.planPrice, startDate: startStr, endDate: endStr },
-                        documentUrl: secureUrl
-                    });
-                } catch (bgErr) {
-                    console.error('[BG] Admin approval background task failed:', bgErr.message);
-                }
-            });
-        }
     } catch (err) {
         console.error('Admin payment update error:', err);
         res.status(500).json({ message: 'Error updating payment' });
