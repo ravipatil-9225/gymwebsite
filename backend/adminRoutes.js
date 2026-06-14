@@ -939,67 +939,49 @@ router.put('/payments/:id', async (req, res) => {
                     endDate,
                 });
 
-                // Generate PDF Receipt
-                let secureUrl = null;
-                try {
-                    const { generateAndUploadReceipt } = require('./services/generateReceiptPDF');
-                    secureUrl = await generateAndUploadReceipt({
-                        userId: user._id.toString(),
-                        paymentId: updated._id.toString(),
-                        userName: user.name,
-                        planName: payment.planName,
-                        amount: payment.planPrice,
-                        startDate,
-                        endDate,
-                        paymentDate: new Date(),
-                        paymentMethod: payment.paymentMethod || 'upi'
-                    }, 'confirmed');
-                    
-                    console.log(`[DATE CHECK] Membership: ${startDate.toISOString()} to ${endDate.toISOString()} | PDF: ${startDate.toISOString()} to ${endDate.toISOString()} | Match: ${true}`);
-                } catch (pdfErr) {
-                    console.error('Failed to generate PDF in adminRoutes, continuing...', pdfErr.message);
-                }
-
-                // Send confirmation receipt to user
-                emailService.sendPaymentConfirmation({
-                    name: user.name,
-                    email: user.email,
-                    packageName: payment.planName,
-                    amountPaid: payment.planPrice,
-                    startDate,
-                    endDate,
-                }).catch(console.error);
-
-                const startStr = startDate ? new Date(startDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
-                const endStr = endDate ? new Date(endDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
-
-                notificationEmitter.emit('payment_confirmed', {
-                    user,
-                    paymentData: {
-                        planName: payment.planName,
-                        amount: payment.planPrice,
-                        startDate: startStr,
-                        endDate: endStr
-                    },
-                    documentUrl: secureUrl
-                });
-
-                // Send approval alert to owner
-                emailService.sendPaymentApprovedOwner({
-                    userName: user.name,
-                    email: user.email,
-                    planName: payment.planName,
-                    planPrice: payment.planPrice,
-                    paymentMethod: payment.paymentMethod || 'upi',
-                    startDate,
-                    endDate,
-                }).catch(console.error);
+                // startDate/endDate captured above — used in background task
             }
         }
 
         res.json(updated);
         // Emit after membership creation so User Management reflects immediately
         socket.getIO().emit('db_changed', { type: 'membership_created' });
+
+        // ── Fire-and-forget: PDF generation + WhatsApp + emails (non-blocking) ──
+        if (wasPending && isApproved && user) {
+            setImmediate(async () => {
+                try {
+                    const startStr = startDate ? new Date(startDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
+                    const endStr   = endDate   ? new Date(endDate).toLocaleDateString('en-IN')   : new Date().toLocaleDateString('en-IN');
+                    let secureUrl = null;
+                    try {
+                        const { generateAndUploadReceipt } = require('./services/generateReceiptPDF');
+                        secureUrl = await generateAndUploadReceipt({
+                            userId: user._id.toString(),
+                            paymentId: updated._id.toString(),
+                            userName: user.name,
+                            planName: payment.planName,
+                            amount: payment.planPrice,
+                            startDate,
+                            endDate,
+                            paymentDate: new Date(),
+                            paymentMethod: payment.paymentMethod || 'cash'
+                        }, 'confirmed');
+                    } catch (pdfErr) {
+                        console.error('[BG] PDF generation failed:', pdfErr.message);
+                    }
+                    emailService.sendPaymentConfirmation({ name: user.name, email: user.email, packageName: payment.planName, amountPaid: payment.planPrice, startDate, endDate }).catch(console.error);
+                    emailService.sendPaymentApprovedOwner({ userName: user.name, email: user.email, planName: payment.planName, planPrice: payment.planPrice, paymentMethod: payment.paymentMethod || 'cash', startDate, endDate }).catch(console.error);
+                    notificationEmitter.emit('payment_confirmed', {
+                        user,
+                        paymentData: { planName: payment.planName, amount: payment.planPrice, startDate: startStr, endDate: endStr },
+                        documentUrl: secureUrl
+                    });
+                } catch (bgErr) {
+                    console.error('[BG] Admin approval background task failed:', bgErr.message);
+                }
+            });
+        }
     } catch (err) {
         console.error('Admin payment update error:', err);
         res.status(500).json({ message: 'Error updating payment' });

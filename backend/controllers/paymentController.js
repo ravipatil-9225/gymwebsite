@@ -149,32 +149,41 @@ exports.verifyAndUpload = async (req, res) => {
                 userName, email, packageId: pkg._id, planName: actualPlanName, planPrice: finalAmount, originalAmount: numericPrice,
                 paymentMethod: 'cash_on_bench', verificationStatus: 'cash_pending',
             });
-            emailService.sendCashPaymentPendingUser({ userName, email, planName: actualPlanName, planPrice: numericPrice }).catch(console.error);
-            
-            const user = await User.findOne({ email });
-            if (user && user.phone) {
-                let secureUrl = null;
-                try {
-                    const { generateAndUploadReceipt } = require('../services/generateReceiptPDF');
-                    secureUrl = await generateAndUploadReceipt({
-                        userId: user._id.toString(),
-                        paymentId: newPayment._id.toString(),
-                        userName: user.name,
-                        planName: actualPlanName,
-                        amount: numericPrice,
-                        paymentDate: new Date(),
-                        paymentMethod: 'Cash'
-                    }, 'pending');
-                } catch (pdfErr) {
-                    console.error('Failed to generate pending PDF, continuing...', pdfErr.message);
-                }
-                
-                notificationEmitter.emit('cash_payment_request', { user, paymentData: { planName: actualPlanName, amount: numericPrice }, documentUrl: secureUrl });
-            }
-
+        // ── RESPOND IMMEDIATELY — do PDF + WhatsApp in background ────────────────
             emailService.sendCashPaymentPendingOwner({ userName, email, planName: actualPlanName, planPrice: numericPrice }).catch(console.error);
             try { socket.getIO().emit('db_changed', { type: 'payment_cash', data: newPayment }); } catch (_) {}
-            
+
+            // Fire-and-forget background work (non-blocking)
+            setImmediate(async () => {
+                try {
+                    const user = await User.findOne({ email });
+                    if (user && user.phone) {
+                        let secureUrl = null;
+                        try {
+                            const { generateAndUploadReceipt } = require('../services/generateReceiptPDF');
+                            secureUrl = await generateAndUploadReceipt({
+                                userId: user._id.toString(),
+                                paymentId: newPayment._id.toString(),
+                                userName: user.name,
+                                planName: actualPlanName,
+                                amount: numericPrice,
+                                paymentDate: new Date(),
+                                paymentMethod: 'Cash'
+                            }, 'pending');
+                        } catch (pdfErr) {
+                            console.error('[BG] Failed to generate pending PDF:', pdfErr.message);
+                        }
+                        notificationEmitter.emit('cash_payment_request', {
+                            user,
+                            paymentData: { planName: actualPlanName, amount: numericPrice },
+                            documentUrl: secureUrl
+                        });
+                    }
+                } catch (bgErr) {
+                    console.error('[BG] cash_on_bench background task failed:', bgErr.message);
+                }
+            });
+
             return res.status(201).json({ message: 'Cash Payment Request Received', payment: newPayment });
         }
 
