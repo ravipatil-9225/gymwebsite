@@ -1082,7 +1082,6 @@ router.delete('/transformations/:id', async (req, res) => {
 // ==========================================
 const NotificationLog = require('./models/NotificationLog');
 const notificationEngine = require('./services/notificationEngine');
-const whatsappService = require('./services/whatsappService');
 
 router.get('/notifications', async (req, res) => {
     try {
