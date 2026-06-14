@@ -23,7 +23,7 @@ const socket = require('./socket');
 const { startMembershipReminderCron } = require('./cron/membershipReminder');
 const { startPaymentMonitorCron } = require('./cron/paymentMonitor');
 const whatsappService = require('./services/whatsappService');
-require('./services/notificationEngine'); // Initialize event listeners
+const notificationEmitter = require('./events/notificationEmitter');
 // Models (for public routes and admin triggers)
 const User = require('./models/User');
 const Membership = require('./models/Membership');
@@ -336,7 +336,6 @@ app.post('/api/admin/confirm-payment', protect, async (req, res) => {
         const startStr = startDate ? new Date(startDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
         const endStr = endDate ? new Date(endDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
 
-        const notificationEmitter = require('./events/notificationEmitter');
         notificationEmitter.emit('payment_confirmed', {
             user,
             paymentData: {
@@ -387,6 +386,8 @@ httpServer.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`🛡️  Security: Helmet + Rate Limiting + NoSQL Sanitizer active`);
     console.log(`🔧 Error Handler: Global crash protection active`);
+    // Initialize notification engine AFTER server starts (DB is connected)
+    require('./services/notificationEngine');
     startMembershipReminderCron();
     startPaymentMonitorCron();
 });

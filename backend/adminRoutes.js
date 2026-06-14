@@ -14,6 +14,7 @@ const Transformation = require('./models/Transformation');
 const socket = require('./socket');
 const emailService = require('./services/emailService');
 const whatsappService = require('./services/whatsappService');
+const notificationEmitter = require('./events/notificationEmitter');
 const { deleteFromCloudinary, uploadToCloudinary } = require('./utils/imageHandler');
 
 // Helper to intercept base64 from React/React Native payloads and upload to Cloudinary
@@ -293,7 +294,6 @@ router.post('/users', async (req, res) => {
         const newUser = new User({ name, email, phone, dob, password, role: role || 'user' });
         await newUser.save();
 
-        const notificationEmitter = require('./events/notificationEmitter');
         notificationEmitter.emit('user_registered', { user: newUser });
 
         res.status(201).json({ message: "User created successfully", user: { _id: newUser._id, name, email, role } });
@@ -973,7 +973,6 @@ router.put('/payments/:id', async (req, res) => {
                 const startStr = startDate ? new Date(startDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
                 const endStr = endDate ? new Date(endDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
 
-                const notificationEmitter = require('./events/notificationEmitter');
                 notificationEmitter.emit('payment_confirmed', {
                     user,
                     paymentData: {
