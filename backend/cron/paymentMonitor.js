@@ -1,7 +1,8 @@
 const cron = require('node-cron');
 const Payment = require('../models/Payment');
 const emailService = require('../services/emailService');
-const whatsappService = require('../services/whatsappService');
+const notificationEmitter = require('../events/notificationEmitter');
+const User = require('../models/User');
 
 const runPaymentMonitorLogic = async () => {
     try {
@@ -24,21 +25,33 @@ const runPaymentMonitorLogic = async () => {
                     console.log(`[CRON] Payment ${payment._id} marked as overdue.`);
                     
                     // Trigger overdue reminder via WhatsApp
-                    whatsappService.sendOverdueReminder({
-                        name: payment.userName,
-                        email: payment.email,
-                        planName: payment.planName
-                    }).catch(console.error);
+                    const userDoc = await User.findOne({ email: new RegExp(`^${payment.email}$`, 'i') });
+                    if (userDoc) {
+                        notificationEmitter.emit('membership_overdue_reminder', {
+                            user: userDoc,
+                            reminderData: {
+                                name: payment.userName,
+                                email: payment.email,
+                                planName: payment.planName
+                            }
+                        });
+                    }
                 } else {
                     // Check if expiry is in exactly 2 days
                     const daysLeft = Math.ceil((payment.expiryDate - now) / (1000 * 60 * 60 * 24));
                     if (daysLeft === 2) {
-                        whatsappService.sendExpiryReminder({
-                            name: payment.userName,
-                            email: payment.email,
-                            planName: payment.planName,
-                            daysLeft: 2
-                        }).catch(console.error);
+                        const userDoc = await User.findOne({ email: new RegExp(`^${payment.email}$`, 'i') });
+                        if (userDoc) {
+                            notificationEmitter.emit('membership_expiry_reminder', {
+                                user: userDoc,
+                                reminderData: {
+                                    name: payment.userName,
+                                    email: payment.email,
+                                    planName: payment.planName,
+                                    daysLeft: 2
+                                }
+                            });
+                        }
                         console.log(`[CRON] Payment ${payment._id} is expiring in 2 days. WhatsApp sent.`);
                     }
                 }

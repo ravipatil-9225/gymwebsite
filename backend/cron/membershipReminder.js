@@ -6,7 +6,8 @@
 const cron = require('node-cron');
 const Membership = require('../models/Membership');
 const { sendExpiryReminder } = require('../services/emailService');
-const whatsappService = require('../services/whatsappService');
+const notificationEmitter = require('../events/notificationEmitter');
+const User = require('../models/User');
 
 const runMembershipReminderLogic = async () => {
     console.log('🕒 Running membership expiry reminder cron job...');
@@ -25,13 +26,17 @@ const runMembershipReminderLogic = async () => {
                 if (daysLeft <= 0) {
                     if (!membership.reminderExpirySent) {
                         await sendExpiryReminder(membership, 0);
-                        // Trigger WhatsApp expiry reminder (expired)
-                        await whatsappService.sendExpiredAlert({
-                            name: membership.userName,
-                            email: membership.userEmail,
-                            planName: membership.packageName
-                        }).catch(console.error);
-
+                        const userDoc = await User.findById(membership.userId);
+                        if (userDoc) {
+                            notificationEmitter.emit('membership_expired', {
+                                user: userDoc,
+                                reminderData: {
+                                    name: membership.userName,
+                                    email: membership.userEmail,
+                                    planName: membership.packageName
+                                }
+                            });
+                        }
                         membership.reminderExpirySent = true;
                         membership.status = 'expired';
                         await membership.save();
@@ -42,14 +47,18 @@ const runMembershipReminderLogic = async () => {
                 // 3-day reminder
                 else if (daysLeft <= 3 && !membership.reminder3Sent) {
                     await sendExpiryReminder(membership, daysLeft);
-                    // Trigger WhatsApp expiry reminder
-                    await whatsappService.sendExpiryReminder({
-                        name: membership.userName,
-                        email: membership.userEmail,
-                        planName: membership.packageName,
-                        daysLeft: daysLeft
-                    }).catch(console.error);
-
+                    const userDoc = await User.findById(membership.userId);
+                    if (userDoc) {
+                        notificationEmitter.emit('membership_expiry_reminder', {
+                            user: userDoc,
+                            reminderData: {
+                                name: membership.userName,
+                                email: membership.userEmail,
+                                planName: membership.packageName,
+                                daysLeft: daysLeft
+                            }
+                        });
+                    }
                     membership.reminder3Sent = true;
                     await membership.save();
                     console.log(`⏳ 3-day reminder email & WhatsApp sent to ${membership.userEmail}`);

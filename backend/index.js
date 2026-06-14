@@ -23,7 +23,7 @@ const socket = require('./socket');
 const { startMembershipReminderCron } = require('./cron/membershipReminder');
 const { startPaymentMonitorCron } = require('./cron/paymentMonitor');
 const whatsappService = require('./services/whatsappService');
-
+require('./services/notificationEngine'); // Initialize event listeners
 // Models (for public routes and admin triggers)
 const User = require('./models/User');
 const Membership = require('./models/Membership');
@@ -332,14 +332,21 @@ app.post('/api/admin/confirm-payment', protect, async (req, res) => {
             endDate,
         }).catch(console.error);
 
-        whatsappService.sendPaymentConfirmation({
-            name: user.name,
-            email: user.email,
-            packageName,
-            amountPaid,
-            startDate,
-            endDate,
-        }).catch(console.error);
+        // Format the dates as strings for the payload
+        const startStr = startDate ? new Date(startDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
+        const endStr = endDate ? new Date(endDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
+
+        const notificationEmitter = require('./events/notificationEmitter');
+        notificationEmitter.emit('payment_confirmed', {
+            user,
+            paymentData: {
+                planName: packageName,
+                amount: amountPaid,
+                startDate: startStr,
+                endDate: endStr
+            },
+            documentUrl: null
+        });
 
         socket.getIO().emit('db_changed');
         res.json({ success: true, membership });

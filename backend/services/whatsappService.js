@@ -21,69 +21,68 @@ async function sendWhatsAppTemplate(to, templateName, components = []) {
         return;
     }
 
-    try {
-        // Format the number: remove +, space, dashes
-        let formattedNumber = to.replace(/\D/g, '');
-        
-        // Strip leading zero for Indian numbers if someone typed 09876543210
-        if (formattedNumber.startsWith('0') && formattedNumber.length === 11) {
-            formattedNumber = formattedNumber.substring(1);
-        }
-        
-        // Auto-prefix Indian country code '91' if missing (assume 10 digits without it)
-        if (formattedNumber.length === 10) {
-            formattedNumber = '91' + formattedNumber;
-        }
-
-        const payload = {
-            messaging_product: 'whatsapp',
-            to: formattedNumber,
-            type: 'template',
-            template: {
-                name: templateName,
-                language: {
-                    code: 'en' // Matches 'en' in testWhatsapp.js
-                },
-                components: components
-            }
-        };
-
-        console.log("\n========== WHATSAPP DEBUG ==========");
-        console.log("Template:", templateName);
-        console.log("Phone:", formattedNumber);
-        console.log("Payload:", JSON.stringify(payload, null, 2));
-        console.log("Sending request...");
-        console.log("====================================");
-
-        const response = await fetch(`${WHATSAPP_API_URL}/${phoneId}/messages`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload)
-        });
-
-        const data = await response.json();
-        
-        console.log("\n========== WHATSAPP RESPONSE ==========");
-        console.log("Status:", response.status);
-        console.log("Response:", JSON.stringify(data, null, 2));
-        console.log("=======================================\n");
-
-        if (data.error) {
-            console.error('❌ WhatsApp API Error for template', templateName, ':', data.error.message);
-            if (data.error.error_data) {
-                console.error('   Details:', JSON.stringify(data.error.error_data));
-            }
-        } else {
-            console.log(`✅ WhatsApp ${templateName} sent successfully to ${formattedNumber}`);
-        }
-    } catch (err) {
-        console.error("\n========== WHATSAPP FATAL ERROR ==========");
-        console.error(err.message);
-        console.error("==========================================\n");
+    // Format the number: remove +, space, dashes
+    let formattedNumber = to.replace(/\D/g, '');
+    
+    // Strip leading zero for Indian numbers if someone typed 09876543210
+    if (formattedNumber.startsWith('0') && formattedNumber.length === 11) {
+        formattedNumber = formattedNumber.substring(1);
     }
+    
+    // Auto-prefix Indian country code '91' if missing (assume 10 digits without it)
+    if (formattedNumber.length === 10) {
+        formattedNumber = '91' + formattedNumber;
+    }
+
+    const payload = {
+        messaging_product: 'whatsapp',
+        to: formattedNumber,
+        type: 'template',
+        template: {
+            name: templateName,
+            language: {
+                code: 'en' // Matches 'en' in testWhatsapp.js
+            },
+            components: components
+        }
+    };
+
+    console.log(`\n[WHATSAPP] Sending ${templateName} to ${formattedNumber}...`);
+
+    const response = await fetch(`${WHATSAPP_API_URL}/${phoneId}/messages`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+
+    if (data.error) {
+        const errMsg = data.error.message || 'Unknown Meta API Error';
+        const fbtraceId = data.error.fbtrace_id || 'unknown';
+        const errorObj = new Error(`WhatsApp API Error: ${errMsg}`);
+        errorObj.metaError = data.error;
+        errorObj.fbtraceId = fbtraceId;
+        throw errorObj;
+    }
+    
+    if (!response.ok) {
+        throw new Error(`HTTP Error ${response.status}: ${JSON.stringify(data)}`);
+    }
+
+    // data.messages[0].id contains the wamid
+    const messageId = data.messages && data.messages.length > 0 ? data.messages[0].id : null;
+    console.log(`[WHATSAPP] ✅ ${templateName} sent successfully to ${formattedNumber} (Message ID: ${messageId})`);
+    
+    return {
+        success: true,
+        messageId: messageId,
+        formattedNumber: formattedNumber,
+        payload: payload
+    };
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -114,7 +113,7 @@ exports.sendPaymentPendingMessage = async (user, paymentData, documentUrl) => {
         }
     ];
 
-    await sendWhatsAppTemplate(user.phone, 'cash_payment_request_template', components);
+    return await sendWhatsAppTemplate(user.phone, 'cash_payment_request_template', components);
 };
 
 exports.sendUpiPaymentPendingUser = async ({ userName, email, planName, planPrice, transactionId }) => {
@@ -123,7 +122,7 @@ exports.sendUpiPaymentPendingUser = async ({ userName, email, planName, planPric
     if (!user || !user.phone) return;
 
     // Template: upi_payment_pending_template | Header: LOCATION | Body: 2 vars (name, txnId)
-    await sendWhatsAppTemplate(user.phone, 'upi_payment_pending_template', [
+    return await sendWhatsAppTemplate(user.phone, 'upi_payment_pending_template', [
         {
             type: 'header',
             parameters: [
@@ -177,12 +176,12 @@ exports.sendPaymentConfirmedMessage = async (user, paymentData, documentUrl) => 
         templateName = 'payment_receipt_template_fallback';
     }
 
-    await sendWhatsAppTemplate(user.phone, templateName, components);
+    return await sendWhatsAppTemplate(user.phone, templateName, components);
 };
 exports.sendWelcomeMessage = async (user) => {
     if (!user || !user.phone) return;
 
-    await sendWhatsAppTemplate(user.phone, 'welcome_message_template', [
+    return await sendWhatsAppTemplate(user.phone, 'welcome_message_template', [
         {
             type: 'header',
             parameters: [
@@ -213,7 +212,7 @@ exports.sendExpiryReminder = async ({ name, email, planName, daysLeft }) => {
     if (!user || !user.phone) return;
 
     // Template: membership_expiry_reminder_template | Header: LOCATION | Body: 3 vars (name, plan, days)
-    await sendWhatsAppTemplate(user.phone, 'membership_expiry_reminder_template', [
+    return await sendWhatsAppTemplate(user.phone, 'membership_expiry_reminder_template', [
         {
             type: 'header',
             parameters: [
@@ -245,7 +244,7 @@ exports.sendOverdueReminder = async ({ name, email, planName }) => {
     if (!user || !user.phone) return;
 
     // Template: membership_overdue_reminder_template | Header: LOCATION | Body: 2 vars (name, plan)
-    await sendWhatsAppTemplate(user.phone, 'membership_overdue_reminder_template', [
+    return await sendWhatsAppTemplate(user.phone, 'membership_overdue_reminder_template', [
         {
             type: 'header',
             parameters: [
@@ -275,7 +274,7 @@ exports.sendExpiredAlert = async ({ name, email, planName }) => {
     const user = await User.findOne({ email: new RegExp(`^${email}$`, 'i') });
     if (!user || !user.phone) return;
 
-    await sendWhatsAppTemplate(user.phone, 'membership_expired_template', [
+    return await sendWhatsAppTemplate(user.phone, 'membership_expired_template', [
         {
             type: 'header',
             parameters: [

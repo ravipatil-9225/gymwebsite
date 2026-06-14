@@ -6,6 +6,7 @@ const User = require('../models/User');
 const Membership = require('../models/Membership');
 const emailService = require('../services/emailService');
 const whatsappService = require('../services/whatsappService');
+const notificationEmitter = require('../events/notificationEmitter');
 const { compressPaymentScreenshot, uploadToCloudinary } = require('../utils/imageHandler');
 
 // Helper: parse price string like "1,200" → 1200
@@ -168,7 +169,7 @@ exports.verifyAndUpload = async (req, res) => {
                     console.error('Failed to generate pending PDF, continuing...', pdfErr.message);
                 }
                 
-                whatsappService.sendPaymentPendingMessage(user, { planName: actualPlanName, amount: numericPrice }, secureUrl).catch(console.error);
+                notificationEmitter.emit('cash_payment_request', { user, paymentData: { planName: actualPlanName, amount: numericPrice }, documentUrl: secureUrl });
             }
 
             emailService.sendCashPaymentPendingOwner({ userName, email, planName: actualPlanName, planPrice: numericPrice }).catch(console.error);
@@ -334,12 +335,16 @@ exports.verifyAndUpload = async (req, res) => {
             const startStr = startDate ? new Date(startDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
             const endStr = endDate ? new Date(endDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
 
-            whatsappService.sendPaymentConfirmedMessage(user, {
-                planName: actualPlanName,
-                amount: numericPrice,
-                startDate: startStr,
-                endDate: endStr
-            }, secureUrl).catch(console.error);
+            notificationEmitter.emit('payment_confirmed', {
+                user,
+                paymentData: {
+                    planName: actualPlanName,
+                    amount: numericPrice,
+                    startDate: startStr,
+                    endDate: endStr
+                },
+                documentUrl: secureUrl
+            });
             
             emailService.sendPaymentApprovedOwner({ userName: user.name, email: user.email, planName: actualPlanName, planPrice: numericPrice, paymentMethod: 'upi', startDate, endDate }).catch(console.error);
         }

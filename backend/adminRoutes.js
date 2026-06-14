@@ -293,7 +293,8 @@ router.post('/users', async (req, res) => {
         const newUser = new User({ name, email, phone, dob, password, role: role || 'user' });
         await newUser.save();
 
-        whatsappService.sendWelcomeMessage(newUser).catch(console.error);
+        const notificationEmitter = require('./events/notificationEmitter');
+        notificationEmitter.emit('user_registered', { user: newUser });
 
         res.status(201).json({ message: "User created successfully", user: { _id: newUser._id, name, email, role } });
         socket.getIO().emit('db_changed');
@@ -972,12 +973,17 @@ router.put('/payments/:id', async (req, res) => {
                 const startStr = startDate ? new Date(startDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
                 const endStr = endDate ? new Date(endDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
 
-                whatsappService.sendPaymentConfirmedMessage(user, {
-                    planName: payment.planName,
-                    amount: payment.planPrice,
-                    startDate: startStr,
-                    endDate: endStr
-                }, secureUrl).catch(console.error);
+                const notificationEmitter = require('./events/notificationEmitter');
+                notificationEmitter.emit('payment_confirmed', {
+                    user,
+                    paymentData: {
+                        planName: payment.planName,
+                        amount: payment.planPrice,
+                        startDate: startStr,
+                        endDate: endStr
+                    },
+                    documentUrl: secureUrl
+                });
 
                 // Send approval alert to owner
                 emailService.sendPaymentApprovedOwner({
@@ -1068,6 +1074,71 @@ router.delete('/transformations/:id', async (req, res) => {
         socket.getIO().emit('db_changed');
     } catch (err) {
         res.status(500).json({ message: 'Error deleting transformation' });
+    }
+});
+
+// ==========================================
+// NOTIFICATIONS MANAGEMENT
+// ==========================================
+const NotificationLog = require('./models/NotificationLog');
+const notificationEngine = require('./services/notificationEngine');
+const whatsappService = require('./services/whatsappService');
+
+router.get('/notifications', async (req, res) => {
+    try {
+        const logs = await NotificationLog.find().sort({ createdAt: -1 }).populate('userId', 'name email');
+        res.json(logs);
+    } catch (err) {
+        console.error('Error fetching notification logs:', err);
+        res.status(500).json({ message: 'Error fetching notification logs' });
+    }
+});
+
+router.post('/notifications/:id/retry', async (req, res) => {
+    try {
+        const log = await NotificationLog.findById(req.params.id).populate('userId');
+        if (!log) return res.status(404).json({ message: 'Log not found' });
+        
+        // Push back into the engine using executeWithRetry, simulating a fresh attempt
+        // We will need to map the eventType back to the service call.
+        // It's cleaner to let the engine handle it, but executeWithRetry expects a function.
+        // So we will recreate the function based on eventType.
+
+        let fn;
+        const user = log.userId;
+        const data = log.payload;
+
+        switch(log.eventType) {
+            case 'payment_confirmed':
+                fn = async () => await whatsappService.sendPaymentConfirmedMessage(user, data, data.documentUrl);
+                break;
+            case 'cash_payment_request':
+                fn = async () => await whatsappService.sendPaymentPendingMessage(user, data, data.documentUrl);
+                break;
+            case 'upi_payment_pending':
+                fn = async () => await whatsappService.sendUpiPaymentPendingUser(data);
+                break;
+            case 'user_registered':
+                fn = async () => await whatsappService.sendWelcomeMessage(user);
+                break;
+            case 'membership_expiry_reminder':
+                fn = async () => await whatsappService.sendExpiryReminder(data);
+                break;
+            case 'membership_overdue_reminder':
+                fn = async () => await whatsappService.sendOverdueReminder(data);
+                break;
+            case 'membership_expired':
+                fn = async () => await whatsappService.sendExpiredAlert(data);
+                break;
+            default:
+                return res.status(400).json({ message: 'Unknown event type for retry' });
+        }
+
+        notificationEngine.executeWithRetry(log._id, fn); // runs in background
+        res.json({ message: 'Retry initiated in the background' });
+    } catch (err) {
+        console.error('Error retrying notification:', err);
+        res.status(500).json({ message: 'Error retrying notification' });
     }
 });
 

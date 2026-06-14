@@ -3,7 +3,8 @@ const router = express.Router();
 const User = require('../models/User');
 const Payment = require('../models/Payment');
 const FormSubmission = require('../models/FormSubmission');
-const whatsappService = require('../services/whatsappService');
+const notificationEmitter = require('../events/notificationEmitter');
+const NotificationLog = require('../models/NotificationLog');
 
 // ──────────────────────────────────────────────────────────────
 // WhatsApp Cloud API Webhook
@@ -120,17 +121,20 @@ router.post('/', (req, res) => {
                                             } catch (pdfErr) {
                                                 console.error('Failed to generate pending PDF for webhook, continuing...', pdfErr.message);
                                             }
-                                            await whatsappService.sendPaymentPendingMessage(user, { planName, amount: planPrice }, secureUrl);
+                                            notificationEmitter.emit('cash_payment_request', { user, paymentData: { planName, amount: planPrice }, documentUrl: secureUrl });
                                         } else if (textLower.includes('upi') || textLower.includes('qr')) {
-                                            await whatsappService.sendUpiPaymentPendingUser({
-                                                userName: user.name,
-                                                email: user.email,
-                                                planName,
-                                                planPrice,
-                                                transactionId
+                                            notificationEmitter.emit('upi_payment_pending', {
+                                                user,
+                                                paymentData: {
+                                                    userName: user.name,
+                                                    email: user.email,
+                                                    planName,
+                                                    planPrice,
+                                                    transactionId
+                                                }
                                             });
                                         } else if (textLower.includes('activate my account') || textLower.includes('register')) {
-                                            await whatsappService.sendWelcomeMessage(user);
+                                            notificationEmitter.emit('user_registered', { user });
                                         } else {
                                             console.log(`📩 Unmatched text message from ${from}: ${messageText}`);
                                         }
@@ -147,8 +151,18 @@ router.post('/', (req, res) => {
 
                 // ── Message Status Updates (sent, delivered, read) ──
                 if (value.statuses) {
-                    value.statuses.forEach(status => {
-                        console.log(`📊 WhatsApp status: Message to ${status.recipient_id} → ${status.status}`);
+                    value.statuses.forEach(async (status) => {
+                        console.log(`📊 WhatsApp status: Message to ${status.recipient_id} → ${status.status} (ID: ${status.id})`);
+                        try {
+                            if (status.id) {
+                                await NotificationLog.findOneAndUpdate(
+                                    { messageId: status.id },
+                                    { status: status.status }
+                                );
+                            }
+                        } catch (err) {
+                            console.error('Error updating notification log:', err);
+                        }
                     });
                 }
             });
