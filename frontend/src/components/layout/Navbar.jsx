@@ -10,7 +10,6 @@ const navItems = [
     { title: 'PACKAGES', path: '/packages' },
     { title: 'TRAINERS', path: '/trainers' },
     { title: 'MEDIA', path: '/media' },
-    { title: 'WHATSAPP', path: 'whatsapp', isExternal: true },
     { title: 'CONTACT', path: '/contact' },
     { title: 'PORTAL', path: '/portal' },
     { title: 'SMARTNUTRITION HUB', path: '/smart-nutrition' },
