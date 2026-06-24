@@ -65,7 +65,7 @@ const Navbar = () => {
                     {!isAuthPage && (
                         <div className="hidden xl:flex items-center gap-1">
                             {navItems.map((item) => {
-                                if (item.path === '/smart-nutrition' && user?.role !== 'admin') return null;
+                                if (item.path === '/smart-nutrition' && user?.role !== 'admin' && !adminUser) return null;
                                 if (item.isExternal) {
                                     return (
                                         <a
