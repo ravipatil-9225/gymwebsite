@@ -158,25 +158,11 @@ exports.verifyAndUpload = async (req, res) => {
                 try {
                     const user = await User.findOne({ email });
                     if (user && user.phone) {
-                        let secureUrl = null;
-                        try {
-                            const { generateAndUploadReceipt } = require('../services/generateReceiptPDF');
-                            secureUrl = await generateAndUploadReceipt({
-                                userId: user._id.toString(),
-                                paymentId: newPayment._id.toString(),
-                                userName: user.name,
-                                planName: actualPlanName,
-                                amount: numericPrice,
-                                paymentDate: new Date(),
-                                paymentMethod: 'Cash'
-                            }, 'pending');
-                        } catch (pdfErr) {
-                            console.error('[BG] Failed to generate pending PDF:', pdfErr.message);
-                        }
+                        // No PDF needed — cash_payment_request_template sends text-only
                         notificationEmitter.emit('cash_payment_request', {
                             user,
                             paymentData: { planName: actualPlanName, amount: numericPrice },
-                            documentUrl: secureUrl
+                            documentUrl: null
                         });
                     }
                 } catch (bgErr) {

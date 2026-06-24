@@ -72,7 +72,9 @@ async function sendWhatsAppTemplate(to, templateName, components = []) {
 /**
  * cash_payment_request_template
  * Sent to user when they choose "Cash on Bench" — asks them to bring cash.
- * Header: document (PDF), Body: {{1}}=name, {{2}}=planName, {{3}}=amount
+ * Body only: {{1}}=name, {{2}}=planName, {{3}}=amount
+ * NOTE: We intentionally skip the document header — PDFs are unreliable at request time
+ * and cause Meta API #132012 errors when the URL is unavailable. Text-only is stable.
  */
 exports.sendPaymentPendingMessage = async (user, paymentData, documentUrl) => {
     if (!user || !user.phone) {
@@ -80,35 +82,8 @@ exports.sendPaymentPendingMessage = async (user, paymentData, documentUrl) => {
         return null;
     }
 
-    // If no PDF available, skip the document header and use the fallback text-only variant
-    // cash_payment_request_template has a required document header; use fallback if no URL
-    if (!documentUrl) {
-        console.warn('[WHATSAPP] sendPaymentPendingMessage: no documentUrl — sending text-only body only.');
-        return await sendWhatsAppTemplate(user.phone, 'cash_payment_request_template', [
-            {
-                type: 'body',
-                parameters: [
-                    { type: 'text', text: String(user.name || 'Member') },
-                    { type: 'text', text: String(paymentData.planName || 'Plan') },
-                    { type: 'text', text: String(paymentData.amount || '0').replace(/[^0-9.]/g, '') }
-                ]
-            }
-        ]);
-    }
-
+    console.log('[WHATSAPP] sendPaymentPendingMessage: sending text-only cash request notification.');
     return await sendWhatsAppTemplate(user.phone, 'cash_payment_request_template', [
-        {
-            type: 'header',
-            parameters: [
-                {
-                    type: 'document',
-                    document: {
-                        link: documentUrl,
-                        filename: `Payment_Pending_${String(user.name).replace(/\s+/g, '_')}.pdf`
-                    }
-                }
-            ]
-        },
         {
             type: 'body',
             parameters: [

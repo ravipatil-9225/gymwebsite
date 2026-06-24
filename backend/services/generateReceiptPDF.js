@@ -231,15 +231,15 @@ const generateAndUploadReceipt = async (paymentData, type) => {
             browser = await getBrowser();
             const page = await browser.newPage();
             
-            page.setDefaultNavigationTimeout(8000);
-            page.setDefaultTimeout(8000);
+            page.setDefaultNavigationTimeout(30000);
+            page.setDefaultTimeout(30000);
             
-            await page.setContent(html, { waitUntil: 'networkidle0', timeout: 8000 });
+            await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
             
             const pdfBuffer = await page.pdf({
                 format: 'A4',
                 printBackground: true,
-                timeout: 8000
+                timeout: 30000
             });
             
             await page.close();
@@ -248,9 +248,9 @@ const generateAndUploadReceipt = async (paymentData, type) => {
             return pdfBuffer;
         })();
 
-        // Race browser execution against a 12s timeout
+        // Race browser execution against a 45s timeout
         const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('PDF generation/rendering timed out')), 12000)
+            setTimeout(() => reject(new Error('PDF generation/rendering timed out')), 45000)
         );
 
         const pdfBuffer = await Promise.race([generatePromise, timeoutPromise]);

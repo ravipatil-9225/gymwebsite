@@ -4,10 +4,25 @@
  * Binds to notificationEmitter events and calls whatsappService directly.
  * Each event handler is fully awaited inside its own async scope.
  * Errors are caught and logged — the server never crashes.
+ * 
+ * Also exports executeWithRetry() for the admin retry endpoint.
  */
 
 const notificationEmitter = require('../events/notificationEmitter');
 const whatsappService = require('./whatsappService');
+
+// ── executeWithRetry ────────────────────────────────────────────────────────
+// Wraps a single WhatsApp service call. Runs async in background.
+// Called by adminRoutes retry endpoint.
+async function executeWithRetry(logId, fn) {
+    try {
+        console.log(`[ENGINE] executeWithRetry — attempting logId: ${logId}`);
+        await fn();
+        console.log(`[ENGINE] executeWithRetry — success for logId: ${logId}`);
+    } catch (err) {
+        console.error(`[ENGINE] executeWithRetry — failed for logId: ${logId}:`, err.message);
+    }
+}
 
 function setupListeners() {
 
@@ -86,5 +101,4 @@ function setupListeners() {
 
 setupListeners();
 
-// Export a no-op — the module's side-effect (registering listeners) is what matters
-module.exports = {};
+module.exports = { executeWithRetry };

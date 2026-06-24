@@ -90,7 +90,12 @@ const send = async (to, subject, html) => {
                 from: fromEmail,
                 to,
                 subject,
-                html
+                html,
+                headers: {
+                    'X-Priority': '1',
+                    'Importance': 'high',
+                    'X-Mailer': 'Tara Fitness Centre Mailer'
+                }
             });
             console.log(`✉️  Email sent via Gmail SMTP to ${to} | ${subject} (id: ${info.messageId})`);
             return true;
@@ -128,7 +133,7 @@ const send = async (to, subject, html) => {
             console.log(`✉️  Email sent via Resend to ${to} | ${subject}`);
             return true;
         } else {
-            console.error(`❌ Email failed to ${to} via Resend:`, data);
+            console.error(`❌ Email failed to ${to} via Resend:`, JSON.stringify(data));
             return false;
         }
     } catch (err) {

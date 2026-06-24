@@ -106,22 +106,8 @@ router.post('/', (req, res) => {
                                         }
 
                                         if (textLower.includes('pay by cash') || textLower.includes('cash payment')) {
-                                            let secureUrl = null;
-                                            try {
-                                                const { generateAndUploadReceipt } = require('../services/generateReceiptPDF');
-                                                secureUrl = await generateAndUploadReceipt({
-                                                    userId: user._id.toString(),
-                                                    paymentId: recentPayment ? recentPayment._id.toString() : '',
-                                                    userName: user.name,
-                                                    planName,
-                                                    amount: planPrice,
-                                                    paymentDate: new Date(),
-                                                    paymentMethod: 'Cash'
-                                                }, 'pending');
-                                            } catch (pdfErr) {
-                                                console.error('Failed to generate pending PDF for webhook, continuing...', pdfErr.message);
-                                            }
-                                            notificationEmitter.emit('cash_payment_request', { user, paymentData: { planName, amount: planPrice }, documentUrl: secureUrl });
+                                            // No PDF needed — cash_payment_request_template sends text-only
+                                            notificationEmitter.emit('cash_payment_request', { user, paymentData: { planName, amount: planPrice }, documentUrl: null });
                                         } else if (textLower.includes('upi') || textLower.includes('qr')) {
                                             notificationEmitter.emit('upi_payment_pending', {
                                                 user,
