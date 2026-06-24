@@ -3,8 +3,6 @@
  * Tara Fitness Centre | All email templates and send functions
  */
 
-const { createTransporter } = require('../config/mailer');
-
 // ─── SHARED TEMPLATE HELPERS ───────────────────────────────────────────────
 
 const primaryColor = '#E34A29';
