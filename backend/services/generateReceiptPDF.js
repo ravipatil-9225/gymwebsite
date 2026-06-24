@@ -207,15 +207,24 @@ const getReceiptHTML = (data, type) => {
     `;
 };
 
-const verifyUrl = async (url, retries = 3) => {
+const verifyUrl = async (url, retries = 10) => {
+    // Cloudinary CDN needs a few seconds to propagate after upload
+    // Give it an initial 5-second head start before the first check
+    console.log('⏳ Waiting 5s for Cloudinary CDN propagation before verifying URL...');
+    await new Promise(res => setTimeout(res, 5000));
+
     for (let i = 0; i < retries; i++) {
         try {
             const response = await fetch(url, { method: 'HEAD' });
-            if (response.ok) return true;
+            if (response.ok) {
+                console.log(`✅ Cloudinary URL accessible after ${i + 1} attempt(s).`);
+                return true;
+            }
+            console.log(`⏳ URL not accessible yet (attempt ${i + 1}/${retries}), status: ${response.status}. Retrying in 3s...`);
         } catch (err) {
-            console.error('Error verifying Cloudinary URL:', err);
+            console.log(`⏳ URL check error (attempt ${i + 1}/${retries}): ${err.message}. Retrying in 3s...`);
         }
-        await new Promise(res => setTimeout(res, 1000));
+        await new Promise(res => setTimeout(res, 3000));
     }
     return false;
 };
@@ -276,13 +285,17 @@ const generateAndUploadReceipt = async (paymentData, type) => {
             uploadStream.end(pdfBuffer);
         });
 
-        console.log('Verifying uploaded PDF URL...', secureUrl);
-        const isValid = await verifyUrl(secureUrl, 5);
+        console.log('Verifying uploaded PDF URL accessibility...', secureUrl);
+        // Wait up to 35 seconds (5s initial + 10 × 3s) for CDN propagation
+        const isValid = await verifyUrl(secureUrl, 10);
         if (!isValid) {
-            console.warn("⚠️ Cloudinary URL not immediately accessible, but proceeding anyway. CDN might be delayed.");
+            // URL still not accessible after max wait — log error and throw
+            // so caller knows not to send this URL to WhatsApp (it will cause delivery failure)
+            console.error('❌ Cloudinary PDF URL is NOT accessible after 35s. Aborting to prevent WhatsApp delivery failure.');
+            throw new Error('Cloudinary PDF URL not publicly accessible after CDN propagation wait');
         }
 
-        console.log('✅ PDF successfully generated and uploaded:', secureUrl);
+        console.log('✅ PDF successfully generated, uploaded and verified:', secureUrl);
         return secureUrl;
         
     } catch (error) {

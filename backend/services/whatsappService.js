@@ -72,9 +72,11 @@ async function sendWhatsAppTemplate(to, templateName, components = []) {
 /**
  * cash_payment_request_template
  * Sent to user when they choose "Cash on Bench" — asks them to bring cash.
- * Body only: {{1}}=name, {{2}}=planName, {{3}}=amount
- * NOTE: We intentionally skip the document header — PDFs are unreliable at request time
- * and cause Meta API #132012 errors when the URL is unavailable. Text-only is stable.
+ * Header: document (PDF) when available, Body: {{1}}=name, {{2}}=planName, {{3}}=amount
+ * 
+ * The Meta template requires a document header. When documentUrl is null (PDF failed),
+ * we fall back to text-only — this may still fail delivery depending on template config,
+ * but avoids the #132012 error from sending an invalid/null document URL.
  */
 exports.sendPaymentPendingMessage = async (user, paymentData, documentUrl) => {
     if (!user || !user.phone) {
@@ -82,16 +84,36 @@ exports.sendPaymentPendingMessage = async (user, paymentData, documentUrl) => {
         return null;
     }
 
-    console.log('[WHATSAPP] sendPaymentPendingMessage: sending text-only cash request notification.');
+    const bodyParams = [
+        { type: 'text', text: String(user.name || 'Member') },
+        { type: 'text', text: String(paymentData.planName || 'Plan') },
+        { type: 'text', text: String(paymentData.amount || '0').replace(/[^0-9.]/g, '') }
+    ];
+
+    if (!documentUrl) {
+        // PDF unavailable — send text-only (body params only, no document header)
+        console.warn('[WHATSAPP] sendPaymentPendingMessage: no documentUrl — using text-only fallback.');
+        return await sendWhatsAppTemplate(user.phone, 'cash_payment_request_template', [
+            { type: 'body', parameters: bodyParams }
+        ]);
+    }
+
+    // Full send: document header + body parameters
+    console.log('[WHATSAPP] sendPaymentPendingMessage: sending with PDF document header.');
     return await sendWhatsAppTemplate(user.phone, 'cash_payment_request_template', [
         {
-            type: 'body',
+            type: 'header',
             parameters: [
-                { type: 'text', text: String(user.name || 'Member') },
-                { type: 'text', text: String(paymentData.planName || 'Plan') },
-                { type: 'text', text: String(paymentData.amount || '0').replace(/[^0-9.]/g, '') }
+                {
+                    type: 'document',
+                    document: {
+                        link: documentUrl,
+                        filename: `Payment_Pending_${String(user.name).replace(/\s+/g, '_')}.pdf`
+                    }
+                }
             ]
-        }
+        },
+        { type: 'body', parameters: bodyParams }
     ]);
 };
 

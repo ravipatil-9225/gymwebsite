@@ -1,5 +1,9 @@
 require('dotenv').config();
 
+// Force IPv4 DNS resolution — Render.com free tier cannot reach IPv6 addresses.
+// Without this, Gmail SMTP (smtp.gmail.com) resolves to IPv6 and fails with ENETUNREACH.
+require('dns').setDefaultResultOrder('ipv4first');
+
 // ── PROCESS-LEVEL SAFETY NET (Layer 3) ──
 // Catches errors that happen completely OUTSIDE of Express (e.g. background DB errors)
 process.on('unhandledRejection', (reason) => {

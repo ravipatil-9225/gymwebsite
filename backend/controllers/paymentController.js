@@ -158,11 +158,26 @@ exports.verifyAndUpload = async (req, res) => {
                 try {
                     const user = await User.findOne({ email });
                     if (user && user.phone) {
-                        // No PDF needed — cash_payment_request_template sends text-only
+                        let secureUrl = null;
+                        try {
+                            const { generateAndUploadReceipt } = require('../services/generateReceiptPDF');
+                            secureUrl = await generateAndUploadReceipt({
+                                userId: user._id.toString(),
+                                paymentId: newPayment._id.toString(),
+                                userName: user.name,
+                                planName: actualPlanName,
+                                amount: numericPrice,
+                                paymentDate: new Date(),
+                                paymentMethod: 'Cash'
+                            }, 'pending');
+                        } catch (pdfErr) {
+                            console.error('[BG] Failed to generate pending PDF:', pdfErr.message);
+                            // secureUrl stays null — WhatsApp will use text-only fallback
+                        }
                         notificationEmitter.emit('cash_payment_request', {
                             user,
                             paymentData: { planName: actualPlanName, amount: numericPrice },
-                            documentUrl: null
+                            documentUrl: secureUrl
                         });
                     }
                 } catch (bgErr) {
