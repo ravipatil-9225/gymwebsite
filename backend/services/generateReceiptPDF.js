@@ -221,23 +221,39 @@ const verifyUrl = async (url, retries = 3) => {
 };
 
 const generateAndUploadReceipt = async (paymentData, type) => {
+    let browser = null;
     try {
         console.log(`Generating ${type} PDF receipt for:`, paymentData.userId, paymentData.paymentId);
         
         const html = getReceiptHTML(paymentData, type);
         
-        const browser = await getBrowser();
-        const page = await browser.newPage();
-        
-        await page.setContent(html, { waitUntil: 'networkidle0' });
-        
-        const pdfBuffer = await page.pdf({
-            format: 'A4',
-            printBackground: true
-        });
-        
-        await page.close();
-        await browser.close();
+        const generatePromise = (async () => {
+            browser = await getBrowser();
+            const page = await browser.newPage();
+            
+            page.setDefaultNavigationTimeout(8000);
+            page.setDefaultTimeout(8000);
+            
+            await page.setContent(html, { waitUntil: 'networkidle0', timeout: 8000 });
+            
+            const pdfBuffer = await page.pdf({
+                format: 'A4',
+                printBackground: true,
+                timeout: 8000
+            });
+            
+            await page.close();
+            await browser.close();
+            browser = null; // Mark browser as closed/cleaned up
+            return pdfBuffer;
+        })();
+
+        // Race browser execution against a 12s timeout
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('PDF generation/rendering timed out')), 12000)
+        );
+
+        const pdfBuffer = await Promise.race([generatePromise, timeoutPromise]);
 
         const timestamp = Date.now();
         const filename = `receipt_${type}_${paymentData.userId || 'user'}_${paymentData.paymentId || 'payment'}_${timestamp}`;
@@ -271,6 +287,13 @@ const generateAndUploadReceipt = async (paymentData, type) => {
         
     } catch (error) {
         console.error('❌ Failed to generate or upload receipt PDF:', error);
+        if (browser) {
+            try {
+                await browser.close();
+            } catch (closeErr) {
+                console.error('Failed to close browser during cleanup:', closeErr.message);
+            }
+        }
         throw error;
     }
 };

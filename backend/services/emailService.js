@@ -78,9 +78,27 @@ const ctaButton = (text, url = '#') => `
 
 const statusBadge = (text, color = primaryColor) => `<span style="display:inline-block;background:${color};color:#fff;font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px;text-transform:uppercase;letter-spacing:1px;">${text}</span>`;
 
-// ─── CORE SEND FUNCTION ───────────────────────────────────────────────────
+const { createTransporter } = require('../config/mailer');
 
 const send = async (to, subject, html) => {
+    // Try Gmail SMTP via Nodemailer first
+    const transporter = createTransporter();
+    if (transporter) {
+        try {
+            const fromEmail = `"${process.env.EMAIL_FROM_NAME || 'Tara Fitness Centre'}" <${process.env.EMAIL_USER}>`;
+            const info = await transporter.sendMail({
+                from: fromEmail,
+                to,
+                subject,
+                html
+            });
+            console.log(`✉️  Email sent via Gmail SMTP to ${to} | ${subject} (id: ${info.messageId})`);
+            return true;
+        } catch (gmailErr) {
+            console.warn(`[EMAIL] Gmail SMTP failed, trying Resend API... Error: ${gmailErr.message}`);
+        }
+    }
+
     const resendApiKey = process.env.RESEND_API_KEY;
     if (!resendApiKey) {
         console.log(`[EMAIL SKIPPED - no Resend API Key] To: ${to} | Subject: ${subject}`);
@@ -107,10 +125,10 @@ const send = async (to, subject, html) => {
         const data = await response.json();
 
         if (response.ok) {
-            console.log(`✉️  Email sent to ${to} | ${subject}`);
+            console.log(`✉️  Email sent via Resend to ${to} | ${subject}`);
             return true;
         } else {
-            console.error(`❌ Email failed to ${to}:`, data);
+            console.error(`❌ Email failed to ${to} via Resend:`, data);
             return false;
         }
     } catch (err) {
