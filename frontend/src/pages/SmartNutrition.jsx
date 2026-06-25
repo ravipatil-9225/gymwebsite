@@ -476,20 +476,34 @@ const SmartNutrition = () => {
                                     {meta.safetyNotice && <p className="text-red-400/70 text-xs mt-3 max-w-lg mx-auto italic">{meta.safetyNotice}</p>}
                                 </div>
 
-                                {/* Macros */}
+                                {/* Macros — horizontal table row (PDF-safe) */}
                                 {Object.keys(macros).length > 0 && (
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                        {[
-                                            { label: 'KCAL', value: macros.daily_calories, color: 'text-primary' },
-                                            { label: 'PROTEIN', value: `${macros.protein_g || 0}g`, color: 'text-blue-400' },
-                                            { label: 'CARBS', value: `${macros.carbs_g || 0}g`, color: 'text-green-400' },
-                                            { label: 'FATS', value: `${macros.fat_g || 0}g`, color: 'text-yellow-400' },
-                                        ].map(m => (
-                                            <div key={m.label} className="bg-white/5 p-4 rounded-xl border border-white/10 text-center">
-                                                <div className={`text-2xl font-black ${m.color}`}>{m.value}</div>
-                                                <div className="text-[10px] text-white/50 uppercase tracking-widest mt-1">{m.label}</div>
-                                            </div>
-                                        ))}
+                                    <div>
+                                        <h3 className="text-xl font-bold font-display uppercase tracking-wider mb-4 flex items-center gap-2">
+                                            <Activity className="text-primary" size={20} /> Daily Macro Targets
+                                        </h3>
+                                        <div className="w-full overflow-x-auto">
+                                            <table className="w-full text-center text-sm border-collapse">
+                                                <thead>
+                                                    <tr className="text-[10px] uppercase text-white/30 border-b border-white/10">
+                                                        <th className="pb-2 font-medium">Calories</th>
+                                                        <th className="pb-2 font-medium">Protein</th>
+                                                        <th className="pb-2 font-medium">Carbs</th>
+                                                        <th className="pb-2 font-medium">Fats</th>
+                                                        {macros.fiber_g ? <th className="pb-2 font-medium">Fiber</th> : null}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr className="border-t border-white/5">
+                                                        <td className="py-3 text-2xl font-black text-primary">{macros.daily_calories} <span className="text-xs font-normal text-white/40">kcal</span></td>
+                                                        <td className="py-3 text-2xl font-black text-blue-400">{macros.protein_g || 0}<span className="text-xs font-normal text-white/40">g</span></td>
+                                                        <td className="py-3 text-2xl font-black text-green-400">{macros.carbs_g || 0}<span className="text-xs font-normal text-white/40">g</span></td>
+                                                        <td className="py-3 text-2xl font-black text-yellow-400">{macros.fat_g || 0}<span className="text-xs font-normal text-white/40">g</span></td>
+                                                        {macros.fiber_g ? <td className="py-3 text-2xl font-black text-purple-400">{macros.fiber_g}<span className="text-xs font-normal text-white/40">g</span></td> : null}
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 )}
 
