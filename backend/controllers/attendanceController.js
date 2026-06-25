@@ -12,10 +12,11 @@ function todayIST() {
     return ist.toISOString().slice(0, 10);
 }
 
-/** Emit attendance_update event to all connected clients */
-function broadcastUpdate(date) {
+/** Emit attendance_update with full record payload for instant client-side sync */
+function broadcastUpdate(payload) {
     try {
-        socket.getIO().emit('attendance_update', { date });
+        // payload: { date, record?, action, isBulk? }
+        socket.getIO().emit('attendance_update', payload);
     } catch (_) { /* socket not ready */ }
 }
 
@@ -48,7 +49,21 @@ const selfCheckIn = async (req, res) => {
             markedBy:    'self'
         });
 
-        broadcastUpdate(date);
+        broadcastUpdate({
+            date,
+            action: 'mark',
+            record: {
+                userId:      record.userId.toString(),
+                userName:    record.userName,
+                userEmail:   record.userEmail,
+                batchTime:   record.batchTime,
+                status:      record.status,
+                checkInTime: record.checkInTime,
+                markedBy:    record.markedBy,
+                date:        record.date,
+                _id:         record._id.toString()
+            }
+        });
         res.status(201).json({ alreadyCheckedIn: false, record });
     } catch (err) {
         if (err.code === 11000) {
@@ -179,7 +194,21 @@ const adminMarkAttendance = async (req, res) => {
             { upsert: true, new: true, setDefaultsOnInsert: true }
         );
 
-        broadcastUpdate(date);
+        broadcastUpdate({
+            date,
+            action: 'mark',
+            record: {
+                userId:      record.userId.toString(),
+                userName:    record.userName,
+                userEmail:   record.userEmail,
+                batchTime:   record.batchTime,
+                status:      record.status,
+                checkInTime: record.checkInTime,
+                markedBy:    record.markedBy,
+                date:        record.date,
+                _id:         record._id.toString()
+            }
+        });
         res.json({ success: true, record });
     } catch (err) {
         console.error('adminMarkAttendance error:', err.message);
@@ -221,7 +250,7 @@ const adminBulkMark = async (req, res) => {
         }));
 
         await Attendance.bulkWrite(ops);
-        broadcastUpdate(date);
+        broadcastUpdate({ date, action: 'bulk', status, isBulk: true });
         res.json({ success: true, count: users.length, date, status });
     } catch (err) {
         console.error('adminBulkMark error:', err.message);
@@ -287,7 +316,11 @@ const deleteRecord = async (req, res) => {
     try {
         const record = await Attendance.findByIdAndDelete(req.params.id);
         if (!record) return res.status(404).json({ message: 'Record not found' });
-        broadcastUpdate(record.date);
+        broadcastUpdate({
+            date:   record.date,
+            action: 'delete',
+            record: { userId: record.userId.toString(), date: record.date, _id: record._id.toString() }
+        });
         res.json({ success: true });
     } catch (err) {
         console.error('deleteRecord error:', err.message);
