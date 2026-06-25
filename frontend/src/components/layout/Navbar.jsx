@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { Menu, X, Zap } from 'lucide-react';
+import { Menu, X, Zap, ClipboardCheck } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -14,6 +14,7 @@ const navItems = [
     { title: 'PORTAL', path: '/portal' },
     { title: 'SMARTNUTRITION HUB', path: '/smart-nutrition' },
     { title: 'SETTINGS', path: '/settings' },
+    { title: 'ATTENDANCE', path: '/dashboard', hash: '#attendance', userOnly: true },
 ];
 
 const Navbar = () => {
@@ -65,6 +66,26 @@ const Navbar = () => {
                         <div className="hidden xl:flex items-center gap-1">
                             {navItems.map((item) => {
                                 if (item.path === '/smart-nutrition' && user?.role !== 'admin' && !adminUser) return null;
+                                // Attendance pill — only for logged-in regular users
+                                if (item.userOnly) {
+                                    if (!user) return null;
+                                    const isActive = location.pathname === '/dashboard';
+                                    return (
+                                        <Link
+                                            key="attendance-pill"
+                                            to="/dashboard"
+                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border font-bold text-[10px] tracking-[0.12em] uppercase transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 ml-1 ${
+                                                isActive
+                                                    ? 'bg-primary text-white border-primary shadow-[0_0_12px_rgba(227,74,41,0.4)]'
+                                                    : 'bg-primary/10 text-primary border-primary/30 hover:bg-primary hover:text-white hover:shadow-[0_0_12px_rgba(227,74,41,0.4)]'
+                                            }`}
+                                            title="My Attendance"
+                                        >
+                                            <ClipboardCheck size={11} />
+                                            ATTENDANCE
+                                        </Link>
+                                    );
+                                }
                                 if (item.isExternal) {
                                     return (
                                         <a
@@ -153,6 +174,31 @@ const Navbar = () => {
                         <div className="px-4 py-6 space-y-1">
                              {navItems.map((item, index) => {
                                 if (item.path === '/smart-nutrition' && user?.role !== 'admin' && !adminUser) return null;
+                                // Attendance pill — mobile
+                                if (item.userOnly) {
+                                    if (!user) return null;
+                                    const isActive = location.pathname === '/dashboard';
+                                    return (
+                                        <motion.div
+                                            key="attendance-mobile"
+                                            initial={{ opacity: 0, x: -20 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{ delay: index * 0.05 }}
+                                        >
+                                            <Link
+                                                to="/dashboard"
+                                                className={`flex items-center gap-3 px-4 py-3 rounded-xl font-display text-sm tracking-wider border transition-all ${
+                                                    isActive
+                                                        ? 'bg-primary/15 text-primary border-primary/30'
+                                                        : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20'
+                                                }`}
+                                            >
+                                                <ClipboardCheck size={16} />
+                                                ATTENDANCE
+                                            </Link>
+                                        </motion.div>
+                                    );
+                                }
                                 if (item.isExternal) {
                                     return (
                                         <motion.div
