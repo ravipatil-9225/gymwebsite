@@ -506,25 +506,51 @@ const SmartNutrition = () => {
                                                         <h4 className="font-bold text-lg text-primary">{day.day} — {day.date_label}</h4>
                                                         <span className="text-xs text-white/50">{day.total_calories || '--'} kcal</span>
                                                     </div>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
-                                                        {Object.entries(day.meals || {}).map(([mealName, meal]) => (
-                                                            <div key={mealName} className="space-y-2">
-                                                                <h5 className="text-[11px] font-black uppercase text-white/40 tracking-widest">
-                                                                    {mealName.replace(/([A-Z])/g, ' $1').trim()} <span className="font-normal opacity-60">({meal?.time || ''})</span>
-                                                                </h5>
-                                                                <ul className="text-sm space-y-1">
-                                                                    {(meal?.items || []).map((item, i) => (
-                                                                        <li key={i} className="flex justify-between text-white/80 gap-2">
-                                                                            <span>{item.quantity} {item.unit} {item.name}</span>
-                                                                            <span className="text-xs text-white/40 shrink-0">{item.calories} kcal</span>
-                                                                        </li>
-                                                                    ))}
-                                                                    {(!meal?.items || meal.items.length === 0) && (
-                                                                        <li className="text-white/20 italic text-xs">No items listed</li>
-                                                                    )}
-                                                                </ul>
-                                                            </div>
-                                                        ))}
+                                                    <div className="w-full overflow-x-auto">
+                                                        <table className="w-full text-left text-sm">
+                                                            <thead className="text-[10px] uppercase text-white/30 border-b border-white/10">
+                                                                <tr>
+                                                                    <th className="pb-2 font-medium w-[18%]">Meal</th>
+                                                                    <th className="pb-2 font-medium w-[10%]">Time</th>
+                                                                    <th className="pb-2 font-medium w-[36%]">Food Item</th>
+                                                                    <th className="pb-2 font-medium w-[18%]">Qty / Unit</th>
+                                                                    <th className="pb-2 font-medium w-[18%] text-right">Calories</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody className="divide-y divide-white/5">
+                                                                {Object.entries(day.meals || {}).map(([mealName, meal]) => {
+                                                                    const items = meal?.items || [];
+                                                                    if (items.length === 0) {
+                                                                        return (
+                                                                            <tr key={mealName} className="text-white/30">
+                                                                                <td className="py-2 pr-3 text-[11px] font-black uppercase tracking-widest text-white/40 align-top">
+                                                                                    {mealName.replace(/([A-Z])/g, ' $1').trim()}
+                                                                                </td>
+                                                                                <td className="py-2 pr-3 text-white/30 align-top">{meal?.time || '--'}</td>
+                                                                                <td colSpan="3" className="py-2 italic text-xs text-white/20">No items listed</td>
+                                                                            </tr>
+                                                                        );
+                                                                    }
+                                                                    return items.map((item, i) => (
+                                                                        <tr key={`${mealName}-${i}`} className="text-white/80">
+                                                                            {i === 0 && (
+                                                                                <>
+                                                                                    <td rowSpan={items.length} className="py-2 pr-3 text-[11px] font-black uppercase tracking-widest text-white/40 align-top">
+                                                                                        {mealName.replace(/([A-Z])/g, ' $1').trim()}
+                                                                                    </td>
+                                                                                    <td rowSpan={items.length} className="py-2 pr-3 text-white/30 text-xs align-top whitespace-nowrap">
+                                                                                        {meal?.time || '--'}
+                                                                                    </td>
+                                                                                </>
+                                                                            )}
+                                                                            <td className="py-2 pr-4">{item.name}</td>
+                                                                            <td className="py-2 text-primary font-bold">{item.quantity} {item.unit}</td>
+                                                                            <td className="py-2 text-white/40 text-right">{item.calories} kcal</td>
+                                                                        </tr>
+                                                                    ));
+                                                                })}
+                                                            </tbody>
+                                                        </table>
                                                     </div>
                                                 </div>
                                             ))}
