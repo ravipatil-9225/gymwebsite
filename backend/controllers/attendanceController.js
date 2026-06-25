@@ -187,7 +187,7 @@ const adminMarkAttendance = async (req, res) => {
                     batchTime:   user.batchTime || 'Not Assigned',
                     status,
                     markedBy:    'admin',
-                    checkInTime: status === 'present' ? new Date() : null,
+                    checkInTime: (status === 'present' || status === 'late') ? new Date() : null,
                     note:        req.body.note || ''
                 }
             },
@@ -242,7 +242,7 @@ const adminBulkMark = async (req, res) => {
                         batchTime:   u.batchTime || 'Not Assigned',
                         status,
                         markedBy:    'admin',
-                        checkInTime: status === 'present' ? new Date() : null
+                        checkInTime: (status === 'present' || status === 'late') ? new Date() : null
                     }
                 },
                 upsert: true
