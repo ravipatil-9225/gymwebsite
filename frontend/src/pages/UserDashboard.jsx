@@ -7,6 +7,7 @@ import html2pdf from 'html2pdf.js';
 import socket from '../utils/socket';
 import { AuthContext } from '../context/AuthContext';
 import SubscriptionCard from '../components/dashboard/SubscriptionCard';
+import CheckInCard from '../components/dashboard/CheckInCard';
 
 const UserDashboard = () => {
     const navigate = useNavigate();
@@ -461,6 +462,9 @@ const UserDashboard = () => {
 
                             <SubscriptionCard />
                         </div>
+
+                        {/* Attendance Check-In */}
+                        <CheckInCard />
 
                         {/* Quick Actions */}
                         <div className="glass-card p-6 rounded-2xl border border-white/10">
