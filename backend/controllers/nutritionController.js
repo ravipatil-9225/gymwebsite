@@ -56,7 +56,7 @@ async function callGroq(groq, systemPrompt, userPrompt) {
             { role: 'user', content: userPrompt }
         ],
         temperature: 0.85,
-        max_tokens: 4500,
+        max_tokens: 8000,
         response_format: { type: "json_object" }
     });
     const text = (completion.choices[0]?.message?.content || '').trim();
@@ -135,30 +135,30 @@ ${userCtx}
 Meal calorie targets: breakfast=${bCal}kcal midMorning=${mCal}kcal lunch=${lCal}kcal eveningSnack=${eCal}kcal dinner=${dCal}kcal
 
 IMPORTANT JSON RULES:
-- "quantity" must be a NUMBER only. Examples: 2, 100, 0.5, 30. NEVER write "2 slices" or "120g" or "1 oz".
-- Put the unit in the "unit" field as a string. Examples: "slices", "g", "oz", "tbsp", "bowl", "piece", "cup".
-- All numeric fields (calories, protein_g, carbs_g, fat_g, fiber_g) must be numbers not strings.
+- "quantity" MUST be a NUMBER only (e.g. 2, 100, 0.5). NEVER "2 slices" or "120g".
+- Put the unit in the "unit" field as a string (e.g. "g","piece","bowl","cup","tbsp").
+- All numeric fields (calories,protein_g,carbs_g,fat_g,fiber_g) must be numbers.
+- MANDATORY: dietPlan array MUST contain exactly 7 objects — Day 1 (Monday) through Day 7 (Sunday). Do NOT stop early.
+- Each day must have all 5 meals: breakfast, midMorning, lunch, eveningSnack, dinner.
+- Keep each meal to 1-3 food items to stay within token limits while covering all 7 days.
 
-Output this exact JSON structure with all 7 days filled:
+Output this JSON (fill ALL 7 days with varied meals, honor food restrictions/allergies):
 {
-  "macroTargets": {"daily_calories":${p.target_calories},"protein_g":150,"carbs_g":200,"fat_g":70,"fiber_g":30},
-  "dietPlan": [
-    {
-      "day":"Day 1","date_label":"Monday","total_calories":${p.target_calories},
-      "meals":{
-        "breakfast":{"time":"7:30 AM","items":[{"name":"Oats","quantity":80,"unit":"g","calories":300,"protein_g":10,"carbs_g":55,"fat_g":5,"fiber_g":8,"preparation_tip":"Cook with milk"}],"meal_total_calories":${bCal}},
-        "midMorning":{"time":"10:30 AM","items":[{"name":"Banana","quantity":1,"unit":"piece","calories":${mCal},"protein_g":1,"carbs_g":25,"fat_g":0,"fiber_g":3,"preparation_tip":"Eat fresh"}],"meal_total_calories":${mCal}},
-        "lunch":{"time":"1:00 PM","items":[{"name":"Dal Tadka","quantity":200,"unit":"g","calories":${lCal},"protein_g":15,"carbs_g":60,"fat_g":8,"fiber_g":10,"preparation_tip":"Serve with roti"}],"meal_total_calories":${lCal}},
-        "eveningSnack":{"time":"4:30 PM","items":[{"name":"Mixed Nuts","quantity":30,"unit":"g","calories":${eCal},"protein_g":5,"carbs_g":8,"fat_g":14,"fiber_g":2,"preparation_tip":"Unsalted"}],"meal_total_calories":${eCal}},
-        "dinner":{"time":"8:00 PM","items":[{"name":"Chicken Curry","quantity":200,"unit":"g","calories":${dCal},"protein_g":30,"carbs_g":20,"fat_g":12,"fiber_g":4,"preparation_tip":"Serve with rice"}],"meal_total_calories":${dCal}}
-      }
-    },
-    (repeat for Day 2 Tuesday through Day 7 Sunday — different meals each day, honor all food restrictions and allergies)
+  "macroTargets":{"daily_calories":${p.target_calories},"protein_g":150,"carbs_g":200,"fat_g":70,"fiber_g":30},
+  "dietPlan":[
+    {"day":"Day 1","date_label":"Monday","total_calories":${p.target_calories},"meals":{"breakfast":{"time":"7:30 AM","items":[{"name":"Oats","quantity":80,"unit":"g","calories":${bCal},"protein_g":10,"carbs_g":55,"fat_g":5,"fiber_g":8,"preparation_tip":"Cook with milk"}],"meal_total_calories":${bCal}},"midMorning":{"time":"10:30 AM","items":[{"name":"Banana","quantity":1,"unit":"piece","calories":${mCal},"protein_g":1,"carbs_g":25,"fat_g":0,"fiber_g":3,"preparation_tip":"Eat fresh"}],"meal_total_calories":${mCal}},"lunch":{"time":"1:00 PM","items":[{"name":"Dal Tadka","quantity":200,"unit":"g","calories":${lCal},"protein_g":15,"carbs_g":60,"fat_g":8,"fiber_g":10,"preparation_tip":"Serve with roti"}],"meal_total_calories":${lCal}},"eveningSnack":{"time":"4:30 PM","items":[{"name":"Mixed Nuts","quantity":30,"unit":"g","calories":${eCal},"protein_g":5,"carbs_g":8,"fat_g":14,"fiber_g":2,"preparation_tip":"Unsalted"}],"meal_total_calories":${eCal}},"dinner":{"time":"8:00 PM","items":[{"name":"Chicken Curry","quantity":200,"unit":"g","calories":${dCal},"protein_g":30,"carbs_g":20,"fat_g":12,"fiber_g":4,"preparation_tip":"Serve with rice"}],"meal_total_calories":${dCal}}}},
+    {"day":"Day 2","date_label":"Tuesday","total_calories":${p.target_calories},"meals":{"breakfast":{"time":"7:30 AM","items":[],"meal_total_calories":${bCal}},"midMorning":{"time":"10:30 AM","items":[],"meal_total_calories":${mCal}},"lunch":{"time":"1:00 PM","items":[],"meal_total_calories":${lCal}},"eveningSnack":{"time":"4:30 PM","items":[],"meal_total_calories":${eCal}},"dinner":{"time":"8:00 PM","items":[],"meal_total_calories":${dCal}}}},
+    {"day":"Day 3","date_label":"Wednesday","total_calories":${p.target_calories},"meals":{"breakfast":{"time":"7:30 AM","items":[],"meal_total_calories":${bCal}},"midMorning":{"time":"10:30 AM","items":[],"meal_total_calories":${mCal}},"lunch":{"time":"1:00 PM","items":[],"meal_total_calories":${lCal}},"eveningSnack":{"time":"4:30 PM","items":[],"meal_total_calories":${eCal}},"dinner":{"time":"8:00 PM","items":[],"meal_total_calories":${dCal}}}},
+    {"day":"Day 4","date_label":"Thursday","total_calories":${p.target_calories},"meals":{"breakfast":{"time":"7:30 AM","items":[],"meal_total_calories":${bCal}},"midMorning":{"time":"10:30 AM","items":[],"meal_total_calories":${mCal}},"lunch":{"time":"1:00 PM","items":[],"meal_total_calories":${lCal}},"eveningSnack":{"time":"4:30 PM","items":[],"meal_total_calories":${eCal}},"dinner":{"time":"8:00 PM","items":[],"meal_total_calories":${dCal}}}},
+    {"day":"Day 5","date_label":"Friday","total_calories":${p.target_calories},"meals":{"breakfast":{"time":"7:30 AM","items":[],"meal_total_calories":${bCal}},"midMorning":{"time":"10:30 AM","items":[],"meal_total_calories":${mCal}},"lunch":{"time":"1:00 PM","items":[],"meal_total_calories":${lCal}},"eveningSnack":{"time":"4:30 PM","items":[],"meal_total_calories":${eCal}},"dinner":{"time":"8:00 PM","items":[],"meal_total_calories":${dCal}}}},
+    {"day":"Day 6","date_label":"Saturday","total_calories":${p.target_calories},"meals":{"breakfast":{"time":"7:30 AM","items":[],"meal_total_calories":${bCal}},"midMorning":{"time":"10:30 AM","items":[],"meal_total_calories":${mCal}},"lunch":{"time":"1:00 PM","items":[],"meal_total_calories":${lCal}},"eveningSnack":{"time":"4:30 PM","items":[],"meal_total_calories":${eCal}},"dinner":{"time":"8:00 PM","items":[],"meal_total_calories":${dCal}}}},
+    {"day":"Day 7","date_label":"Sunday","total_calories":${p.target_calories},"meals":{"breakfast":{"time":"7:30 AM","items":[],"meal_total_calories":${bCal}},"midMorning":{"time":"10:30 AM","items":[],"meal_total_calories":${mCal}},"lunch":{"time":"1:00 PM","items":[],"meal_total_calories":${lCal}},"eveningSnack":{"time":"4:30 PM","items":[],"meal_total_calories":${eCal}},"dinner":{"time":"8:00 PM","items":[],"meal_total_calories":${dCal}}}}
   ],
   "hydration":{"daily_water_liters":${waterL},"hydration_tips":["Drink 500ml on waking","Carry 1L bottle always","200ml before each meal"]},
   "supplementSuggestions":[{"name":"Whey Protein","purpose":"Meet protein target","recommended_dose":"25g","best_timing":"Post-workout","disclaimer":"Consult doctor before use"}],
   "weeklySummary":{"goal_alignment_note":"Plan designed for ${p.goal}","top_3_tips":["Be consistent with meal timings","Track macros daily","Prioritise sleep for recovery"]}
-}`;
+}
+Replace ALL empty items arrays with actual food items (1-3 per meal). Every day must have different meals. Honor all food restrictions. Output complete JSON only.`;
 
         // ── WORKOUT PROMPT ─────────────────────────────────────────────────
         const workoutPrompt = `You are a fitness coach. Output ONLY raw JSON — no markdown, no explanation.
@@ -168,35 +168,27 @@ Fitness:${p.fitness_level}(${fitRules}) Equipment:${equipRule} BMI:${bmiRule}
 Split: ${splitMap[p.goal] || splitMap.maintenance}
 
 IMPORTANT JSON RULES:
-- "sets" and "reps" must be numbers (e.g. 3, 10, 12). Never strings.
+- "sets" and "reps" must be numbers (e.g. 3, 10). Never strings.
 - "rest_seconds" must be a number (e.g. 60, 90).
 - "duration_seconds" must be a number.
+- MANDATORY: workoutPlan array MUST contain exactly 7 objects — Day 1 (Monday) through Day 7 (Sunday). Do NOT stop early.
+- Keep warm_up to 2-3 items and cool_down to 2-3 items to save token space.
 
-Output this exact JSON with all 7 days:
+Output this exact JSON with all 7 days fully filled (no placeholders like [...]):
 {
-  "workoutPlan": [
-    {"day":"Day 1","date_label":"Monday","type":"Push","focus":"Chest Shoulders Triceps","total_duration_minutes":60,"isRestDay":false,
-     "warm_up":[{"name":"Jumping Jacks","duration_seconds":60,"instruction":"30 reps full body"},{"name":"Arm Circles","duration_seconds":30,"instruction":"10 each direction"},{"name":"Dynamic Chest Stretch","duration_seconds":30,"instruction":"Swing arms across body"}],
-     "main_workout":[
-       {"name":"Bench Press","sets":4,"reps":10,"rest_seconds":60,"muscle_group":"chest","equipment":"barbell","instruction":"Lower to chest press up","modification":"Use dumbbells"},
-       {"name":"Shoulder Press","sets":3,"reps":12,"rest_seconds":60,"muscle_group":"shoulders","equipment":"dumbbells","instruction":"Press overhead","modification":"Seated variation"},
-       {"name":"Incline Dumbbell Press","sets":3,"reps":12,"rest_seconds":60,"muscle_group":"upper chest","equipment":"dumbbells","instruction":"30 degree incline","modification":"Flat bench"},
-       {"name":"Lateral Raises","sets":3,"reps":15,"rest_seconds":45,"muscle_group":"side delts","equipment":"dumbbells","instruction":"Raise to shoulder height","modification":"Lighter weight"},
-       {"name":"Tricep Dips","sets":3,"reps":12,"rest_seconds":60,"muscle_group":"triceps","equipment":"bench","instruction":"Lower body between bars","modification":"Bend knees"}
-     ],
-     "cool_down":[{"name":"Chest Stretch","duration_seconds":30,"instruction":"Doorway stretch"},{"name":"Shoulder Stretch","duration_seconds":30,"instruction":"Cross arm across chest"},{"name":"Tricep Stretch","duration_seconds":30,"instruction":"Arm behind head"}]
-    },
-    {"day":"Day 2","date_label":"Tuesday","type":"Pull","focus":"Back Biceps","total_duration_minutes":60,"isRestDay":false,"warm_up":[...],"main_workout":[5 exercises],"cool_down":[3 stretches]},
-    {"day":"Day 3","date_label":"Wednesday","type":"Legs","focus":"Quads Hamstrings Glutes","total_duration_minutes":60,"isRestDay":false,"warm_up":[...],"main_workout":[5 exercises],"cool_down":[3 stretches]},
-    {"day":"Day 4","date_label":"Thursday","isRestDay":true,"active_recovery":["Light walk 20 min","Foam rolling 15 min"]},
-    {"day":"Day 5","date_label":"Friday","type":"Push","focus":"Chest Shoulders variation","total_duration_minutes":60,"isRestDay":false,"warm_up":[...],"main_workout":[5 exercises],"cool_down":[3 stretches]},
-    {"day":"Day 6","date_label":"Saturday","type":"Pull","focus":"Back Biceps variation","total_duration_minutes":60,"isRestDay":false,"warm_up":[...],"main_workout":[5 exercises],"cool_down":[3 stretches]},
-    {"day":"Day 7","date_label":"Sunday","isRestDay":true,"active_recovery":["Yoga 20 min","Light stretching"]}
+  "workoutPlan":[
+    {"day":"Day 1","date_label":"Monday","type":"Push","focus":"Chest Shoulders Triceps","total_duration_minutes":60,"isRestDay":false,"warm_up":[{"name":"Jumping Jacks","duration_seconds":60,"instruction":"30 reps"},{"name":"Arm Circles","duration_seconds":30,"instruction":"10 each direction"}],"main_workout":[{"name":"Bench Press","sets":4,"reps":10,"rest_seconds":60,"muscle_group":"chest","equipment":"barbell","instruction":"Lower to chest, press up","modification":"Use dumbbells"},{"name":"Shoulder Press","sets":3,"reps":12,"rest_seconds":60,"muscle_group":"shoulders","equipment":"dumbbells","instruction":"Press overhead","modification":"Seated"},{"name":"Lateral Raises","sets":3,"reps":15,"rest_seconds":45,"muscle_group":"side delts","equipment":"dumbbells","instruction":"Raise to shoulder height","modification":"Lighter weight"},{"name":"Tricep Dips","sets":3,"reps":12,"rest_seconds":60,"muscle_group":"triceps","equipment":"bench","instruction":"Lower body","modification":"Bend knees"},{"name":"Push-ups","sets":3,"reps":15,"rest_seconds":45,"muscle_group":"chest","equipment":"none","instruction":"Full range","modification":"Knee push-ups"}],"cool_down":[{"name":"Chest Stretch","duration_seconds":30,"instruction":"Doorway stretch"},{"name":"Shoulder Stretch","duration_seconds":30,"instruction":"Cross arm across chest"}]},
+    {"day":"Day 2","date_label":"Tuesday","type":"Pull","focus":"Back Biceps","total_duration_minutes":60,"isRestDay":false,"warm_up":[{"name":"Arm Swings","duration_seconds":30,"instruction":"Swing arms forward and back"},{"name":"Cat-Cow Stretch","duration_seconds":30,"instruction":"10 reps slow"}],"main_workout":[{"name":"Deadlift","sets":4,"reps":8,"rest_seconds":90,"muscle_group":"back","equipment":"barbell","instruction":"Hinge at hips","modification":"Dumbbell Romanian deadlift"},{"name":"Pull-ups","sets":3,"reps":8,"rest_seconds":60,"muscle_group":"lats","equipment":"pull-up bar","instruction":"Full hang to chin over bar","modification":"Assisted pull-up"},{"name":"Seated Row","sets":3,"reps":12,"rest_seconds":60,"muscle_group":"mid back","equipment":"cable","instruction":"Pull to abdomen","modification":"Resistance band row"},{"name":"Barbell Curl","sets":3,"reps":12,"rest_seconds":60,"muscle_group":"biceps","equipment":"barbell","instruction":"Full curl","modification":"Dumbbell curl"},{"name":"Face Pulls","sets":3,"reps":15,"rest_seconds":45,"muscle_group":"rear delts","equipment":"cable","instruction":"Pull to face","modification":"Resistance band"}],"cool_down":[{"name":"Lat Stretch","duration_seconds":30,"instruction":"Reach overhead and lean"},{"name":"Bicep Stretch","duration_seconds":30,"instruction":"Extend arm palm up"}]},
+    {"day":"Day 3","date_label":"Wednesday","type":"Legs","focus":"Quads Hamstrings Glutes","total_duration_minutes":60,"isRestDay":false,"warm_up":[{"name":"Leg Swings","duration_seconds":30,"instruction":"10 each leg"},{"name":"Bodyweight Squat","duration_seconds":30,"instruction":"10 slow reps"}],"main_workout":[{"name":"Barbell Squat","sets":4,"reps":10,"rest_seconds":90,"muscle_group":"quads","equipment":"barbell","instruction":"Squat to parallel","modification":"Goblet squat"},{"name":"Romanian Deadlift","sets":3,"reps":10,"rest_seconds":60,"muscle_group":"hamstrings","equipment":"barbell","instruction":"Hinge until stretch","modification":"Dumbbell RDL"},{"name":"Leg Press","sets":3,"reps":12,"rest_seconds":60,"muscle_group":"quads","equipment":"machine","instruction":"Full range","modification":"Bodyweight squat"},{"name":"Glute Bridge","sets":3,"reps":15,"rest_seconds":45,"muscle_group":"glutes","equipment":"none","instruction":"Drive hips up","modification":"Single leg"},{"name":"Calf Raises","sets":3,"reps":20,"rest_seconds":30,"muscle_group":"calves","equipment":"none","instruction":"Full range of motion","modification":"Seated"}],"cool_down":[{"name":"Quad Stretch","duration_seconds":30,"instruction":"Stand on one leg"},{"name":"Hamstring Stretch","duration_seconds":30,"instruction":"Seated reach to toes"}]},
+    {"day":"Day 4","date_label":"Thursday","isRestDay":true,"active_recovery":["Light walk 20 min","Foam rolling 15 min","Gentle stretching 10 min"]},
+    {"day":"Day 5","date_label":"Friday","type":"Push","focus":"Chest Shoulders variation","total_duration_minutes":55,"isRestDay":false,"warm_up":[{"name":"Shoulder Rolls","duration_seconds":30,"instruction":"10 forward 10 back"},{"name":"Band Pull-apart","duration_seconds":30,"instruction":"15 reps"}],"main_workout":[{"name":"Incline Dumbbell Press","sets":4,"reps":10,"rest_seconds":60,"muscle_group":"upper chest","equipment":"dumbbells","instruction":"30 degree incline","modification":"Flat bench"},{"name":"Arnold Press","sets":3,"reps":10,"rest_seconds":60,"muscle_group":"shoulders","equipment":"dumbbells","instruction":"Rotate while pressing","modification":"Standard press"},{"name":"Cable Flyes","sets":3,"reps":12,"rest_seconds":45,"muscle_group":"chest","equipment":"cable","instruction":"Arc motion","modification":"Dumbbell flyes"},{"name":"Front Raises","sets":3,"reps":12,"rest_seconds":45,"muscle_group":"front delts","equipment":"dumbbells","instruction":"Raise to shoulder height","modification":"Alternating"},{"name":"Tricep Pushdown","sets":3,"reps":15,"rest_seconds":45,"muscle_group":"triceps","equipment":"cable","instruction":"Full extension","modification":"Overhead extension"}],"cool_down":[{"name":"Pec Stretch","duration_seconds":30,"instruction":"Doorway stretch"},{"name":"Overhead Tricep Stretch","duration_seconds":30,"instruction":"Arm behind head"}]},
+    {"day":"Day 6","date_label":"Saturday","type":"Pull","focus":"Back Biceps variation","total_duration_minutes":55,"isRestDay":false,"warm_up":[{"name":"Thoracic Rotation","duration_seconds":30,"instruction":"10 each side"},{"name":"Band Row","duration_seconds":30,"instruction":"15 reps"}],"main_workout":[{"name":"Lat Pulldown","sets":4,"reps":10,"rest_seconds":60,"muscle_group":"lats","equipment":"cable","instruction":"Pull to upper chest","modification":"Resistance band"},{"name":"Single-arm Dumbbell Row","sets":3,"reps":10,"rest_seconds":60,"muscle_group":"mid back","equipment":"dumbbells","instruction":"Pull to hip","modification":"Lighter weight"},{"name":"Hammer Curls","sets":3,"reps":12,"rest_seconds":45,"muscle_group":"biceps","equipment":"dumbbells","instruction":"Neutral grip","modification":"Alternating"},{"name":"Reverse Flyes","sets":3,"reps":15,"rest_seconds":45,"muscle_group":"rear delts","equipment":"dumbbells","instruction":"Hinge forward, raise arms","modification":"Lighter weight"},{"name":"Shrugs","sets":3,"reps":15,"rest_seconds":45,"muscle_group":"traps","equipment":"dumbbells","instruction":"Full range shrug","modification":"Barbell shrugs"}],"cool_down":[{"name":"Child's Pose","duration_seconds":30,"instruction":"Arms extended forward"},{"name":"Cross-body Stretch","duration_seconds":30,"instruction":"Arm across chest"}]},
+    {"day":"Day 7","date_label":"Sunday","isRestDay":true,"active_recovery":["Yoga 20 min","Light stretching 15 min","Meditation 10 min"]}
   ],
   "sleepAndRecovery":{"recommended_sleep_hours":${p.goal === 'muscle_gain' ? 8 : 7},"current_sleep_hours":${p.sleep_hours_actual},"sleep_tips":["Consistent sleep schedule","Avoid screens 1hr before bed","Keep room cool and dark"]},
   "weeklyProgressTracker":{"metrics_to_track":[{"metric_name":"Body Weight","unit":"kg","goal_direction":"${p.goal === 'weight_loss' ? 'decrease' : 'increase'}"}],"top_milestones":["Complete all 5 workouts in week 1","Increase weight or reps by week 4","Visible progress by week 8"]}
 }
-Fill all [...] placeholders with real exercises/stretches following the user fitness level and equipment rules.`;
+Adjust ALL exercises and days to match the user's fitness level, equipment, goal and any injury restrictions. Replace the default exercises with appropriate ones. Output complete valid JSON only.`;
 
         // ── CONDITIONAL CALLS ──────────────────────────────────────────────
         const runDiet = p.plan_type === 'both' || p.plan_type === 'diet';
