@@ -190,7 +190,7 @@ const UserManagement = () => {
                         />
                     </div>
                     <button
-                        onClick={() => setAddingUser({ name: '', email: '', phone: '', dob: '', password: '', role: 'user', batchTime: '' })}
+                        onClick={() => setAddingUser({ name: '', email: '', phone: '', dob: '', password: '', role: 'user', batchTime: '', registrationDate: new Date().toISOString().split('T')[0] })}
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2 whitespace-nowrap"
                     >
                         <User className="w-4 h-4" /> Add User
@@ -230,6 +230,9 @@ const UserManagement = () => {
                                 </th>
                                 <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider whitespace-nowrap">
                                     <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />DOB</span>
+                                </th>
+                                <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider whitespace-nowrap">
+                                    <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />Reg. Date</span>
                                 </th>
                                 <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider whitespace-nowrap">
                                     <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Batch</span>
@@ -295,6 +298,21 @@ const UserManagement = () => {
                                         {/* DOB */}
                                         <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
                                             {user.dob ? fmt(user.dob) : <span className="text-gray-300">—</span>}
+                                        </td>
+
+                                        {/* Registration Date */}
+                                        <td className="px-4 py-3 whitespace-nowrap">
+                                            {user.registrationDate ? (
+                                                <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-md">
+                                                    <Calendar className="w-3 h-3" />
+                                                    {fmt(user.registrationDate)}
+                                                </span>
+                                            ) : user.createdAt ? (
+                                                <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-md">
+                                                    <Calendar className="w-3 h-3" />
+                                                    {fmt(user.createdAt)}
+                                                </span>
+                                            ) : <span className="text-gray-300">—</span>}
                                         </td>
 
                                         {/* Batch Time */}
@@ -393,7 +411,7 @@ const UserManagement = () => {
 
                             {filtered.length === 0 && (
                                 <tr>
-                                    <td colSpan="11" className="px-6 py-12 text-center text-gray-400">
+                                    <td colSpan="12" className="px-6 py-12 text-center text-gray-400">
                                         {search ? 'No users match your search.' : 'No users found.'}
                                     </td>
                                 </tr>
@@ -514,6 +532,21 @@ const UserManagement = () => {
                                     />
                                 </div>
                             ))}
+
+                            {/* Registration Date — Admin editable */}
+                            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+                                <label className="block text-sm font-semibold text-emerald-800 mb-1 flex items-center gap-1">
+                                    <Calendar className="w-4 h-4" /> Registration / Joining Date
+                                    <span className="ml-auto text-[10px] font-normal text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded">Admin only</span>
+                                </label>
+                                <input
+                                    type="date"
+                                    className="w-full px-4 py-2 border border-emerald-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none bg-white"
+                                    value={fmtInput(editingUser.registrationDate || editingUser.createdAt)}
+                                    onChange={(e) => setEditingUser({ ...editingUser, registrationDate: e.target.value })}
+                                />
+                                <p className="text-[10px] text-emerald-600 mt-1">This date is shown in the user table as the member's joining date.</p>
+                            </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Batch Time</label>
@@ -637,15 +670,15 @@ const UserManagement = () => {
             {/* ── Add User Modal ─────────────────────────────────────────── */}
             {addingUser && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col" style={{ maxHeight: '90vh' }}>
+                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center shrink-0">
                             <h2 className="text-lg font-bold text-gray-900">Add New User</h2>
                             <button onClick={() => setAddingUser(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
 
-                        <form onSubmit={handleCreateUser} className="p-6 space-y-4">
+                        <form onSubmit={handleCreateUser} className="overflow-y-auto p-6 space-y-4">
                             {[
                                 { label: 'Full Name', key: 'name', type: 'text', required: true },
                                 { label: 'Email', key: 'email', type: 'email', required: true },
@@ -664,6 +697,20 @@ const UserManagement = () => {
                                     />
                                 </div>
                             ))}
+
+                            {/* Registration Date for new user */}
+                            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+                                <label className="block text-sm font-semibold text-emerald-800 mb-1 flex items-center gap-1">
+                                    <Calendar className="w-4 h-4" /> Registration / Joining Date
+                                </label>
+                                <input
+                                    type="date"
+                                    className="w-full px-4 py-2 border border-emerald-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none bg-white"
+                                    value={addingUser.registrationDate || new Date().toISOString().split('T')[0]}
+                                    onChange={(e) => setAddingUser({ ...addingUser, registrationDate: e.target.value })}
+                                />
+                                <p className="text-[10px] text-emerald-600 mt-1">Auto-filled with today's date. Change if the member joined on a different date.</p>
+                            </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Batch Time</label>

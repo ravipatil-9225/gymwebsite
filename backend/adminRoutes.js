@@ -281,7 +281,7 @@ router.get('/users', async (req, res) => {
 
 router.post('/users', async (req, res) => {
     try {
-        const { name, email, phone, dob, password, role } = req.body;
+        const { name, email, phone, dob, password, role, batchTime, registrationDate } = req.body;
         if(!name || !email || !phone || !dob || !password) {
             return res.status(400).json({ message: "All required fields must be filled" });
         }
@@ -291,7 +291,12 @@ router.post('/users', async (req, res) => {
             return res.status(400).json({ message: "User already exists with this email" });
         }
 
-        const newUser = new User({ name, email, phone, dob, password, role: role || 'user' });
+        const newUser = new User({
+            name, email, phone, dob, password,
+            role: role || 'user',
+            batchTime: batchTime || 'Not Assigned',
+            registrationDate: registrationDate ? new Date(registrationDate) : new Date()
+        });
         await newUser.save();
 
         notificationEmitter.emit('user_registered', { user: newUser });
@@ -303,9 +308,15 @@ router.post('/users', async (req, res) => {
     }
 });
 
+
 router.put('/users/:id', async (req, res) => {
     try {
         const { latestMembership, ...userData } = req.body;
+        
+        // Parse registrationDate as a Date if provided
+        if (userData.registrationDate) {
+            userData.registrationDate = new Date(userData.registrationDate);
+        }
         
         // 1. Update User basic info
         const updated = await User.findByIdAndUpdate(req.params.id, userData, { new: true }).select('-password');

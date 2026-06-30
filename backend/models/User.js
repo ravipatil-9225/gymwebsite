@@ -16,7 +16,8 @@ const userSchema = new mongoose.Schema({
     },
     allowPendingPayment: { type: Boolean, default: true },
     pendingDaysLimit: { type: Number, default: 30 },
-    lastLogin: { type: Date, default: null }
+    lastLogin: { type: Date, default: null },
+    registrationDate: { type: Date, default: Date.now }
 }, { timestamps: true });
 
 // Hash password before saving (Mongoose 9: async hooks don't use next())
