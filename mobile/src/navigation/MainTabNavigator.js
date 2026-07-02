@@ -1,59 +1,75 @@
-import React from 'react';
-import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
+import React, { useContext } from 'react';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View, Platform } from 'react-native';
+import {
+  Home, Layers, BarChart2, Users, MoreHorizontal, LayoutDashboard
+} from 'lucide-react-native';
 
 import HomeScreen from '../screens/HomeScreen';
 import ServicesScreen from '../screens/ServicesScreen';
 import PackagesScreen from '../screens/PackagesScreen';
 import TrainersScreen from '../screens/TrainersScreen';
 import MoreScreen from '../screens/MoreScreen';
+import DashboardScreen from '../screens/DashboardScreen';
 
-const Tab = createMaterialTopTabNavigator();
+const Tab = createBottomTabNavigator();
+
+const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 80 : 64;
 
 export default function MainTabNavigator() {
   return (
-    // SafeAreaView pushes the Navbar just below your phone's camera notch/status bar
-    <SafeAreaView style={styles.safeArea}>
-      <Tab.Navigator
-        screenOptions={{
-          tabBarStyle: {
-            backgroundColor: '#0A0A0A',
-            borderBottomWidth: 1,      // Thin separator line at the bottom of the navbar
-            borderBottomColor: '#222',
-            elevation: 0,              // Remove shadows so it blends perfectly
-            shadowOpacity: 0, 
-          },
-          tabBarLabelStyle: {
-            fontSize: 11,
-            fontWeight: 'bold',
-            letterSpacing: 0.5,
-          },
-          tabBarActiveTintColor: '#E34A29', // Gym Website's primary color
-          tabBarInactiveTintColor: '#666',
-          tabBarIndicatorStyle: {
-            backgroundColor: '#E34A29', // Little animated bar under the active tab
-            height: 3,
-            borderTopLeftRadius: 3,
-            borderTopRightRadius: 3,
-          },
-          animationEnabled: true,       // Enables smooth swiping between tabs
-          swipeEnabled: true,
-        }}
-      >
-        <Tab.Screen name="Home" component={HomeScreen} />
-        <Tab.Screen name="Services" component={ServicesScreen} />
-        <Tab.Screen name="Package" component={PackagesScreen} />
-        <Tab.Screen name="Trainer" component={TrainersScreen} />
-        <Tab.Screen name="More" component={MoreScreen} />
-      </Tab.Navigator>
-    </SafeAreaView>
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarStyle: styles.tabBar,
+        tabBarActiveTintColor: '#E34A29',
+        tabBarInactiveTintColor: '#555',
+        tabBarLabelStyle: styles.tabLabel,
+        tabBarItemStyle: styles.tabItem,
+        tabBarIcon: ({ color, focused, size }) => {
+          const iconSize = focused ? 24 : 22;
+          if (route.name === 'Home') return <Home color={color} size={iconSize} />;
+          if (route.name === 'Services') return <Layers color={color} size={iconSize} />;
+          if (route.name === 'Package') return <BarChart2 color={color} size={iconSize} />;
+          if (route.name === 'Trainer') return <Users color={color} size={iconSize} />;
+          if (route.name === 'Dashboard') return <LayoutDashboard color={color} size={iconSize} />;
+          if (route.name === 'More') return <MoreHorizontal color={color} size={iconSize} />;
+          return null;
+        },
+      })}
+    >
+      <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: 'Home' }} />
+      <Tab.Screen name="Services" component={ServicesScreen} options={{ tabBarLabel: 'Services' }} />
+      <Tab.Screen name="Package" component={PackagesScreen} options={{ tabBarLabel: 'Plans' }} />
+      <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ tabBarLabel: 'Portal' }} />
+      <Tab.Screen name="Trainer" component={TrainersScreen} options={{ tabBarLabel: 'Trainers' }} />
+      <Tab.Screen name="More" component={MoreScreen} options={{ tabBarLabel: 'More' }} />
+    </Tab.Navigator>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#0A0A0A',
-  }
+  tabBar: {
+    backgroundColor: '#0D0D0D',
+    borderTopWidth: 1,
+    borderTopColor: '#1A1A1A',
+    height: TAB_BAR_HEIGHT,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 8,
+    paddingTop: 8,
+    elevation: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    marginTop: 2,
+  },
+  tabItem: {
+    paddingTop: 4,
+  },
 });

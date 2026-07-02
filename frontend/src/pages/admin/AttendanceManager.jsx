@@ -63,6 +63,14 @@ const AttendanceManager = () => {
     const [liveUpdate, setLiveUpdate] = useState(null); // { name, status, markedBy, time }
     const [filter, setFilter]         = useState('all');
     const [search, setSearch]         = useState('');
+    
+    // History Tab States
+    const [activeTab, setActiveTab] = useState('daily');
+    const [historyUser, setHistoryUser] = useState('');
+    const [historyFrom, setHistoryFrom] = useState(() => shiftDate(todayStr(), -30));
+    const [historyTo, setHistoryTo] = useState(todayStr());
+    const [historyData, setHistoryData] = useState(null);
+    const [historyLoading, setHistoryLoading] = useState(false);
 
     // ── Full fetch (used on initial load, date change, bulk ops) ──────────────
     const fetchData = useCallback(async (d, silent = false) => {
@@ -220,6 +228,22 @@ const AttendanceManager = () => {
         URL.revokeObjectURL(url);
     };
 
+    const fetchHistory = async () => {
+        if (!historyUser) return;
+        setHistoryLoading(true);
+        try {
+            const res = await fetch(`/api/attendance/admin/report?userId=${historyUser}&from=${historyFrom}&to=${historyTo}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const data = await res.json();
+            setHistoryData(data);
+        } catch (err) {
+            console.error('Fetch history error:', err);
+        } finally {
+            setHistoryLoading(false);
+        }
+    };
+
     // Filter + search
     const displayed = attendance.filter(row => {
         const matchSearch = search === '' ||
@@ -247,7 +271,7 @@ const AttendanceManager = () => {
                 <div className="flex items-center gap-2 flex-wrap justify-end">
                     {/* Live update toast */}
                     <AnimatePresence>
-                        {liveUpdate && (
+                        {liveUpdate && activeTab === 'daily' && (
                             <motion.div
                                 key="live-toast"
                                 initial={{ opacity: 0, x: 30, scale: 0.9 }}
@@ -269,22 +293,45 @@ const AttendanceManager = () => {
                             </motion.div>
                         )}
                     </AnimatePresence>
-                    <button
-                        onClick={() => fetchData(date)}
-                        className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-                    >
-                        <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-                        Refresh
-                    </button>
-                    <button
-                        onClick={exportCSV}
-                        className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-                    >
-                        <Download size={14} />
-                        CSV
-                    </button>
+                    {activeTab === 'daily' && (
+                        <>
+                            <button
+                                onClick={() => fetchData(date)}
+                                className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                            >
+                                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                                Refresh
+                            </button>
+                            <button
+                                onClick={exportCSV}
+                                className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                            >
+                                <Download size={14} />
+                                CSV
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
+
+            {/* Tabs */}
+            <div className="flex gap-4 border-b border-gray-200 mb-6">
+                <button
+                    onClick={() => setActiveTab('daily')}
+                    className={`pb-2 px-1 text-sm font-semibold transition-colors border-b-2 ${activeTab === 'daily' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                >
+                    Daily Attendance
+                </button>
+                <button
+                    onClick={() => setActiveTab('history')}
+                    className={`pb-2 px-1 text-sm font-semibold transition-colors border-b-2 ${activeTab === 'history' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                >
+                    Client History
+                </button>
+            </div>
+
+            {activeTab === 'daily' ? (
+                <>
 
             {/* Date Navigator */}
             <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -529,6 +576,111 @@ const AttendanceManager = () => {
                     </div>
                 )}
             </div>
+            </>
+            ) : (
+            <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
+                <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex-1">
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Select Client</label>
+                        <select
+                            value={historyUser}
+                            onChange={e => setHistoryUser(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        >
+                            <option value="">-- Select a Client --</option>
+                            {attendance.map(row => (
+                                <option key={row.userId} value={row.userId}>{row.userName} ({row.userEmail})</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">From Date</label>
+                        <input
+                            type="date"
+                            value={historyFrom}
+                            onChange={e => setHistoryFrom(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">To Date</label>
+                        <input
+                            type="date"
+                            value={historyTo}
+                            onChange={e => setHistoryTo(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        />
+                    </div>
+                    <div className="flex items-end">
+                        <button
+                            onClick={fetchHistory}
+                            disabled={!historyUser || historyLoading}
+                            className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+                        >
+                            {historyLoading ? <RefreshCw size={16} className="animate-spin" /> : <Clock size={16} />}
+                            Get History
+                        </button>
+                    </div>
+                </div>
+
+                {historyData && (
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center">
+                                <div className="text-2xl font-black text-gray-900">{historyData.summary?.total || 0}</div>
+                                <div className="text-xs text-gray-500 uppercase tracking-wider mt-1 font-medium">Total Days</div>
+                            </div>
+                            <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-center">
+                                <div className="text-2xl font-black text-green-600">{historyData.summary?.present || 0}</div>
+                                <div className="text-xs text-gray-500 uppercase tracking-wider mt-1 font-medium">Present</div>
+                            </div>
+                            <div className="bg-red-50 border border-red-100 rounded-xl p-4 text-center">
+                                <div className="text-2xl font-black text-red-600">{historyData.summary?.absent || 0}</div>
+                                <div className="text-xs text-gray-500 uppercase tracking-wider mt-1 font-medium">Absent</div>
+                            </div>
+                            <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4 text-center">
+                                <div className="text-2xl font-black text-yellow-600">{historyData.summary?.late || 0}</div>
+                                <div className="text-xs text-gray-500 uppercase tracking-wider mt-1 font-medium">Late</div>
+                            </div>
+                        </div>
+
+                        <div className="border border-gray-200 rounded-xl overflow-hidden mt-4">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-gray-50 border-b border-gray-200">
+                                        <tr>
+                                            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+                                            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Marked By</th>
+                                            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Check-in Time</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {historyData.records?.length > 0 ? historyData.records.map(rec => (
+                                            <tr key={rec._id} className="hover:bg-gray-50 transition-colors">
+                                                <td className="px-4 py-3 font-medium text-gray-900">{formatDate(rec.date)}</td>
+                                                <td className="px-4 py-3">
+                                                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${STATUS_COLORS[rec.status] || 'bg-gray-100 text-gray-500'}`}>
+                                                        {STATUS_ICONS[rec.status]}
+                                                        {rec.status ? rec.status.charAt(0).toUpperCase() + rec.status.slice(1) : 'Unknown'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-gray-500">{rec.markedBy === 'self' ? 'Self Check-in' : rec.markedBy === 'admin' ? 'Admin' : '—'}</td>
+                                                <td className="px-4 py-3 text-gray-500 font-mono">{rec.checkInTime ? formatTime(rec.checkInTime) : '—'}</td>
+                                            </tr>
+                                        )) : (
+                                            <tr>
+                                                <td colSpan="4" className="px-4 py-8 text-center text-gray-500">No attendance records found for this period.</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+            )}
         </div>
     );
 };

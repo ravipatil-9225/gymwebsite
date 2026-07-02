@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
+import { registerForPushNotificationsAsync } from '../services/notifications';
 
 export const AuthContext = createContext(null);
 
@@ -31,6 +32,12 @@ export const AuthProvider = ({ children }) => {
     setToken(authToken);
     await AsyncStorage.setItem('userData', JSON.stringify(userData));
     await AsyncStorage.setItem('userToken', authToken);
+    // Register device for push notifications
+    try {
+      await registerForPushNotificationsAsync();
+    } catch (err) {
+      console.warn('Push notification setup failed:', err);
+    }
   };
 
   const logout = async () => {

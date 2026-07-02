@@ -1,9 +1,20 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = 'http://172.16.96.211:5000';
-const API_URL = `${BASE_URL}/api`; 
-export { BASE_URL };
+// ─── Backend URL Configuration ───────────────────────────────────────────────
+// Production: Your deployed backend
+// Development: Use your local IP when testing on the same WiFi
+// To switch to local: change IS_LOCAL_DEV to true and set your PC's local IP
+
+const IS_LOCAL_DEV = false; // Set to true for local WiFi testing
+const LOCAL_IP = '172.16.96.211'; // Your PC's local IP (only used when IS_LOCAL_DEV = true)
+const LOCAL_PORT = '5000';
+
+export const BASE_URL = IS_LOCAL_DEV
+  ? `http://${LOCAL_IP}:${LOCAL_PORT}`
+  : 'https://tfc365.com';
+
+const API_URL = `${BASE_URL}/api`;
 export const STATIC_URL = 'https://tfc365.com';
 
 const api = axios.create({

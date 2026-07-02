@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { Settings, Image as ImageIcon, Briefcase, Phone, Apple, ChevronRight, LogOut, Shield, Gift } from 'lucide-react-native';
+import { Settings, Image as ImageIcon, Phone, ChevronRight, LogOut, Shield, Gift, QrCode, Apple, Scan } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthContext } from '../context/AuthContext';
 
@@ -13,9 +13,7 @@ export default function MoreScreen({ navigation }) {
       { 
         text: 'Sign Out', 
         style: 'destructive',
-        onPress: async () => {
-          await logout();
-        } 
+        onPress: async () => { await logout(); } 
       }
     ]);
   };
@@ -23,13 +21,15 @@ export default function MoreScreen({ navigation }) {
   const menuItems = [
     ...(user?.role === 'admin' ? [
       { title: 'Admin Management', icon: <Shield color="#A855F7" size={24} />, route: 'AdminPanel' },
-      { title: 'SmartNutrition Hub', icon: <Apple color="#E34A29" size={24} />, route: 'SmartNutrition' }
+      { title: 'Attendance Scanner', icon: <QrCode color="#06B6D4" size={24} />, route: 'AttendanceScanner' },
+      { title: 'SmartNutrition Hub', icon: <Apple color="#22C55E" size={24} />, route: 'SmartNutrition' },
     ] : []),
     { title: 'Media & Gallery', icon: <ImageIcon color="#E34A29" size={24} />, route: 'Gallery' },
     { title: 'Exclusive Offers', icon: <Gift color="#E34A29" size={24} />, route: 'Offers' },
     { title: 'Contact Us', icon: <Phone color="#E34A29" size={24} />, route: 'Contact' },
     { title: 'Account Settings', icon: <Settings color="#E34A29" size={24} />, route: 'Settings' },
   ];
+
 
   return (
     <View style={styles.container}>

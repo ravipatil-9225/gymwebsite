@@ -11,6 +11,7 @@ const {
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 const upload = require('../middleware/multer');
+const User = require('../models/User');
 
 const router = express.Router();
 
@@ -23,4 +24,18 @@ router.post('/upload-photo', protect, upload.single('photo'), uploadProfilePhoto
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
 
+// ── Push token registration (mobile app) ──────────────────────────────────────
+router.post('/push-token', protect, async (req, res) => {
+    try {
+        const { token } = req.body;
+        if (!token) return res.status(400).json({ message: 'Token required' });
+        await User.findByIdAndUpdate(req.user.id, { expoPushToken: token });
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Push token save error:', err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 module.exports = router;
+

@@ -6,7 +6,7 @@ import {
 import {
   ArrowLeft, Users, PhoneCall, HandCoins, Activity,
   Package, Dumbbell, Tag, Image as ImageIcon,
-  FileText, MessageSquare, BarChart3, ChevronRight, Shield
+  FileText, MessageSquare, BarChart3, ChevronRight, Shield, QrCode
 } from 'lucide-react-native';
 import { AuthContext } from '../../context/AuthContext';
 import { SocketContext } from '../../context/SocketContext';
@@ -56,6 +56,7 @@ export default function AdminPanelScreen({ navigation }) {
         { title: 'User Management', subtitle: 'View, edit & manage all users', icon: <Users color="#4F8EF7" size={20} />, route: 'AdminUsers' },
         { title: 'Payments', subtitle: 'Verify & manage payments', icon: <HandCoins color="#22C55E" size={20} />, route: 'AdminPayments' },
         { title: 'Summary Dashboard', subtitle: 'Monthly analytics & reports', icon: <BarChart3 color="#A855F7" size={20} />, route: 'AdminSummary' },
+        { title: 'Attendance Scanner', subtitle: 'Scan member QR codes', icon: <QrCode color="#06B6D4" size={20} />, route: 'AttendanceScanner' },
       ]
     },
     {

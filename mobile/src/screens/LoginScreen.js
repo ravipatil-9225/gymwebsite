@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { 
   View, Text, TextInput, TouchableOpacity, 
-  StyleSheet, Alert, ActivityIndicator 
+  StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Mail, Lock } from 'lucide-react-native';
 import api from '../services/api';
@@ -38,7 +39,11 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <View style={styles.header}>
         <Text style={styles.eyebrow}>Welcome Back</Text>
         <Text style={styles.title}>MEMBER <Text style={styles.highlight}>LOGIN</Text></Text>
@@ -94,14 +99,18 @@ export default function LoginScreen({ navigation }) {
           <Text style={styles.footerText}>New to Tara Fitness? <Text style={styles.footerLinkText}>Create an account</Text></Text>
         </TouchableOpacity>
       </View>
-    </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: '#0A0A0A',
+  },
+  container: {
+    flex: 1,
     justifyContent: 'center',
     padding: 24,
   },

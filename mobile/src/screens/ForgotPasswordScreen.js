@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity, 
   StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, Platform
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail, ArrowLeft } from 'lucide-react-native';
 import api from '../services/api';
 
@@ -30,10 +31,11 @@ export default function ForgotPasswordScreen({ navigation }) {
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView 
+        style={styles.container} 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={styles.eyebrow}>Account Recovery</Text>
@@ -94,14 +96,18 @@ export default function ForgotPasswordScreen({ navigation }) {
           </View>
         </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: '#0A0A0A',
+  },
+  container: {
+    flex: 1,
   },
   content: {
     flex: 1,

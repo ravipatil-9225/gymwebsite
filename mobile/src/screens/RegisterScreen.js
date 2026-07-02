@@ -4,6 +4,7 @@ import {
   StyleSheet, Alert, ActivityIndicator, ScrollView,
   KeyboardAvoidingView, Platform
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, Phone, Mail, Lock, Calendar } from 'lucide-react-native';
 import api from '../services/api';
@@ -52,10 +53,11 @@ export default function RegisterScreen({ navigation }) {
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView 
+        style={styles.container} 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
         <View style={styles.header}>
@@ -155,14 +157,18 @@ export default function RegisterScreen({ navigation }) {
 
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: '#0A0A0A',
+  },
+  container: {
+    flex: 1,
   },
   scrollContent: {
     flexGrow: 1,

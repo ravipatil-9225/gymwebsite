@@ -35,6 +35,7 @@ import AdminGalleryScreen from '../screens/admin/AdminGalleryScreen';
 import AdminFormScreen from '../screens/admin/AdminFormScreen';
 import AdminDocumentsScreen from '../screens/admin/AdminDocumentsScreen';
 import AdminCMSScreen from '../screens/admin/AdminCMSScreen';
+import AttendanceScannerScreen from '../screens/admin/AttendanceScannerScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -133,6 +134,11 @@ export default function AppNavigator() {
               component={SettingsScreen} 
               options={{ headerShown: false }} 
             />
+            <Stack.Screen 
+              name="SmartNutrition" 
+              component={SmartNutritionScreen} 
+              options={{ headerShown: false }} 
+            />
 
             {/* ═══ Admin Screens (Admin Only) ═══ */}
             {user?.role === 'admin' && (
@@ -207,13 +213,13 @@ export default function AppNavigator() {
                   options={{ headerShown: false }} 
                 />
                 <Stack.Screen 
-                  name="SmartNutrition" 
-                  component={SmartNutritionScreen} 
+                  name="AdminCMS" 
+                  component={AdminCMSScreen} 
                   options={{ headerShown: false }} 
                 />
                 <Stack.Screen 
-                  name="AdminCMS" 
-                  component={AdminCMSScreen} 
+                  name="AttendanceScanner" 
+                  component={AttendanceScannerScreen} 
                   options={{ headerShown: false }} 
                 />
               </>
