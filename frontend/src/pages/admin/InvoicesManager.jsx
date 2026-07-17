@@ -268,8 +268,10 @@ const InvoicesManager = () => {
     // Form state
     const [form, setForm] = useState(emptyForm());
     const [saving, setSaving] = useState(false);
+    const [downloading, setDownloading] = useState(false);
 
     const printRef = useRef();
+    const iframeRef = useRef();
     const token = localStorage.getItem('adminToken');
     const headers = { Authorization: `Bearer ${token}` };
 
@@ -350,16 +352,74 @@ const InvoicesManager = () => {
     };
     const closeCreate = () => { setShowCreate(false); setEditInvoice(null); };
 
-    // ── Preview + Print ─────────────────────────────────────────────────────
+    // ── Preview + Print / Download ───────────────────────────────────────────
     const openPreview = (inv) => { setPreviewInvoice(inv); setShowPreview(true); };
+
+    // Build full self-contained HTML for the invoice
+    const buildInvoiceHTML = () => {
+        const el = printRef.current;
+        if (!el) return '';
+        // Collect all <style> content embedded inside the element
+        const styles = Array.from(el.querySelectorAll('style'))
+            .map(s => s.textContent).join('\n');
+        const bodyHTML = el.innerHTML;
+        return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Invoice ${previewInvoice?.invoiceNumber || ''}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: white; }
+    ${styles}
+  </style>
+</head>
+<body>${bodyHTML}</body>
+</html>`;
+    };
+
+    // ── Print via hidden iframe (no popup blocker) ──────────────────────────
     const handlePrint = () => {
-        const content = printRef.current?.innerHTML;
-        if (!content) return;
-        const w = window.open('', '_blank', 'width=850,height=1100');
-        w.document.write(`<html><head><title>Invoice ${previewInvoice?.invoiceNumber}</title></head><body>${content}</body></html>`);
-        w.document.close();
-        w.focus();
-        setTimeout(() => { w.print(); }, 400);
+        const html = buildInvoiceHTML();
+        if (!html) return;
+        const iframe = iframeRef.current;
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+        doc.open();
+        doc.write(html);
+        doc.close();
+        // Wait for content to render then print
+        iframe.onload = () => {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+        };
+        // Fallback timeout in case onload already fired
+        setTimeout(() => {
+            try { iframe.contentWindow.focus(); iframe.contentWindow.print(); } catch {}
+        }, 600);
+    };
+
+    // ── Download as PDF using html2pdf.js ──────────────────────────────────
+    const handleDownloadPDF = async () => {
+        const el = printRef.current;
+        if (!el) return;
+        setDownloading(true);
+        try {
+            const html2pdf = (await import('html2pdf.js')).default;
+            const opt = {
+                margin:       [8, 8, 8, 8],
+                filename:     `${previewInvoice?.invoiceNumber || 'invoice'}_${previewInvoice?.memberName?.replace(/\s+/g, '_') || 'member'}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, logging: false },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                pagebreak:    { mode: ['avoid-all'] },
+            };
+            await html2pdf().set(opt).from(el).save();
+        } catch (err) {
+            console.error('PDF generation error:', err);
+            alert('PDF generation failed. Use Print → Save as PDF instead.');
+        } finally {
+            setDownloading(false);
+        }
     };
 
     // ── Save invoice ────────────────────────────────────────────────────────
@@ -747,8 +807,12 @@ const InvoicesManager = () => {
                             </div>
                             <div className="flex items-center gap-2">
                                 <button onClick={handlePrint}
-                                    className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 rounded-xl text-xs font-black hover:bg-slate-50 shadow-sm transition-all">
-                                    <Printer className="w-4 h-4" /> Print / Download PDF
+                                    className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-black hover:bg-slate-200 shadow-sm transition-all">
+                                    <Printer className="w-4 h-4" /> Print
+                                </button>
+                                <button onClick={handleDownloadPDF} disabled={downloading}
+                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-black hover:bg-blue-700 shadow-sm transition-all disabled:opacity-50">
+                                    <Download className="w-4 h-4" /> {downloading ? 'Generating PDF...' : 'Download PDF'}
                                 </button>
                                 <button onClick={() => setShowPreview(false)} className="text-white/60 hover:text-white ml-1"><X className="w-5 h-5" /></button>
                             </div>
@@ -767,6 +831,9 @@ const InvoicesManager = () => {
                 .inp { width: 100%; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 13px; outline: none; background: #f9fafb; transition: all 0.15s; }
                 .inp:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.12); background: white; }
             `}</style>
+
+            {/* Hidden iframe for native printing without popups */}
+            <iframe ref={iframeRef} style={{ display: 'none' }} title="Print" />
         </div>
     );
 };
