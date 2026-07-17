@@ -4,58 +4,28 @@ import axios from 'axios';
 import socket from '../../utils/socket';
 import {
     ArrowLeft, User, Phone, Mail, Calendar, Package, Clock,
-    CheckCircle, XCircle, Edit, Trash2, History, Shield,
+    CheckCircle, XCircle, Edit, Trash2, Shield,
     Activity, CreditCard, ToggleLeft, ToggleRight, Save, X,
-    AlertTriangle, TrendingUp, Award, Dumbbell
+    AlertTriangle, TrendingUp, Award, Dumbbell, RefreshCw
 } from 'lucide-react';
 
-// ─── helpers ────────────────────────────────────────────────────────────────
 const fmt = (dateStr) => {
     if (!dateStr) return '—';
     return new Date(dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 };
-
 const fmtInput = (dateStr) => {
     if (!dateStr) return '';
-    try {
-        const d = new Date(dateStr);
-        if (isNaN(d.getTime())) return '';
-        return d.toISOString().split('T')[0];
-    } catch { return ''; }
+    try { const d = new Date(dateStr); if (isNaN(d.getTime())) return ''; return d.toISOString().split('T')[0]; }
+    catch { return ''; }
 };
-
 const getRemainingDays = (endDate) => {
     if (!endDate) return null;
-    const now = new Date();
-    const end = new Date(endDate);
-    return Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+    return Math.ceil((new Date(endDate) - new Date()) / (1000 * 60 * 60 * 24));
 };
 
-// ─── sub-components ──────────────────────────────────────────────────────────
-const InfoCard = ({ icon: Icon, label, value, color = 'gray' }) => (
-    <div className="bg-white rounded-xl border border-gray-100 p-4 flex items-start gap-3 shadow-sm">
-        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-${color}-100`}>
-            <Icon className={`w-4 h-4 text-${color}-600`} />
-        </div>
-        <div className="min-w-0">
-            <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{label}</p>
-            <p className="text-sm font-semibold text-gray-800 mt-0.5 break-all">{value || '—'}</p>
-        </div>
-    </div>
-);
-
-const StatusPill = ({ active, large = false }) => (
-    <span className={`inline-flex items-center gap-1.5 font-semibold rounded-full ${large ? 'px-4 py-1.5 text-sm' : 'px-2.5 py-1 text-xs'} ${active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
-        {active ? <CheckCircle className={large ? 'w-4 h-4' : 'w-3 h-3'} /> : <XCircle className={large ? 'w-4 h-4' : 'w-3 h-3'} />}
-        {active ? 'Active' : 'Expired'}
-    </span>
-);
-
-// ─── main component ──────────────────────────────────────────────────────────
 const UserProfile = () => {
     const { userId } = useParams();
     const navigate = useNavigate();
-
     const [user, setUser] = useState(null);
     const [attendance, setAttendance] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -74,80 +44,39 @@ const UserProfile = () => {
             const found = data.find(u => u._id === userId);
             if (!found) { navigate('/admin/users'); return; }
             setUser(found);
-            if (!silent) setEditData(found);
-            if (!silent) setLoading(false);
-        } catch (err) {
-            console.error(err);
-            if (!silent) setLoading(false);
-        }
+            if (!silent) { setEditData(found); setLoading(false); }
+        } catch (err) { console.error(err); if (!silent) setLoading(false); }
     }, [userId]);
 
     const fetchAttendance = useCallback(async () => {
         try {
             const { data } = await axios.get(`/api/attendance/admin/report?userId=${userId}`, { headers });
             setAttendance(Array.isArray(data) ? data : data.records || []);
-        } catch {
-            setAttendance([]);
-        }
+        } catch { setAttendance([]); }
     }, [userId]);
 
-    // ── Real-time sync: socket + 5s polling (same pattern as UserManagement) ──
     useEffect(() => {
-        fetchUser();
-        fetchAttendance();
-
-        // Socket listener — skip refresh when edit modal is open
-        const onDbChange = () => {
-            if (!editing) {
-                fetchUser(true);
-                fetchAttendance();
-            }
-        };
+        fetchUser(); fetchAttendance();
+        const onDbChange = () => { if (!editing) { fetchUser(true); fetchAttendance(); } };
         socket.on('db_changed', onDbChange);
-
-        // Polling fallback every 5 seconds
-        const interval = setInterval(() => {
-            if (!editing) {
-                fetchUser(true);
-                fetchAttendance();
-            }
-        }, 5000);
-
-        return () => {
-            clearInterval(interval);
-            socket.off('db_changed', onDbChange);
-        };
+        const interval = setInterval(() => { if (!editing) { fetchUser(true); fetchAttendance(); } }, 5000);
+        return () => { clearInterval(interval); socket.off('db_changed', onDbChange); };
     }, [userId, editing]);
 
-    // ── actions ──────────────────────────────────────────────────────────────
-
     const handleSave = async (e) => {
-        e.preventDefault();
-        setSaving(true);
+        e.preventDefault(); setSaving(true);
         try {
             const { data: updated } = await axios.put(`/api/admin/users/${userId}`, editData, { headers });
-            const merged = { ...updated, latestMembership: editData.latestMembership, allMemberships: editData.allMemberships };
-            setUser(merged);
-            setEditing(false);
-            // Re-fetch fresh data from server after save
-            fetchUser(true);
-        } catch {
-            alert('Error updating user');
-        } finally {
-            setSaving(false);
-        }
+            setUser({ ...updated, latestMembership: editData.latestMembership, allMemberships: editData.allMemberships });
+            setEditing(false); fetchUser(true);
+        } catch { alert('Error updating user'); } finally { setSaving(false); }
     };
 
     const handleDelete = async () => {
-        if (!window.confirm(`Are you sure you want to permanently delete ${user.name}? This cannot be undone.`)) return;
+        if (!window.confirm(`Permanently delete ${user.name}? This cannot be undone.`)) return;
         setDeleting(true);
-        try {
-            await axios.delete(`/api/admin/users/${userId}`, { headers });
-            navigate('/admin/users');
-        } catch {
-            alert('Error deleting user');
-            setDeleting(false);
-        }
+        try { await axios.delete(`/api/admin/users/${userId}`, { headers }); navigate('/admin/users'); }
+        catch { alert('Error deleting user'); setDeleting(false); }
     };
 
     const handleTogglePending = async () => {
@@ -155,324 +84,271 @@ const UserProfile = () => {
         try {
             const { data } = await axios.put(`/api/admin/users/${userId}/toggle-pending`, {}, { headers });
             setUser(prev => ({ ...prev, allowPendingPayment: data.user.allowPendingPayment }));
-            // Re-sync from server to confirm
             fetchUser(true);
-        } catch {
-            alert('Error updating pending payment permission');
-        } finally {
-            setTogglingPending(false);
-        }
+        } catch { alert('Error updating pending payment permission'); } finally { setTogglingPending(false); }
     };
 
-    // ── render ────────────────────────────────────────────────────────────────
-
     if (loading) return (
-        <div className="flex items-center justify-center h-64 text-gray-500">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3" />
-            Loading member profile…
+        <div className="flex flex-col items-center justify-center h-64 gap-3">
+            <div className="w-10 h-10 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin" />
+            <p className="text-sm text-gray-400 font-medium">Loading member profile…</p>
         </div>
     );
-
-    if (!user) return (
-        <div className="text-center py-20 text-gray-400">User not found.</div>
-    );
+    if (!user) return <div className="text-center py-20 text-gray-400">User not found.</div>;
 
     const m = user.latestMembership;
     const daysLeft = m ? getRemainingDays(m.endDate) : null;
     const isActive = daysLeft !== null && daysLeft > 0;
     const totalSpent = user.allMemberships?.reduce((s, mem) => s + (mem.amountPaid || 0), 0) || 0;
     const presentDays = attendance.filter(a => a.status === 'present').length;
+    const daysColor = daysLeft === null ? 'text-gray-400' : daysLeft <= 0 ? 'text-red-500' : daysLeft <= 7 ? 'text-orange-500' : 'text-emerald-500';
 
     return (
-        <div className="max-w-5xl mx-auto space-y-6 pb-10">
+        <div className="max-w-6xl mx-auto space-y-5 pb-10">
 
-            {/* ── Back button ── */}
-            <button
-                onClick={() => navigate('/admin/users')}
-                className="flex items-center gap-2 text-gray-500 hover:text-gray-800 text-sm font-medium transition-colors"
-            >
-                <ArrowLeft className="w-4 h-4" /> Back to Users
-            </button>
+            {/* Back */}
+            <div className="flex items-center justify-between">
+                <button onClick={() => navigate('/admin/users')}
+                    className="flex items-center gap-2 text-gray-400 hover:text-gray-700 text-sm font-semibold transition-colors group">
+                    <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" /> Back to Users
+                </button>
+                <span className="flex items-center gap-1.5 text-xs text-emerald-500 font-semibold bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full">
+                    <RefreshCw className="w-3 h-3" style={{ animation: 'spin 3s linear infinite' }} /> Live sync
+                </span>
+            </div>
 
-            {/* ── Profile Hero Card ── */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="h-24 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 relative">
-                    <div className="absolute inset-0 opacity-20"
-                        style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.1) 10px, rgba(255,255,255,0.1) 20px)' }} />
+            {/* HERO */}
+            <div className="rounded-2xl overflow-hidden shadow-md border border-gray-200">
+                <div className="relative h-28" style={{ background: isActive ? 'linear-gradient(135deg,#1e3a5f 0%,#1a56db 55%,#0e9f6e 100%)' : 'linear-gradient(135deg,#1f2937 0%,#374151 55%,#6b7280 100%)' }}>
+                    <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%,rgba(255,255,255,0.06) 0%,transparent 50%),radial-gradient(circle at 80% 20%,rgba(255,255,255,0.08) 0%,transparent 40%)' }} />
+                    <div className={`absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black border backdrop-blur-sm ${isActive ? 'bg-emerald-500/25 border-emerald-400/40 text-emerald-200' : 'bg-white/10 border-white/20 text-white/70'}`}>
+                        {isActive ? <CheckCircle className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                        {isActive ? 'ACTIVE MEMBER' : 'MEMBERSHIP EXPIRED'}
+                    </div>
                 </div>
-
-                <div className="px-6 pb-6">
-                    <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-12 mb-4">
-                        {/* Avatar */}
-                        <div className="w-24 h-24 rounded-2xl border-4 border-white bg-gray-100 shadow-lg overflow-hidden shrink-0">
-                            {user.profileImage?.url ? (
-                                <img src={user.profileImage.url} alt={user.name} className="w-full h-full object-cover" />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-100 to-indigo-200">
-                                    <User className="w-10 h-10 text-blue-400" />
-                                </div>
-                            )}
+                <div className="bg-white px-6 pb-6">
+                    <div className="flex flex-col sm:flex-row sm:items-end gap-5 -mt-14 mb-5">
+                        <div className="w-28 h-28 rounded-2xl border-4 border-white shadow-xl overflow-hidden shrink-0">
+                            {user.profileImage?.url
+                                ? <img src={user.profileImage.url} alt={user.name} className="w-full h-full object-cover" />
+                                : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-100 via-blue-100 to-violet-100"><User className="w-12 h-12 text-indigo-300" /></div>}
                         </div>
-
-                        {/* Name + badges */}
-                        <div className="flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <h1 className="text-2xl font-bold text-gray-900">{user.name}</h1>
-                                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                        <div className="flex-1 min-w-0 pb-1">
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                                <h1 className="text-3xl font-black text-gray-900 tracking-tight">{user.name}</h1>
+                                <span className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider border ${user.role === 'admin' ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-sky-50 text-sky-700 border-sky-200'}`}>
                                     {user.role === 'admin' ? '👑 Admin' : '🏋️ Member'}
                                 </span>
-                                <StatusPill active={isActive} large />
                             </div>
-                            <p className="text-gray-400 text-sm mt-0.5">{user.email}</p>
+                            <p className="text-gray-400 text-sm">{user.email}</p>
+                            {user.phone && <p className="text-gray-500 text-sm font-semibold mt-0.5">{user.phone}</p>}
                         </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex flex-wrap gap-2 sm:shrink-0">
-                            <button
-                                onClick={() => { setEditing(true); setEditData(user); }}
-                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm"
-                            >
-                                <Edit className="w-4 h-4" /> Edit Profile
+                        <div className="flex gap-2 pb-1 shrink-0">
+                            <button onClick={() => { setEditing(true); setEditData(user); }}
+                                className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-black transition-all shadow-lg shadow-indigo-200 hover:-translate-y-0.5">
+                                <Edit className="w-4 h-4" /> Edit
                             </button>
-                            <button
-                                onClick={handleDelete}
-                                disabled={deleting}
-                                className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-200 transition-colors"
-                            >
-                                <Trash2 className="w-4 h-4" /> {deleting ? 'Deleting…' : 'Delete'}
+                            <button onClick={handleDelete} disabled={deleting}
+                                className="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-red-50 text-red-500 border border-red-200 rounded-xl text-sm font-black transition-all hover:-translate-y-0.5">
+                                <Trash2 className="w-4 h-4" /> {deleting ? '…' : 'Delete'}
                             </button>
                         </div>
                     </div>
-
-                    {/* Quick stats */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         {[
-                            { label: 'Days Left', value: daysLeft !== null ? (daysLeft > 0 ? `${daysLeft} days` : 'Expired') : '—', color: daysLeft > 7 ? 'text-green-600' : daysLeft > 0 ? 'text-orange-500' : 'text-red-500' },
-                            { label: 'Total Plans', value: user.allMemberships?.length || 0, color: 'text-blue-600' },
-                            { label: 'Total Spent', value: `₹${totalSpent.toLocaleString('en-IN')}`, color: 'text-indigo-600' },
-                            { label: 'Attendance', value: `${presentDays} days`, color: 'text-emerald-600' },
-                        ].map(({ label, value, color }) => (
-                            <div key={label} className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
-                                <p className={`text-xl font-bold ${color}`}>{value}</p>
-                                <p className="text-xs text-gray-400 mt-0.5">{label}</p>
+                            { label: 'Days Left', value: daysLeft !== null ? (daysLeft > 0 ? `${daysLeft}` : 'Expired') : '—', unit: daysLeft > 0 ? 'days' : '', vc: daysColor, bg: 'bg-gray-50', b: 'border-gray-100' },
+                            { label: 'Total Plans', value: user.allMemberships?.length || 0, unit: 'plans', vc: 'text-indigo-600', bg: 'bg-indigo-50', b: 'border-indigo-100' },
+                            { label: 'Total Spent', value: `₹${totalSpent.toLocaleString('en-IN')}`, unit: '', vc: 'text-violet-700', bg: 'bg-violet-50', b: 'border-violet-100' },
+                            { label: 'Attendance', value: presentDays, unit: 'days', vc: 'text-emerald-600', bg: 'bg-emerald-50', b: 'border-emerald-100' },
+                        ].map(({ label, value, unit, vc, bg, b }) => (
+                            <div key={label} className={`${bg} border ${b} rounded-xl p-4 text-center`}>
+                                <p className={`text-2xl font-black ${vc}`}>{value}{unit ? <span className="text-xs font-semibold ml-1">{unit}</span> : null}</p>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">{label}</p>
                             </div>
                         ))}
                     </div>
                 </div>
             </div>
 
-            {/* ── Main Grid ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* MAIN GRID */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
 
-                {/* LEFT: Personal Details */}
-                <div className="lg:col-span-1 space-y-4">
-                    <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                        <User className="w-4 h-4" /> Personal Info
-                    </h2>
-                    <InfoCard icon={Phone} label="Phone" value={user.phone || 'Not provided'} color="blue" />
-                    <InfoCard icon={Mail} label="Email" value={user.email} color="indigo" />
-                    <InfoCard icon={Calendar} label="Date of Birth" value={fmt(user.dob)} color="purple" />
-                    <InfoCard icon={Calendar} label="Joining Date" value={fmt(user.registrationDate || user.createdAt)} color="emerald" />
-                    <InfoCard icon={Clock} label="Batch Time" value={user.batchTime && user.batchTime !== 'Not Assigned' ? user.batchTime : 'Not Assigned'} color="amber" />
-                    <InfoCard icon={Shield} label="Role" value={user.role?.toUpperCase()} color="violet" />
+                {/* LEFT */}
+                <div className="lg:col-span-4 space-y-4">
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                        <div className="px-5 py-3.5 bg-gradient-to-r from-slate-700 to-slate-600 flex items-center gap-2">
+                            <User className="w-3.5 h-3.5 text-white/70" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-white/80">Personal Info</span>
+                        </div>
+                        <div className="divide-y divide-gray-50">
+                            {[
+                                { icon: Phone, label: 'Phone', value: user.phone || 'Not provided', ib: 'bg-sky-100', ic: 'text-sky-600' },
+                                { icon: Mail, label: 'Email', value: user.email, ib: 'bg-indigo-100', ic: 'text-indigo-600' },
+                                { icon: Calendar, label: 'Date of Birth', value: fmt(user.dob), ib: 'bg-purple-100', ic: 'text-purple-600' },
+                                { icon: Calendar, label: 'Joining Date', value: fmt(user.registrationDate || user.createdAt), ib: 'bg-emerald-100', ic: 'text-emerald-600' },
+                                { icon: Clock, label: 'Batch Time', value: (user.batchTime && user.batchTime !== 'Not Assigned') ? user.batchTime : 'Not Assigned', ib: 'bg-amber-100', ic: 'text-amber-600' },
+                                { icon: Shield, label: 'Role', value: user.role?.toUpperCase(), ib: 'bg-violet-100', ic: 'text-violet-600' },
+                            ].map(({ icon: Icon, label, value, ib, ic }) => (
+                                <div key={label} className="flex items-center gap-3 px-5 py-3.5 hover:bg-slate-50/60 transition-colors">
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${ib}`}><Icon className={`w-3.5 h-3.5 ${ic}`} /></div>
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] font-black uppercase tracking-wider text-gray-300">{label}</p>
+                                        <p className="text-sm font-semibold text-gray-800 truncate">{value || '—'}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
 
-                    {/* Allow Pending Payment Toggle */}
-                    <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
-                        <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-3">Allow Pending Payment</p>
-                        <div className="flex items-center justify-between">
+                    <div className={`rounded-2xl overflow-hidden border-2 shadow-sm ${user.allowPendingPayment !== false ? 'border-emerald-200' : 'border-rose-200'}`}>
+                        <div className={`px-5 py-3 flex items-center gap-2 ${user.allowPendingPayment !== false ? 'bg-gradient-to-r from-emerald-600 to-teal-500' : 'bg-gradient-to-r from-rose-500 to-red-600'}`}>
+                            <CreditCard className="w-3.5 h-3.5 text-white/80" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-white/90">Pending Payment</span>
+                        </div>
+                        <div className={`p-5 flex items-center justify-between ${user.allowPendingPayment !== false ? 'bg-emerald-50' : 'bg-rose-50'}`}>
                             <div>
-                                <p className="text-sm font-semibold text-gray-700">
+                                <p className={`text-sm font-black ${user.allowPendingPayment !== false ? 'text-emerald-700' : 'text-rose-700'}`}>
                                     {user.allowPendingPayment !== false ? '✅ Allowed' : '❌ Disabled'}
                                 </p>
-                                <p className="text-xs text-gray-400 mt-0.5">
-                                    {user.allowPendingPayment !== false ? 'Member can pay later' : 'Must pay upfront'}
+                                <p className={`text-xs mt-0.5 ${user.allowPendingPayment !== false ? 'text-emerald-500' : 'text-rose-400'}`}>
+                                    {user.allowPendingPayment !== false ? 'Can pay later' : 'Must pay upfront'}
                                 </p>
                             </div>
-                            <button
-                                onClick={handleTogglePending}
-                                disabled={togglingPending}
-                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${user.allowPendingPayment !== false ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-600 hover:bg-red-200'}`}
-                            >
-                                {user.allowPendingPayment !== false
-                                    ? <ToggleRight className="w-4 h-4" />
-                                    : <ToggleLeft className="w-4 h-4" />}
-                                {togglingPending ? 'Saving…' : (user.allowPendingPayment !== false ? 'Allow' : 'Disabled')}
+                            <button onClick={handleTogglePending} disabled={togglingPending}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black border shadow-sm transition-all hover:-translate-y-0.5 ${user.allowPendingPayment !== false ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700' : 'bg-rose-600 hover:bg-rose-700 text-white border-rose-700'}`}>
+                                {user.allowPendingPayment !== false ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+                                {togglingPending ? '…' : (user.allowPendingPayment !== false ? 'Allow' : 'Enable')}
                             </button>
                         </div>
                     </div>
                 </div>
 
-                {/* RIGHT: Membership + Plan History + Attendance */}
-                <div className="lg:col-span-2 space-y-4">
+                {/* RIGHT */}
+                <div className="lg:col-span-8 space-y-5">
 
-                    {/* Current Membership */}
-                    <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                        <Package className="w-4 h-4" /> Current Membership
-                    </h2>
-                    {m ? (
-                        <div className={`rounded-2xl border-2 p-5 ${isActive ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
-                            <div className="flex items-start justify-between mb-4">
-                                <div>
-                                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Plan</p>
-                                    <h3 className="text-xl font-bold text-gray-900 mt-0.5">{m.packageName}</h3>
-                                </div>
-                                <StatusPill active={isActive} large />
-                            </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                {[
-                                    { label: 'Start Date', value: fmt(m.startDate), icon: Calendar },
-                                    { label: 'End Date', value: fmt(m.endDate), icon: Calendar },
-                                    { label: 'Duration', value: m.planDuration ? `${m.planDuration} days` : '30 days', icon: Clock },
-                                    { label: 'Amount Paid', value: m.amountPaid ? `₹${m.amountPaid.toLocaleString('en-IN')}` : '—', icon: CreditCard },
-                                    { label: 'Days Left', value: daysLeft !== null ? (daysLeft > 0 ? `${daysLeft} days` : 'Expired') : '—', icon: Activity },
-                                    { label: 'Payment Method', value: m.paymentMethod || '—', icon: CreditCard },
-                                ].map(({ label, value, icon: Icon }) => (
-                                    <div key={label} className="bg-white/70 rounded-xl p-3">
-                                        <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider flex items-center gap-1">
-                                            <Icon className="w-3 h-3" />{label}
-                                        </p>
-                                        <p className="text-sm font-bold text-gray-800 mt-1">{value}</p>
+                    {/* Membership */}
+                    <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+                        <div className={`px-5 py-3.5 flex items-center gap-2 ${isActive ? 'bg-gradient-to-r from-blue-700 to-indigo-600' : 'bg-gradient-to-r from-gray-600 to-gray-500'}`}>
+                            <Package className="w-4 h-4 text-white/80" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-white/90">Current Membership</span>
+                            <span className={`ml-auto text-[10px] font-black px-2.5 py-1 rounded-full ${isActive ? 'bg-emerald-400/30 text-emerald-200' : 'bg-white/10 text-white/60'}`}>
+                                {isActive ? '🟢 ACTIVE' : '🔴 EXPIRED'}
+                            </span>
+                        </div>
+                        <div className="bg-white p-5">
+                            {m ? (
+                                <>
+                                    <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+                                        <div>
+                                            <p className="text-[10px] text-gray-300 font-bold uppercase tracking-wider">Plan</p>
+                                            <h3 className="text-2xl font-black text-gray-900 mt-0.5">{m.packageName}</h3>
+                                        </div>
+                                        {!isActive && <div className="flex items-center gap-1.5 bg-red-50 text-red-500 text-xs font-black px-3 py-1.5 rounded-lg border border-red-100"><AlertTriangle className="w-3.5 h-3.5" /> Renewal Required</div>}
+                                        {isActive && daysLeft <= 7 && <div className="flex items-center gap-1.5 bg-orange-50 text-orange-500 text-xs font-black px-3 py-1.5 rounded-lg border border-orange-100"><AlertTriangle className="w-3.5 h-3.5" /> Expiring in {daysLeft}d</div>}
                                     </div>
-                                ))}
-                            </div>
-                            {!isActive && (
-                                <div className="mt-4 flex items-center gap-2 bg-red-100 text-red-600 px-3 py-2 rounded-lg text-xs font-medium">
-                                    <AlertTriangle className="w-4 h-4 shrink-0" />
-                                    Membership expired — please renew this member's plan.
-                                </div>
-                            )}
-                            {isActive && daysLeft <= 7 && (
-                                <div className="mt-4 flex items-center gap-2 bg-orange-100 text-orange-600 px-3 py-2 rounded-lg text-xs font-medium">
-                                    <AlertTriangle className="w-4 h-4 shrink-0" />
-                                    Only {daysLeft} day{daysLeft !== 1 ? 's' : ''} left — remind the member to renew.
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                        {[
+                                            { label: 'Start Date', value: fmt(m.startDate), bg: 'bg-sky-50', b: 'border-sky-100', vc: 'text-sky-800', lc: 'text-sky-400', icon: '📅' },
+                                            { label: 'End Date', value: fmt(m.endDate), bg: isActive ? 'bg-slate-50' : 'bg-red-50', b: isActive ? 'border-slate-100' : 'border-red-100', vc: isActive ? 'text-slate-800' : 'text-red-600', lc: isActive ? 'text-slate-400' : 'text-red-300', icon: '📅' },
+                                            { label: 'Duration', value: m.planDuration ? `${m.planDuration} days` : '30 days', bg: 'bg-violet-50', b: 'border-violet-100', vc: 'text-violet-800', lc: 'text-violet-400', icon: '⏱️' },
+                                            { label: 'Amount Paid', value: m.amountPaid ? `₹${m.amountPaid.toLocaleString('en-IN')}` : '—', bg: 'bg-emerald-50', b: 'border-emerald-100', vc: 'text-emerald-800', lc: 'text-emerald-400', icon: '💰' },
+                                            { label: 'Days Left', value: daysLeft !== null ? (daysLeft > 0 ? `${daysLeft} days` : 'Expired') : '—', bg: daysLeft > 7 ? 'bg-green-50' : daysLeft > 0 ? 'bg-orange-50' : 'bg-red-50', b: daysLeft > 7 ? 'border-green-100' : daysLeft > 0 ? 'border-orange-100' : 'border-red-100', vc: daysLeft > 7 ? 'text-green-700' : daysLeft > 0 ? 'text-orange-600' : 'text-red-600', lc: daysLeft > 7 ? 'text-green-400' : 'text-orange-300', icon: '⏳' },
+                                            { label: 'Payment Method', value: m.paymentMethod || '—', bg: 'bg-indigo-50', b: 'border-indigo-100', vc: 'text-indigo-800', lc: 'text-indigo-400', icon: '💳' },
+                                        ].map(({ label, value, bg, b, vc, lc, icon }) => (
+                                            <div key={label} className={`${bg} border ${b} rounded-xl p-3.5`}>
+                                                <p className={`text-[10px] font-black uppercase tracking-wider mb-1.5 ${lc}`}>{icon} {label}</p>
+                                                <p className={`text-sm font-black ${vc}`}>{value}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="text-center py-12">
+                                    <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-3"><Package className="w-8 h-8 text-gray-300" /></div>
+                                    <p className="text-gray-400 font-bold">No active membership plan</p>
+                                    <p className="text-gray-300 text-sm mt-1">Assign a plan from the Payments section.</p>
                                 </div>
                             )}
                         </div>
-                    ) : (
-                        <div className="rounded-2xl border-2 border-dashed border-gray-200 p-8 text-center bg-gray-50">
-                            <Package className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                            <p className="text-gray-400 font-medium">No active membership plan</p>
-                            <p className="text-gray-300 text-xs mt-1">Assign a plan from the Payments section.</p>
-                        </div>
-                    )}
-
-                    {/* Plan History */}
-                    <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2 pt-2">
-                        <TrendingUp className="w-4 h-4" /> Plan History ({user.allMemberships?.length || 0} plans)
-                    </h2>
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                        {(!user.allMemberships || user.allMemberships.length === 0) ? (
-                            <div className="text-center py-10 text-gray-300">
-                                <Award className="w-8 h-8 mx-auto mb-2" />
-                                <p className="text-sm">No plan history found.</p>
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm border-collapse">
-                                    <thead>
-                                        <tr className="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs uppercase tracking-wider">
-                                            <th className="px-4 py-3 text-left">#</th>
-                                            <th className="px-4 py-3 text-left">Plan</th>
-                                            <th className="px-4 py-3 text-left">Duration</th>
-                                            <th className="px-4 py-3 text-left">Start</th>
-                                            <th className="px-4 py-3 text-left">End</th>
-                                            <th className="px-4 py-3 text-left">Amount</th>
-                                            <th className="px-4 py-3 text-left">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-50">
-                                        {user.allMemberships.map((mem, idx) => {
-                                            const dl = getRemainingDays(mem.endDate);
-                                            const active = dl !== null && dl > 0;
-                                            return (
-                                                <tr key={mem._id || idx} className={idx === 0 ? 'bg-blue-50/40' : 'hover:bg-gray-50'}>
-                                                    <td className="px-4 py-3 text-gray-400 text-xs font-mono">
-                                                        {user.allMemberships.length - idx}
-                                                        {idx === 0 && <span className="ml-1 text-[10px] text-blue-500 font-bold">LATEST</span>}
-                                                    </td>
-                                                    <td className="px-4 py-3 font-semibold text-gray-800">{mem.packageName}</td>
-                                                    <td className="px-4 py-3 text-gray-500 text-xs">{mem.planDuration ? `${mem.planDuration} days` : '30 days'}</td>
-                                                    <td className="px-4 py-3 text-gray-500 text-xs">{fmt(mem.startDate)}</td>
-                                                    <td className="px-4 py-3 text-xs">
-                                                        <span className={active ? 'text-gray-700' : 'text-red-500 font-medium'}>{fmt(mem.endDate)}</span>
-                                                    </td>
-                                                    <td className="px-4 py-3 font-medium text-gray-700">₹{mem.amountPaid?.toLocaleString('en-IN') || '0'}</td>
-                                                    <td className="px-4 py-3"><StatusPill active={active} /></td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                    <tfoot>
-                                        <tr className="bg-gray-50 border-t border-gray-100">
-                                            <td colSpan={5} className="px-4 py-2 text-xs text-gray-400">
-                                                {user.allMemberships.length} plan{user.allMemberships.length !== 1 ? 's' : ''} total
-                                            </td>
-                                            <td colSpan={2} className="px-4 py-2 text-xs font-bold text-gray-700">
-                                                Total: ₹{totalSpent.toLocaleString('en-IN')}
-                                            </td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-                        )}
                     </div>
 
-                    {/* Attendance Log */}
-                    <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2 pt-2">
-                        <Dumbbell className="w-4 h-4" /> Attendance ({presentDays} days present)
-                    </h2>
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                        {attendance.length === 0 ? (
-                            <div className="text-center py-10 text-gray-300">
-                                <Activity className="w-8 h-8 mx-auto mb-2" />
-                                <p className="text-sm">No attendance records found.</p>
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm border-collapse">
-                                    <thead>
-                                        <tr className="bg-gray-50 border-b border-gray-100 text-gray-400 text-xs uppercase tracking-wider">
-                                            <th className="px-4 py-3 text-left">Date</th>
-                                            <th className="px-4 py-3 text-left">Status</th>
-                                            <th className="px-4 py-3 text-left">Check-in Time</th>
-                                            <th className="px-4 py-3 text-left">Marked By</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-50">
-                                        {attendance.slice(0, 30).map((rec) => (
-                                            <tr key={rec._id} className="hover:bg-gray-50">
-                                                <td className="px-4 py-2.5 font-medium text-gray-700">{fmt(rec.date)}</td>
-                                                <td className="px-4 py-2.5">
-                                                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${rec.status === 'present' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-500'}`}>
-                                                        {rec.status === 'present' ? '✅ Present' : '❌ Absent'}
-                                                    </span>
-                                                </td>
-                                                <td className="px-4 py-2.5 text-gray-400 text-xs">
-                                                    {rec.checkInTime ? new Date(rec.checkInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                                                </td>
-                                                <td className="px-4 py-2.5 text-gray-400 text-xs capitalize">{rec.markedBy || '—'}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                                {attendance.length > 30 && (
-                                    <p className="text-center text-xs text-gray-400 py-3">Showing last 30 of {attendance.length} records</p>
-                                )}
-                            </div>
-                        )}
+                    {/* Plan History */}
+                    <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+                        <div className="px-5 py-3.5 flex items-center gap-2 bg-gradient-to-r from-violet-700 to-purple-600">
+                            <TrendingUp className="w-4 h-4 text-white/80" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-white/90">Plan History</span>
+                            <span className="ml-auto text-[10px] font-black text-white bg-white/20 px-2.5 py-0.5 rounded-full">{user.allMemberships?.length || 0} plans · ₹{totalSpent.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div className="bg-white">
+                            {(!user.allMemberships || user.allMemberships.length === 0) ? (
+                                <div className="text-center py-12"><Award className="w-8 h-8 text-gray-200 mx-auto mb-2" /><p className="text-gray-300 font-semibold text-sm">No plan history found.</p></div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead><tr className="bg-gray-50 border-b border-gray-100">{['#','Plan','Duration','Start','End','Amount','Status'].map(h=><th key={h} className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400">{h}</th>)}</tr></thead>
+                                        <tbody>
+                                            {user.allMemberships.map((mem, idx) => {
+                                                const dl = getRemainingDays(mem.endDate);
+                                                const active = dl !== null && dl > 0;
+                                                return (
+                                                    <tr key={mem._id || idx} className={`border-b border-gray-50 transition-colors ${idx === 0 ? 'bg-violet-50/50' : 'hover:bg-gray-50'}`}>
+                                                        <td className="px-4 py-3"><span className="text-xs font-black text-gray-300 font-mono">{user.allMemberships.length - idx}</span>{idx === 0 && <span className="ml-1 text-[9px] bg-violet-100 text-violet-600 font-black px-1.5 py-0.5 rounded-full">LATEST</span>}</td>
+                                                        <td className="px-4 py-3 font-bold text-gray-800">{mem.packageName}</td>
+                                                        <td className="px-4 py-3 text-gray-400 text-xs">{mem.planDuration ? `${mem.planDuration}d` : '30d'}</td>
+                                                        <td className="px-4 py-3 text-gray-500 text-xs">{fmt(mem.startDate)}</td>
+                                                        <td className="px-4 py-3 text-xs"><span className={active ? 'text-gray-600' : 'text-red-500 font-semibold'}>{fmt(mem.endDate)}</span></td>
+                                                        <td className="px-4 py-3 font-bold text-gray-700">₹{mem.amountPaid?.toLocaleString('en-IN') || '0'}</td>
+                                                        <td className="px-4 py-3"><span className={`text-[10px] font-black px-2 py-1 rounded-full ${active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>{active ? `✓ ${dl}d left` : '✗ Expired'}</span></td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Attendance */}
+                    <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+                        <div className="px-5 py-3.5 flex items-center gap-2 bg-gradient-to-r from-teal-600 to-cyan-500">
+                            <Dumbbell className="w-4 h-4 text-white/80" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-white/90">Attendance Log</span>
+                            <span className="ml-auto text-[10px] font-black text-white bg-white/20 px-2.5 py-0.5 rounded-full">{presentDays} days present</span>
+                        </div>
+                        <div className="bg-white">
+                            {attendance.length === 0 ? (
+                                <div className="text-center py-12"><Activity className="w-8 h-8 text-gray-200 mx-auto mb-2" /><p className="text-gray-300 font-semibold text-sm">No attendance records found.</p></div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead><tr className="bg-gray-50 border-b border-gray-100">{['Date','Status','Check-in Time','Marked By'].map(h=><th key={h} className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400">{h}</th>)}</tr></thead>
+                                        <tbody>
+                                            {attendance.slice(0, 30).map((rec) => (
+                                                <tr key={rec._id} className="border-b border-gray-50 hover:bg-teal-50/30 transition-colors">
+                                                    <td className="px-4 py-3 font-semibold text-gray-700">{fmt(rec.date)}</td>
+                                                    <td className="px-4 py-3"><span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${rec.status === 'present' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-500'}`}>{rec.status === 'present' ? '✓ Present' : '✗ Absent'}</span></td>
+                                                    <td className="px-4 py-3 text-gray-400 text-xs font-mono">{rec.checkInTime ? new Date(rec.checkInTime).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}) : '—'}</td>
+                                                    <td className="px-4 py-3 text-gray-400 text-xs capitalize">{rec.markedBy || '—'}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                    {attendance.length > 30 && <p className="text-center text-xs text-gray-300 py-3 font-semibold">Showing last 30 of {attendance.length} records</p>}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* ── Edit Modal ── */}
+            {/* EDIT MODAL */}
             {editing && editData && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col" style={{ maxHeight: '90vh' }}>
-                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center shrink-0">
-                            <h2 className="text-lg font-bold text-gray-900">Edit Member</h2>
-                            <button onClick={() => setEditing(false)} className="text-gray-400 hover:text-gray-600">
-                                <X className="w-5 h-5" />
-                            </button>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col border border-gray-100" style={{ maxHeight: '90vh' }}>
+                        <div className="px-6 py-4 flex justify-between items-center shrink-0 bg-gradient-to-r from-indigo-600 to-violet-600 rounded-t-2xl">
+                            <h2 className="text-sm font-black text-white flex items-center gap-2"><Edit className="w-4 h-4" /> Edit Member Profile</h2>
+                            <button onClick={() => setEditing(false)} className="text-white/60 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
                         </div>
                         <form onSubmit={handleSave} className="overflow-y-auto p-6 space-y-4">
                             {[
@@ -482,36 +358,26 @@ const UserProfile = () => {
                                 { label: 'Date of Birth', key: 'dob', type: 'date' },
                             ].map(({ label, key, type, required }) => (
                                 <div key={key}>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-                                    <input
-                                        type={type} required={required}
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">{label}</label>
+                                    <input type={type} required={required}
+                                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent outline-none bg-gray-50 focus:bg-white transition-all"
                                         value={type === 'date' ? fmtInput(editData[key]) : (editData[key] || '')}
-                                        onChange={(e) => setEditData({ ...editData, [key]: e.target.value })}
-                                    />
+                                        onChange={(e) => setEditData({ ...editData, [key]: e.target.value })} />
                                 </div>
                             ))}
-
-                            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
-                                <label className="block text-sm font-semibold text-emerald-800 mb-1 flex items-center gap-1">
-                                    <Calendar className="w-4 h-4" /> Registration / Joining Date
-                                    <span className="ml-auto text-[10px] font-normal text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded">Admin only</span>
+                            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                                <label className="flex items-center gap-1 text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-2">
+                                    <Calendar className="w-3 h-3" /> Registration / Joining Date
+                                    <span className="ml-auto text-[9px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded font-black">ADMIN ONLY</span>
                                 </label>
-                                <input
-                                    type="date"
-                                    className="w-full px-4 py-2 border border-emerald-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+                                <input type="date" className="w-full px-4 py-2.5 border border-emerald-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-400 outline-none bg-white"
                                     value={fmtInput(editData.registrationDate || editData.createdAt)}
-                                    onChange={(e) => setEditData({ ...editData, registrationDate: e.target.value })}
-                                />
+                                    onChange={(e) => setEditData({ ...editData, registrationDate: e.target.value })} />
                             </div>
-
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Batch Time</label>
-                                <select
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                    value={editData.batchTime || ''}
-                                    onChange={(e) => setEditData({ ...editData, batchTime: e.target.value })}
-                                >
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Batch Time</label>
+                                <select className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 outline-none bg-gray-50 focus:bg-white"
+                                    value={editData.batchTime || ''} onChange={(e) => setEditData({ ...editData, batchTime: e.target.value })}>
                                     <option value="">Not Assigned</option>
                                     <option value="5:30 AM to 7:30 am">5:30 AM to 7:30 am</option>
                                     <option value="7:30 am to 9:30 am">7:30 am to 9:30 am</option>
@@ -519,26 +385,17 @@ const UserProfile = () => {
                                     <option value="7:00PM  to 9:00 pm">7:00PM  to 9:00 pm</option>
                                 </select>
                             </div>
-
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                                <select
-                                    className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                    value={editData.role || 'user'}
-                                    onChange={(e) => setEditData({ ...editData, role: e.target.value })}
-                                >
+                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Role</label>
+                                <select className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 outline-none bg-gray-50 focus:bg-white"
+                                    value={editData.role || 'user'} onChange={(e) => setEditData({ ...editData, role: e.target.value })}>
                                     <option value="user">User</option>
                                     <option value="admin">Admin</option>
                                 </select>
                             </div>
-
-                            <div className="pt-2 flex justify-end gap-3">
-                                <button type="button" onClick={() => setEditing(false)}
-                                    className="px-4 py-2 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200">
-                                    Cancel
-                                </button>
-                                <button type="submit" disabled={saving}
-                                    className="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2 disabled:opacity-60">
+                            <div className="pt-2 flex gap-3">
+                                <button type="button" onClick={() => setEditing(false)} className="flex-1 py-2.5 text-sm text-gray-500 bg-gray-100 rounded-xl hover:bg-gray-200 font-bold transition-colors">Cancel</button>
+                                <button type="submit" disabled={saving} className="flex-1 py-2.5 text-sm text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 font-black flex items-center justify-center gap-2 disabled:opacity-60 transition-all shadow-md shadow-indigo-200">
                                     <Save className="w-4 h-4" /> {saving ? 'Saving…' : 'Save Changes'}
                                 </button>
                             </div>
