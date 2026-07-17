@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
-    LayoutDashboard, Users, UserCog, Calendar, CalendarClock, PhoneCall, MessageSquare, Image, HandCoins, FileText, Settings, LogOut, Menu, X, Coins, Settings2, BarChart2, ClipboardCheck
+    LayoutDashboard, Users, UserCog, Calendar, CalendarClock, PhoneCall, MessageSquare, Image, HandCoins, FileText, Settings, LogOut, Menu, X, Coins, Settings2, BarChart2, ClipboardCheck, Package
 } from 'lucide-react';
 
 const AdminLayout = () => {
@@ -25,6 +25,7 @@ const AdminLayout = () => {
         { name: 'PT Sessions', href: '/admin/pt-sessions', icon: CalendarClock },
         { name: 'Trainer Management', href: '/admin/trainers', icon: UserCog },
         { name: 'Payments', href: '/admin/payments', icon: HandCoins },
+        { name: 'Products / Store', href: '/admin/products', icon: Package },
         { name: 'Packages Management', href: '/admin/packages', icon: HandCoins },
         { name: 'Offers Management', href: '/admin/offers', icon: Coins },
         { name: 'Gallery Management', href: '/admin/gallery', icon: Image },

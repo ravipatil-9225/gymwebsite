@@ -12,6 +12,7 @@ const navItems = [
     { title: 'MEDIA', path: '/media' },
     { title: 'CONTACT', path: '/contact' },
     { title: 'PORTAL', path: '/portal' },
+    { title: 'PRODUCTS', path: '/products' },
     { title: 'SMARTNUTRITION HUB', path: '/smart-nutrition' },
     { title: 'SETTINGS', path: '/settings' },
     { title: 'ATTENDANCE', path: '/dashboard', hash: '#attendance', userOnly: true },

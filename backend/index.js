@@ -36,6 +36,7 @@ const Package = require('./models/Package');
 const Offer = require('./models/Offer');
 const Gallery = require('./models/Gallery');
 const Content = require('./models/Content');
+const Product = require('./models/Product');
 
 // Routes
 const authRoutes = require('./routes/authRoutes');
@@ -47,6 +48,7 @@ const nutritionRoutes = require('./routes/nutritionRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
 const whatsappWebhook = require('./routes/whatsappWebhook');
 const attendanceRoutes = require('./routes/attendanceRoutes');
+const productRoutes = require('./routes/productRoutes');
 
 // Services
 const emailService = require('./services/emailService');
@@ -203,6 +205,7 @@ app.use('/api/nutrition', nutritionLimiter, nutritionRoutes); // AI route limite
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/webhook/whatsapp', whatsappWebhook);  // WhatsApp Cloud API webhook (no rate limit)
 app.use('/api/attendance', attendanceRoutes);        // Attendance tracking (member + admin)
+app.use('/api/products', productRoutes);             // Gym store products (public read, admin write)
 
 // ── PUBLIC CONTENT ROUTES ──
 app.get('/api/public/trainers', async (req, res) => {

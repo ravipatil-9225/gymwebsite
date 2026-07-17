@@ -51,6 +51,8 @@ import SummaryDashboard from './pages/admin/SummaryDashboard';
 import { EnquiriesManager, ClassBookingsManager, PTSessionsManager, FeedbackManager, DocumentsManager } from './pages/admin/FormManagers';
 import AttendanceManager from './pages/admin/AttendanceManager';
 import UserProfile from './pages/admin/UserProfile';
+import ProductsManager from './pages/admin/ProductsManager';
+import ProductsPage from './pages/ProductsPage';
 
 function App() {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '677200111519-ckd14p5oojhpfv0fn3sq4cf0sb98j3m4.apps.googleusercontent.com';
@@ -106,6 +108,7 @@ function App() {
                   <Route path="/packages/plans" element={<MembershipPlans />} />
                   <Route path="/packages/plans/:categoryName" element={<CategoryPlans />} />
                   <Route path="/offers" element={<OffersPage />} />
+                  <Route path="/products" element={<ProductsPage />} />
 
                   <Route path="/admin" element={<AdminRoute />}>
                     <Route element={<AdminLayout />}>
@@ -122,6 +125,7 @@ function App() {
                       <Route path="offers" element={<OffersManager />} />
                       <Route path="gallery" element={<GalleryManager />} />
                       <Route path="payments" element={<PaymentsManager />} />
+                      <Route path="products" element={<ProductsManager />} />
                       <Route path="feedback" element={<FeedbackManager />} />
                       <Route path="documents" element={<DocumentsManager />} />
                       <Route path="cms" element={<CMSManager />} />
