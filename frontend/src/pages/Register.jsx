@@ -151,7 +151,10 @@ const Register = () => {
                         <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-600 group-focus-within:text-primary transition-colors" />
                         <input
                             name="dob"
-                            type="date"
+                            type={formData.dob ? 'date' : 'text'}
+                            onFocus={(e) => (e.target.type = 'date')}
+                            onBlur={(e) => (!e.target.value ? (e.target.type = 'text') : null)}
+                            placeholder="Enter birth day or select *"
                             required
                             title="Date of Birth"
                             className="w-full pl-11 pr-4 py-4 bg-white/5 border border-white/8 focus:border-primary/60 rounded-xl text-white placeholder-gray-600 focus:outline-none transition-all duration-300 text-sm [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert-[0.6] cursor-pointer"
