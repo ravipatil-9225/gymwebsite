@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import socket from '../../utils/socket';
+import { Link } from 'react-router-dom';
 import { Trash2, Edit, X, User, Phone, Mail, Calendar, Package, Clock, CheckCircle, XCircle, Search, History } from 'lucide-react';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -277,8 +278,13 @@ const UserManagement = () => {
                                                     )}
                                                 </div>
                                                 <div>
-                                                    <div className="font-semibold text-gray-900 leading-tight">{user.name}</div>
-                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                                                    <Link
+                                                        to={`/admin/users/${user._id}`}
+                                                        className="font-semibold text-blue-600 hover:text-blue-800 hover:underline leading-tight transition-colors"
+                                                    >
+                                                        {user.name}
+                                                    </Link>
+                                                    <span className={`block text-[10px] px-1.5 py-0.5 rounded-full font-medium w-fit mt-0.5 ${
                                                         user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'
                                                     }`}>{user.role}</span>
                                                 </div>

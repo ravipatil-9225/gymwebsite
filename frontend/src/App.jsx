@@ -50,6 +50,7 @@ import PaymentsManager from './pages/admin/PaymentsManager';
 import SummaryDashboard from './pages/admin/SummaryDashboard';
 import { EnquiriesManager, ClassBookingsManager, PTSessionsManager, FeedbackManager, DocumentsManager } from './pages/admin/FormManagers';
 import AttendanceManager from './pages/admin/AttendanceManager';
+import UserProfile from './pages/admin/UserProfile';
 
 function App() {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '677200111519-ckd14p5oojhpfv0fn3sq4cf0sb98j3m4.apps.googleusercontent.com';
@@ -111,6 +112,7 @@ function App() {
                       <Route index element={<Dashboard />} />
                       <Route path="summary" element={<SummaryDashboard />} />
                       <Route path="users" element={<UserManagement />} />
+                      <Route path="users/:userId" element={<UserProfile />} />
                       <Route path="attendance" element={<AttendanceManager />} />
                       <Route path="enquiries" element={<EnquiriesManager />} />
                       <Route path="classes" element={<ClassBookingsManager />} />
