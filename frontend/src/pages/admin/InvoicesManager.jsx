@@ -12,7 +12,7 @@ const GYM_INFO = {
     name: 'Tara Fitness Centre',
     address: '1024/1, Namrata Society, Near Blossom Play School, Survey Nagar,\nRing Road, Kalamba, Kolhapur - 416007',
     phone: '+91 9960552750',
-    email: 'taraparmar2@gmail.com',
+    email: 'tarafitness365@gmail.com',
     website: 'www.tfc365.com',
 };
 
