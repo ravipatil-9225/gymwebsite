@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import socket from '../../utils/socket';
 import {
     ArrowLeft, User, Phone, Mail, Calendar, Package, Clock,
     CheckCircle, XCircle, Edit, Trash2, History, Shield,
@@ -67,33 +68,56 @@ const UserProfile = () => {
     const token = localStorage.getItem('adminToken');
     const headers = { Authorization: `Bearer ${token}` };
 
-    const fetchUser = async () => {
+    const fetchUser = useCallback(async (silent = false) => {
         try {
             const { data } = await axios.get('/api/admin/users', { headers });
             const found = data.find(u => u._id === userId);
             if (!found) { navigate('/admin/users'); return; }
             setUser(found);
-            setEditData(found);
+            if (!silent) setEditData(found);
+            if (!silent) setLoading(false);
         } catch (err) {
             console.error(err);
-        } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
-    };
+    }, [userId]);
 
-    const fetchAttendance = async () => {
+    const fetchAttendance = useCallback(async () => {
         try {
             const { data } = await axios.get(`/api/attendance/admin/report?userId=${userId}`, { headers });
             setAttendance(Array.isArray(data) ? data : data.records || []);
         } catch {
             setAttendance([]);
         }
-    };
+    }, [userId]);
 
+    // ── Real-time sync: socket + 5s polling (same pattern as UserManagement) ──
     useEffect(() => {
         fetchUser();
         fetchAttendance();
-    }, [userId]);
+
+        // Socket listener — skip refresh when edit modal is open
+        const onDbChange = () => {
+            if (!editing) {
+                fetchUser(true);
+                fetchAttendance();
+            }
+        };
+        socket.on('db_changed', onDbChange);
+
+        // Polling fallback every 5 seconds
+        const interval = setInterval(() => {
+            if (!editing) {
+                fetchUser(true);
+                fetchAttendance();
+            }
+        }, 5000);
+
+        return () => {
+            clearInterval(interval);
+            socket.off('db_changed', onDbChange);
+        };
+    }, [userId, editing]);
 
     // ── actions ──────────────────────────────────────────────────────────────
 
@@ -105,6 +129,8 @@ const UserProfile = () => {
             const merged = { ...updated, latestMembership: editData.latestMembership, allMemberships: editData.allMemberships };
             setUser(merged);
             setEditing(false);
+            // Re-fetch fresh data from server after save
+            fetchUser(true);
         } catch {
             alert('Error updating user');
         } finally {
@@ -129,6 +155,8 @@ const UserProfile = () => {
         try {
             const { data } = await axios.put(`/api/admin/users/${userId}/toggle-pending`, {}, { headers });
             setUser(prev => ({ ...prev, allowPendingPayment: data.user.allowPendingPayment }));
+            // Re-sync from server to confirm
+            fetchUser(true);
         } catch {
             alert('Error updating pending payment permission');
         } finally {
