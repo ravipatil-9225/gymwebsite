@@ -55,7 +55,7 @@ const invoiceSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Auto-generate invoice number before save
-invoiceSchema.pre('save', async function (next) {
+invoiceSchema.pre('save', async function () {
     if (!this.invoiceNumber) {
         const count = await mongoose.model('Invoice').countDocuments();
         this.invoiceNumber = `INV-${String(count + 1).padStart(5, '0')}`;
@@ -65,7 +65,6 @@ invoiceSchema.pre('save', async function (next) {
     this.totalAmount = Math.max(0, this.subTotal - this.discount + this.misc + this.tax - this.rewardPointsRedeemed);
     this.pending = Math.max(0, this.totalAmount - this.paid);
     this.status = this.pending <= 0 ? 'paid' : (this.paid > 0 ? 'partial' : 'pending');
-    next();
 });
 
 module.exports = mongoose.model('Invoice', invoiceSchema);
