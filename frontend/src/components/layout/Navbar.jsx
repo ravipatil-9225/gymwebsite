@@ -23,7 +23,7 @@ const Navbar = () => {
     const location = useLocation();
     const { user, adminUser } = useContext(AuthContext);
 
-    const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
+    const isAuthPage = location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/forgot-password' || location.pathname === '/reset-password';
 
     useEffect(() => {
         const onScroll = () => setScrolled(window.scrollY > 20);

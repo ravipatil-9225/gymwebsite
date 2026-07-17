@@ -244,7 +244,7 @@ const forgotPassword = async (req, res) => {
             return res.status(404).json({ message: 'No account found with this email address' });
         }
 
-        // Create a one-time use token 
+        // Create a one-time use token
         const secret = JWT_SECRET + user.password;
         const payload = { email: user.email, id: user._id };
         const token = jwt.sign(payload, secret, { expiresIn: '15m' });
@@ -255,15 +255,71 @@ const forgotPassword = async (req, res) => {
         frontendURL = frontendURL.replace(/\/+$/, ''); // Strip trailing slashes
         const link = `${frontendURL}/reset-password?id=${user._id}&token=${token}`;
 
-        // Ensure emailService never hangs the server by enforcing a strict 5-second timeout manually
+        // ── Step 1: Try Resend API first (fast, bypasses SMTP blocking) ──────────
+        const resendApiKey = process.env.RESEND_API_KEY;
+        if (resendApiKey) {
+            try {
+                const fromEmail = process.env.EMAIL_FROM || 'Tara Fitness <noreply@tfc365.com>';
+                const html = `
+                    <!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:40px 20px;">
+                    <table width="100%" style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.1);">
+                      <tr><td style="background:linear-gradient(135deg,#1a1a1a,#3a1a0e);padding:36px 40px;text-align:center;">
+                        <span style="font-size:28px;font-weight:900;color:#E34A29;">TARA</span>
+                        <span style="font-size:28px;font-weight:900;color:#fff;"> FITNESS</span>
+                      </td></tr>
+                      <tr><td style="padding:40px;">
+                        <h1 style="color:#1a1a1a;">Password Reset Request</h1>
+                        <p style="color:#E34A29;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Security Alert</p>
+                        <p style="color:#444;line-height:1.7;">Hi <strong>${user.name || 'Member'}</strong>, we received a request to reset the password for your Tara Fitness account.</p>
+                        <p style="color:#444;line-height:1.7;">Click the button below to securely set a new password. This link is valid for <strong>15 minutes</strong>.</p>
+                        <div style="text-align:center;margin:28px 0;">
+                          <a href="${link}" style="background:#E34A29;color:#fff;text-decoration:none;padding:14px 36px;border-radius:8px;font-size:15px;font-weight:700;">Reset Password</a>
+                        </div>
+                        <p style="color:#444;line-height:1.7;">If the button doesn't work, copy and paste this link:<br/><a href="${link}" style="color:#E34A29;word-break:break-all;">${link}</a></p>
+                        <hr style="border:none;border-top:1px solid #eee;margin:24px 0;"/>
+                        <p style="color:#444;">If you did not request a password reset, you can safely ignore this email.</p>
+                      </td></tr>
+                      <tr><td style="background:#f8f8f8;padding:24px;text-align:center;border-top:2px solid #eee;">
+                        <p style="color:#888;font-size:13px;">📍 Tara Fitness Centre | Your Fitness, Our Passion</p>
+                      </td></tr>
+                    </table>
+                    </body></html>`;
+
+                const resendResponse = await fetch('https://api.resend.com/emails', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${resendApiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        from: fromEmail,
+                        to: [user.email],
+                        subject: '🔒 Action Required: Reset Your Password — Tara Fitness',
+                        html
+                    })
+                });
+
+                const resendData = await resendResponse.json();
+                if (resendResponse.ok) {
+                    console.log(`✉️  Password reset email sent via Resend to ${user.email}`);
+                    return res.status(200).json({ message: 'Password reset link sent to your email.' });
+                }
+                console.warn('[FORGOT-PWD] Resend failed:', JSON.stringify(resendData), '— falling back to SMTP');
+            } catch (resendErr) {
+                console.warn('[FORGOT-PWD] Resend error:', resendErr.message, '— falling back to SMTP');
+            }
+        }
+
+        // ── Step 2: Fall back to Gmail SMTP (20s timeout) ─────────────────────
         const emailPromise = emailService.sendPasswordResetLink(user, link);
-        const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(false), 5000));
-        
+        const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(false), 20000));
+
         const emailSuccess = await Promise.race([emailPromise, timeoutPromise]);
 
         if (!emailSuccess) {
-            return res.status(500).json({ 
-                message: 'Failed to send password reset email. Your server might be blocking SMTP, or your credentials are out of date.' 
+            console.error('[FORGOT-PWD] Both Resend and SMTP failed for:', user.email);
+            return res.status(500).json({
+                message: 'Failed to send password reset email. Please try again in a few minutes or contact support.'
             });
         }
 
