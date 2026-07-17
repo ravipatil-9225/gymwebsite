@@ -118,55 +118,66 @@ const UserProfile = () => {
             </div>
 
             {/* HERO */}
-            <div className="rounded-2xl overflow-hidden shadow-md border border-gray-200">
-                <div className="relative h-28" style={{ background: isActive ? 'linear-gradient(135deg,#1e3a5f 0%,#1a56db 55%,#0e9f6e 100%)' : 'linear-gradient(135deg,#1f2937 0%,#374151 55%,#6b7280 100%)' }}>
-                    <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%,rgba(255,255,255,0.06) 0%,transparent 50%),radial-gradient(circle at 80% 20%,rgba(255,255,255,0.08) 0%,transparent 40%)' }} />
-                    <div className={`absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black border backdrop-blur-sm ${isActive ? 'bg-emerald-500/25 border-emerald-400/40 text-emerald-200' : 'bg-white/10 border-white/20 text-white/70'}`}>
-                        {isActive ? <CheckCircle className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-                        {isActive ? 'ACTIVE MEMBER' : 'MEMBERSHIP EXPIRED'}
-                    </div>
-                </div>
-                <div className="bg-white px-6 pb-6">
-                    <div className="flex flex-col sm:flex-row sm:items-end gap-5 -mt-14 mb-5">
-                        <div className="w-28 h-28 rounded-2xl border-4 border-white shadow-xl overflow-hidden shrink-0">
+            <div className="rounded-2xl overflow-hidden shadow-md border border-gray-200 bg-white">
+
+                {/* Banner + Avatar Row — all inside one flex */}
+                <div className="relative" style={{ background: isActive ? 'linear-gradient(135deg,#1e3a5f 0%,#1a56db 55%,#0e9f6e 100%)' : 'linear-gradient(135deg,#1f2937 0%,#374151 55%,#6b7280 100%)' }}>
+                    <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 15% 50%,rgba(255,255,255,0.07) 0%,transparent 50%),radial-gradient(circle at 85% 20%,rgba(255,255,255,0.09) 0%,transparent 40%)' }} />
+
+                    <div className="relative px-6 py-5 flex items-center gap-5">
+                        {/* Avatar */}
+                        <div className="w-20 h-20 rounded-2xl border-4 border-white/30 shadow-2xl overflow-hidden shrink-0 bg-gradient-to-br from-white/20 to-white/10">
                             {user.profileImage?.url
                                 ? <img src={user.profileImage.url} alt={user.name} className="w-full h-full object-cover" />
-                                : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-100 via-blue-100 to-violet-100"><User className="w-12 h-12 text-indigo-300" /></div>}
+                                : <div className="w-full h-full flex items-center justify-center"><User className="w-9 h-9 text-white/60" /></div>}
                         </div>
-                        <div className="flex-1 min-w-0 pb-1">
+
+                        {/* Name + info */}
+                        <div className="flex-1 min-w-0">
                             <div className="flex flex-wrap items-center gap-2 mb-1">
-                                <h1 className="text-3xl font-black text-gray-900 tracking-tight">{user.name}</h1>
-                                <span className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider border ${user.role === 'admin' ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-sky-50 text-sky-700 border-sky-200'}`}>
+                                <h1 className="text-2xl font-black text-white tracking-tight drop-shadow">{user.name}</h1>
+                                <span className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider border backdrop-blur-sm ${user.role === 'admin' ? 'bg-violet-500/30 text-violet-100 border-violet-400/40' : 'bg-white/15 text-white/80 border-white/25'}`}>
                                     {user.role === 'admin' ? '👑 Admin' : '🏋️ Member'}
                                 </span>
+                                <span className={`text-[10px] font-black px-2.5 py-1 rounded-full border backdrop-blur-sm flex items-center gap-1 ${isActive ? 'bg-emerald-500/25 border-emerald-400/40 text-emerald-200' : 'bg-red-500/25 border-red-400/40 text-red-200'}`}>
+                                    {isActive ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                                    {isActive ? 'Active' : 'Expired'}
+                                </span>
                             </div>
-                            <p className="text-gray-400 text-sm">{user.email}</p>
-                            {user.phone && <p className="text-gray-500 text-sm font-semibold mt-0.5">{user.phone}</p>}
+                            <p className="text-white/60 text-sm">{user.email}</p>
+                            {user.phone && <p className="text-white/80 text-sm font-semibold mt-0.5">{user.phone}</p>}
                         </div>
-                        <div className="flex gap-2 pb-1 shrink-0">
+
+                        {/* Action buttons */}
+                        <div className="flex gap-2 shrink-0">
                             <button onClick={() => { setEditing(true); setEditData(user); }}
-                                className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-black transition-all shadow-lg shadow-indigo-200 hover:-translate-y-0.5">
+                                className="flex items-center gap-2 px-4 py-2 bg-white text-indigo-700 rounded-xl text-sm font-black transition-all shadow-lg hover:bg-indigo-50 hover:-translate-y-0.5 active:translate-y-0">
                                 <Edit className="w-4 h-4" /> Edit
                             </button>
                             <button onClick={handleDelete} disabled={deleting}
-                                className="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-red-50 text-red-500 border border-red-200 rounded-xl text-sm font-black transition-all hover:-translate-y-0.5">
+                                className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-red-500/80 text-white border border-white/20 rounded-xl text-sm font-black transition-all hover:-translate-y-0.5 backdrop-blur-sm">
                                 <Trash2 className="w-4 h-4" /> {deleting ? '…' : 'Delete'}
                             </button>
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        {[
-                            { label: 'Days Left', value: daysLeft !== null ? (daysLeft > 0 ? `${daysLeft}` : 'Expired') : '—', unit: daysLeft > 0 ? 'days' : '', vc: daysColor, bg: 'bg-gray-50', b: 'border-gray-100' },
-                            { label: 'Total Plans', value: user.allMemberships?.length || 0, unit: 'plans', vc: 'text-indigo-600', bg: 'bg-indigo-50', b: 'border-indigo-100' },
-                            { label: 'Total Spent', value: `₹${totalSpent.toLocaleString('en-IN')}`, unit: '', vc: 'text-violet-700', bg: 'bg-violet-50', b: 'border-violet-100' },
-                            { label: 'Attendance', value: presentDays, unit: 'days', vc: 'text-emerald-600', bg: 'bg-emerald-50', b: 'border-emerald-100' },
-                        ].map(({ label, value, unit, vc, bg, b }) => (
-                            <div key={label} className={`${bg} border ${b} rounded-xl p-4 text-center`}>
-                                <p className={`text-2xl font-black ${vc}`}>{value}{unit ? <span className="text-xs font-semibold ml-1">{unit}</span> : null}</p>
-                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">{label}</p>
-                            </div>
-                        ))}
-                    </div>
+                </div>
+
+                {/* Stats Row */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-gray-100 border-t border-gray-100">
+                    {[
+                        { label: 'Days Left', value: daysLeft !== null ? (daysLeft > 0 ? `${daysLeft}` : '0') : '—', unit: daysLeft > 0 ? 'days' : (daysLeft === 0 ? 'expired' : ''), vc: daysColor, icon: '⏳' },
+                        { label: 'Total Plans', value: user.allMemberships?.length || 0, unit: 'plans', vc: 'text-indigo-600', icon: '📋' },
+                        { label: 'Total Spent', value: `₹${totalSpent.toLocaleString('en-IN')}`, unit: '', vc: 'text-violet-700', icon: '💰' },
+                        { label: 'Attendance', value: presentDays, unit: 'days', vc: 'text-emerald-600', icon: '✅' },
+                    ].map(({ label, value, unit, vc, icon }) => (
+                        <div key={label} className="p-4 text-center hover:bg-gray-50 transition-colors">
+                            <p className={`text-xl font-black ${vc}`}>
+                                {value}
+                                {unit ? <span className="text-xs font-semibold ml-1 text-gray-400">{unit}</span> : null}
+                            </p>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">{icon} {label}</p>
+                        </div>
+                    ))}
                 </div>
             </div>
 
