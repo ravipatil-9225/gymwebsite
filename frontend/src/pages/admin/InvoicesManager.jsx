@@ -355,48 +355,7 @@ const InvoicesManager = () => {
     // ── Preview + Print / Download ───────────────────────────────────────────
     const openPreview = (inv) => { setPreviewInvoice(inv); setShowPreview(true); };
 
-    // Build full self-contained HTML for the invoice
-    const buildInvoiceHTML = () => {
-        const el = printRef.current;
-        if (!el) return '';
-        // Collect all <style> content embedded inside the element
-        const styles = Array.from(el.querySelectorAll('style'))
-            .map(s => s.textContent).join('\n');
-        const bodyHTML = el.innerHTML;
-        return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>Invoice ${previewInvoice?.invoiceNumber || ''}</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: white; }
-    ${styles}
-  </style>
-</head>
-<body>${bodyHTML}</body>
-</html>`;
-    };
 
-    // ── Print via hidden iframe (no popup blocker) ──────────────────────────
-    const handlePrint = () => {
-        const html = buildInvoiceHTML();
-        if (!html) return;
-        const iframe = iframeRef.current;
-        const doc = iframe.contentDocument || iframe.contentWindow.document;
-        doc.open();
-        doc.write(html);
-        doc.close();
-        // Wait for content to render then print
-        iframe.onload = () => {
-            iframe.contentWindow.focus();
-            iframe.contentWindow.print();
-        };
-        // Fallback timeout in case onload already fired
-        setTimeout(() => {
-            try { iframe.contentWindow.focus(); iframe.contentWindow.print(); } catch {}
-        }, 600);
-    };
 
     // ── Download as PDF using html2pdf.js ──────────────────────────────────
     const handleDownloadPDF = async () => {
@@ -806,10 +765,7 @@ const InvoicesManager = () => {
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                <button onClick={handlePrint}
-                                    className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-black hover:bg-slate-200 shadow-sm transition-all">
-                                    <Printer className="w-4 h-4" /> Print
-                                </button>
+
                                 <button onClick={handleDownloadPDF} disabled={downloading}
                                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-black hover:bg-blue-700 shadow-sm transition-all disabled:opacity-50">
                                     <Download className="w-4 h-4" /> {downloading ? 'Generating PDF...' : 'Download PDF'}
@@ -831,9 +787,6 @@ const InvoicesManager = () => {
                 .inp { width: 100%; padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 13px; outline: none; background: #f9fafb; transition: all 0.15s; }
                 .inp:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.12); background: white; }
             `}</style>
-
-            {/* Hidden iframe for native printing without popups */}
-            <iframe ref={iframeRef} style={{ display: 'none' }} title="Print" />
         </div>
     );
 };
