@@ -550,13 +550,17 @@ const UserManagement = () => {
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Batch Time</label>
-                                <input
-                                    list="batch-times"
+                                <select
                                     className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                                     value={editingUser.batchTime || ''}
-                                    placeholder="Select or type a batch time..."
                                     onChange={(e) => setEditingUser({ ...editingUser, batchTime: e.target.value })}
-                                />
+                                >
+                                    <option value="">Not Assigned</option>
+                                    <option value="5:30 AM to 7:30 am">5:30 AM to 7:30 am</option>
+                                    <option value="7:30 am to 9:30 am">7:30 am to 9:30 am</option>
+                                    <option value="5:00PM  to 7:00 pm">5:00PM  to 7:00 pm</option>
+                                    <option value="7:00PM  to 9:00 pm">7:00PM  to 9:00 pm</option>
+                                </select>
                             </div>
 
                             <div>
@@ -714,13 +718,17 @@ const UserManagement = () => {
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Batch Time</label>
-                                <input
-                                    list="batch-times"
+                                <select
                                     className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                                     value={addingUser.batchTime || ''}
-                                    placeholder="Select or type a batch time..."
                                     onChange={(e) => setAddingUser({ ...addingUser, batchTime: e.target.value })}
-                                />
+                                >
+                                    <option value="">Not Assigned</option>
+                                    <option value="5:30 AM to 7:30 am">5:30 AM to 7:30 am</option>
+                                    <option value="7:30 am to 9:30 am">7:30 am to 9:30 am</option>
+                                    <option value="5:00PM  to 7:00 pm">5:00PM  to 7:00 pm</option>
+                                    <option value="7:00PM  to 9:00 pm">7:00PM  to 9:00 pm</option>
+                                </select>
                             </div>
 
                             <div>
