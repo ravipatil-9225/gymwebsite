@@ -53,6 +53,7 @@ import AttendanceManager from './pages/admin/AttendanceManager';
 import UserProfile from './pages/admin/UserProfile';
 import ProductsManager from './pages/admin/ProductsManager';
 import ProductsPage from './pages/ProductsPage';
+import InvoicesManager from './pages/admin/InvoicesManager';
 
 function App() {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '677200111519-ckd14p5oojhpfv0fn3sq4cf0sb98j3m4.apps.googleusercontent.com';
@@ -126,6 +127,7 @@ function App() {
                       <Route path="gallery" element={<GalleryManager />} />
                       <Route path="payments" element={<PaymentsManager />} />
                       <Route path="products" element={<ProductsManager />} />
+                      <Route path="invoices" element={<InvoicesManager />} />
                       <Route path="feedback" element={<FeedbackManager />} />
                       <Route path="documents" element={<DocumentsManager />} />
                       <Route path="cms" element={<CMSManager />} />

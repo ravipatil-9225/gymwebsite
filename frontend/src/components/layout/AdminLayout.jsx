@@ -25,6 +25,7 @@ const AdminLayout = () => {
         { name: 'PT Sessions', href: '/admin/pt-sessions', icon: CalendarClock },
         { name: 'Trainer Management', href: '/admin/trainers', icon: UserCog },
         { name: 'Payments', href: '/admin/payments', icon: HandCoins },
+        { name: 'Invoices', href: '/admin/invoices', icon: FileText },
         { name: 'Products / Store', href: '/admin/products', icon: Package },
         { name: 'Packages Management', href: '/admin/packages', icon: HandCoins },
         { name: 'Offers Management', href: '/admin/offers', icon: Coins },
