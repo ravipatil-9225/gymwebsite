@@ -7,6 +7,7 @@ const Package = require('./models/Package');
 const Trainer = require('./models/Trainer');
 const Offer = require('./models/Offer');
 const Gallery = require('./models/Gallery');
+const GalleryFolder = require('./models/GalleryFolder');
 const Content = require('./models/Content');
 const Payment = require('./models/Payment');
 const Membership = require('./models/Membership');
@@ -776,6 +777,43 @@ router.delete('/gallery/:id', async (req, res) => {
         socket.getIO().emit('db_changed');
     } catch (err) {
         res.status(500).json({ message: 'Error deleting image' });
+    }
+});
+
+// ==========================================
+// GALLERY FOLDERS
+// ==========================================
+router.get('/gallery-folders', async (req, res) => {
+    try {
+        const folders = await GalleryFolder.find().sort({ createdAt: 1 });
+        res.json(folders);
+    } catch (err) {
+        res.status(500).json({ message: 'Error fetching gallery folders' });
+    }
+});
+
+router.post('/gallery-folders', async (req, res) => {
+    try {
+        const { name, description } = req.body;
+        if (!name || !name.trim()) return res.status(400).json({ message: 'Folder name is required' });
+        const exists = await GalleryFolder.findOne({ name: name.trim() });
+        if (exists) return res.status(409).json({ message: 'A folder with this name already exists' });
+        const folder = await GalleryFolder.create({ name: name.trim(), description: description || '' });
+        res.status(201).json(folder);
+        socket.getIO().emit('db_changed');
+    } catch (err) {
+        res.status(500).json({ message: 'Error creating folder' });
+    }
+});
+
+router.delete('/gallery-folders/:id', async (req, res) => {
+    try {
+        const folder = await GalleryFolder.findByIdAndDelete(req.params.id);
+        if (!folder) return res.status(404).json({ message: 'Folder not found' });
+        res.json({ message: 'Folder deleted', name: folder.name });
+        socket.getIO().emit('db_changed');
+    } catch (err) {
+        res.status(500).json({ message: 'Error deleting folder' });
     }
 });
 

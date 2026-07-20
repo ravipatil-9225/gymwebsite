@@ -35,6 +35,7 @@ const Trainer = require('./models/Trainer');
 const Package = require('./models/Package');
 const Offer = require('./models/Offer');
 const Gallery = require('./models/Gallery');
+const GalleryFolder = require('./models/GalleryFolder');
 const Content = require('./models/Content');
 const Product = require('./models/Product');
 const Invoice = require('./models/Invoice');
@@ -244,6 +245,15 @@ app.get('/api/public/gallery', async (req, res) => {
         res.json(gallery);
     } catch (err) {
         res.status(500).json({ message: 'Error fetching gallery' });
+    }
+});
+
+app.get('/api/public/gallery-folders', async (req, res) => {
+    try {
+        const folders = await GalleryFolder.find({ isActive: true }).sort({ createdAt: 1 });
+        res.json(folders);
+    } catch (err) {
+        res.status(500).json({ message: 'Error fetching gallery folders' });
     }
 });
 

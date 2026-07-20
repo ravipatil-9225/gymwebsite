@@ -7,30 +7,39 @@ import { X, ChevronLeft, ChevronRight, ZoomIn, Images, Folder } from 'lucide-rea
 const GalleryPage = () => {
     const [lightboxIdx, setLightboxIdx] = useState(null);
     const [allPhotos, setAllPhotos] = useState([]);
+    const [persistedFolders, setPersistedFolders] = useState([]);
     const [activeFolder, setActiveFolder] = useState('All');
 
+    const fetchData = async () => {
+        try {
+            const [galleryRes, foldersRes] = await Promise.all([
+                axios.get('/api/public/gallery'),
+                axios.get('/api/public/gallery-folders'),
+            ]);
+            setAllPhotos(galleryRes.data.filter(g => g.isActive).map((g, i) => ({
+                id: g._id || i,
+                src: g.imageUrl,
+                alt: g.title || 'Gym Facility',
+                caption: g.title || g.category || 'Gym Facility',
+                folder: g.folder || 'General',
+            })));
+            setPersistedFolders(foldersRes.data);
+        } catch(e) { console.error(e); }
+    };
+
     useEffect(() => {
-        const fetchGallery = async () => {
-            try {
-                const { data } = await axios.get('/api/public/gallery');
-                setAllPhotos(data.filter(g => g.isActive).map((g, i) => ({
-                    id: g._id || i,
-                    src: g.imageUrl,
-                    alt: g.title || 'Gym Facility',
-                    caption: g.title || g.category || 'Gym Facility',
-                    folder: g.folder || 'General',
-                })));
-            } catch(e) { console.error(e); }
-        };
-        fetchGallery();
-        socket.on('db_changed', fetchGallery);
-        return () => socket.off('db_changed', fetchGallery);
+        fetchData();
+        socket.on('db_changed', fetchData);
+        return () => socket.off('db_changed', fetchData);
     }, []);
 
+    // Merge: persisted folder names + any folder names from images
     const folders = useMemo(() => {
-        const set = new Set(allPhotos.map(p => p.folder));
-        return ['All', ...Array.from(set).sort()];
-    }, [allPhotos]);
+        const fromImages = new Set(allPhotos.map(p => p.folder));
+        const fromDB = new Set(persistedFolders.map(f => f.name));
+        const merged = new Set([...fromImages, ...fromDB]);
+        return ['All', ...Array.from(merged).sort()];
+    }, [allPhotos, persistedFolders]);
 
     const photos = useMemo(() => {
         if (activeFolder === 'All') return allPhotos;
@@ -167,12 +176,25 @@ const GalleryPage = () => {
                 </AnimatePresence>
 
                 {photos.length === 0 && (
-                    <div className="text-center py-20 text-gray-500">No photos in this folder yet.</div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                        className="flex flex-col items-center justify-center py-24 gap-4"
+                    >
+                        <div className="w-20 h-20 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+                            <Folder className="w-10 h-10 text-primary/60" />
+                        </div>
+                        <p className="text-gray-400 text-lg font-semibold">
+                            {activeFolder !== 'All' ? `No photos in "${activeFolder}" yet.` : 'No photos yet.'}
+                        </p>
+                        <p className="text-gray-600 text-sm">Check back soon — we're adding content!</p>
+                    </motion.div>
                 )}
 
-                <p className="text-center text-gray-500 font-sans text-sm mt-10">
-                    {photos.length} photos{activeFolder !== 'All' ? ` in "${activeFolder}"` : ''} • Click to open fullscreen
-                </p>
+                {photos.length > 0 && (
+                    <p className="text-center text-gray-500 font-sans text-sm mt-10">
+                        {photos.length} photos{activeFolder !== 'All' ? ` in "${activeFolder}"` : ''} • Click to open fullscreen
+                    </p>
+                )}
             </div>
 
             {/* Lightbox */}

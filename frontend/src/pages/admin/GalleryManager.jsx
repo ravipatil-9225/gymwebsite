@@ -37,10 +37,6 @@ const CreateFolderModal = ({ onClose, onCreate, existingFolders }) => {
         e.preventDefault();
         const trimmed = name.trim();
         if (!trimmed) return;
-        if (existingFolders.map(f => f.toLowerCase()).includes(trimmed.toLowerCase())) {
-            alert('A folder with this name already exists.');
-            return;
-        }
         onCreate(trimmed);
         onClose();
     };
@@ -236,8 +232,8 @@ const GalleryManager = () => {
     const [showUploadModal, setShowUploadModal] = useState(false);
     const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
     const [editingImage, setEditingImage] = useState(null);
-    // Extra folders created by admin (not yet containing images)
-    const [extraFolders, setExtraFolders] = useState([]);
+    // Extra folders created by admin (persisted in DB)
+    const [persistedFolders, setPersistedFolders] = useState([]);
 
     // Transformations State
     const [transformations, setTransformations] = useState([]);
@@ -259,9 +255,9 @@ const GalleryManager = () => {
     }, [images]);
 
     const allFolders = useMemo(() => {
-        const set = new Set([...imageFolders, ...extraFolders]);
+        const set = new Set([...imageFolders, ...persistedFolders.map(f => f.name)]);
         return Array.from(set).sort();
-    }, [imageFolders, extraFolders]);
+    }, [imageFolders, persistedFolders]);
 
     const filteredImages = useMemo(() => {
         if (activeFolder === 'All') return images;
@@ -278,6 +274,13 @@ const GalleryManager = () => {
     }, [images]);
 
     // ═══ Gallery CRUD ═══
+    const fetchFolders = async (silent = false) => {
+        try {
+            const { data } = await axios.get('/api/admin/gallery-folders', authHeader);
+            setPersistedFolders(data);
+        } catch (err) { if (!silent) console.error('Failed to fetch folders', err); }
+    };
+
     const fetchImages = async (silent = false) => {
         if (!silent) setLoadingGallery(true);
         try {
@@ -308,9 +311,29 @@ const GalleryManager = () => {
         } catch { alert(editingImage ? 'Error updating image' : 'Error uploading image'); }
     };
 
-    const handleCreateFolder = (name) => {
-        setExtraFolders(prev => [...new Set([...prev, name])]);
-        setActiveFolder(name);
+    const handleCreateFolder = async (name) => {
+        try {
+            await axios.post('/api/admin/gallery-folders', { name }, authHeader);
+            await fetchFolders();
+            setActiveFolder(name);
+        } catch (err) {
+            if (err.response?.status === 409) {
+                alert('A folder with this name already exists.');
+            } else {
+                alert('Error creating folder');
+            }
+        }
+    };
+
+    const handleDeleteFolder = async (folderId, folderName) => {
+        if (!window.confirm(`Delete folder "${folderName}"? Images inside it will remain but become unassigned from this folder.`)) return;
+        try {
+            await axios.delete(`/api/admin/gallery-folders/${folderId}`, authHeader);
+            if (activeFolder === folderName) setActiveFolder('All');
+            await fetchFolders();
+        } catch {
+            alert('Error deleting folder');
+        }
     };
 
     // ═══ Transformations CRUD ═══
@@ -377,8 +400,9 @@ const GalleryManager = () => {
 
     useEffect(() => {
         fetchImages();
+        fetchFolders();
         fetchTransformations();
-        const onDbChange = () => { fetchImages(true); fetchTransformations(true); };
+        const onDbChange = () => { fetchImages(true); fetchFolders(true); fetchTransformations(true); };
         socket.on('db_changed', onDbChange);
         return () => socket.off('db_changed', onDbChange);
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -443,15 +467,28 @@ const GalleryManager = () => {
                                 active={activeFolder === 'All'}
                                 onClick={() => setActiveFolder('All')}
                             />
-                            {allFolders.map(folder => (
-                                <FolderPill
-                                    key={folder}
-                                    name={folder}
-                                    count={folderCounts[folder] || 0}
-                                    active={activeFolder === folder}
-                                    onClick={() => setActiveFolder(folder)}
-                                />
-                            ))}
+                            {allFolders.map(folder => {
+                                const pf = persistedFolders.find(f => f.name === folder);
+                                return (
+                                    <div key={folder} className="relative group/fp">
+                                        <FolderPill
+                                            name={folder}
+                                            count={folderCounts[folder] || 0}
+                                            active={activeFolder === folder}
+                                            onClick={() => setActiveFolder(folder)}
+                                        />
+                                        {pf && (
+                                            <button
+                                                title="Delete folder"
+                                                onClick={(e) => { e.stopPropagation(); handleDeleteFolder(pf._id, pf.name); }}
+                                                className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 hover:bg-red-600 text-white rounded-full items-center justify-center text-[9px] font-bold hidden group-hover/fp:flex shadow transition-colors z-10"
+                                            >
+                                                ×
+                                            </button>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
 
