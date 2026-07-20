@@ -311,6 +311,7 @@ const PaymentsManager = () => {
     const [loading, setLoading]       = useState(true);
     const [tab, setTab]               = useState('all');
     const [userFilter, setUserFilter] = useState('all'); // 'all', 'allowed', 'disabled'
+    const [searchQuery, setSearchQuery] = useState('');
     const [lightbox, setLightbox]     = useState(null); // payment object or null
 
     const fetchPayments = async () => {
@@ -378,6 +379,9 @@ const PaymentsManager = () => {
     };
 
     const filtered = payments.filter(p => {
+        // Search filter
+        if (searchQuery && !p.userName.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+
         // Tab filter
         if (tab === 'upi' && p.paymentMethod !== 'upi') return false;
         if (tab === 'cash' && p.paymentMethod !== 'cash_on_bench') return false;
@@ -403,7 +407,14 @@ const PaymentsManager = () => {
             {/* Header */}
             <div className="flex flex-wrap justify-between items-center gap-3">
                 <h1 className="text-2xl font-bold text-gray-900">Payment Management</h1>
-                <div className="flex gap-2 items-center">
+                <div className="flex gap-2 items-center flex-wrap">
+                    <input
+                        type="text"
+                        placeholder="Search by name..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px]"
+                    />
                     <select
                         value={userFilter}
                         onChange={(e) => setUserFilter(e.target.value)}

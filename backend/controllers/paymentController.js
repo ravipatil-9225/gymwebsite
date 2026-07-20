@@ -102,6 +102,26 @@ exports.verifyAndUpload = async (req, res) => {
             ? existingDiscountPayment.finalAmount 
             : numericPrice;
 
+        // Prevent processing multiple membership plans
+        const activeMembership = await Membership.findOne({
+            userEmail: email,
+            status: 'active',
+            endDate: { $gt: new Date() }
+        });
+
+        if (activeMembership) {
+            return res.status(400).json({ message: 'You already have an active membership plan. You cannot apply for another package at this time.' });
+        }
+
+        const pendingPayment = await Payment.findOne({
+            email,
+            verificationStatus: { $in: ['pending', 'cash_pending'] }
+        });
+
+        if (pendingPayment) {
+            return res.status(400).json({ message: 'You already have a pending payment request. Please wait for it to be processed before applying for a new package.' });
+        }
+
         // ── PAY LATER FLOW ──────────────────────────────────────────────────────
         if (method === 'pay_later') {
             const user = await User.findOne({ email });
