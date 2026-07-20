@@ -376,7 +376,7 @@ const UserProfile = () => {
                                         onChange={(e) => setEditData({ ...editData, [key]: e.target.value })} />
                                 </div>
                             ))}
-                            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-4">
                                 <label className="flex items-center gap-1 text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-2">
                                     <Calendar className="w-3 h-3" /> Registration / Joining Date
                                     <span className="ml-auto text-[9px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded font-black">ADMIN ONLY</span>
@@ -385,6 +385,35 @@ const UserProfile = () => {
                                     value={fmtInput(editData.registrationDate || editData.createdAt)}
                                     onChange={(e) => setEditData({ ...editData, registrationDate: e.target.value })} />
                             </div>
+
+                            {editData.latestMembership && (
+                                <div className="bg-sky-50 border border-sky-200 rounded-xl p-4">
+                                    <label className="flex items-center gap-1 text-[10px] font-black text-sky-700 uppercase tracking-widest mb-2">
+                                        <Package className="w-3 h-3" /> Plan Start & End Date
+                                        <span className="ml-auto text-[9px] bg-sky-100 text-sky-600 px-1.5 py-0.5 rounded font-black">ADMIN ONLY</span>
+                                    </label>
+                                    <div className="flex gap-3">
+                                        <div className="flex-1">
+                                            <label className="block text-[9px] font-black text-sky-600 uppercase tracking-widest mb-1.5">Start Date</label>
+                                            <input type="date" className="w-full px-3 py-2 border border-sky-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-400 outline-none bg-white"
+                                                value={fmtInput(editData.latestMembership.startDate)}
+                                                onChange={(e) => setEditData({
+                                                    ...editData,
+                                                    latestMembership: { ...editData.latestMembership, startDate: e.target.value }
+                                                })} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <label className="block text-[9px] font-black text-sky-600 uppercase tracking-widest mb-1.5">End Date</label>
+                                            <input type="date" className="w-full px-3 py-2 border border-sky-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-400 outline-none bg-white"
+                                                value={fmtInput(editData.latestMembership.endDate)}
+                                                onChange={(e) => setEditData({
+                                                    ...editData,
+                                                    latestMembership: { ...editData.latestMembership, endDate: e.target.value }
+                                                })} />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                             <div>
                                 <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Batch Time</label>
                                 <select className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 outline-none bg-gray-50 focus:bg-white"

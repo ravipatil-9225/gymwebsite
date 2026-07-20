@@ -914,11 +914,30 @@ router.put('/payments/:id', async (req, res) => {
                     }
                 }
 
-                await Membership.create({
-                    userId: user._id, userName: user.name, userEmail: user.email,
-                    packageName: payment.planName, planDuration,
-                    amountPaid: payment.planPrice, startDate, endDate,
-                });
+                if (payment.paymentMethod === 'pay_later') {
+                    const existing = await Membership.findOne({
+                        userId: user._id,
+                        packageName: payment.planName,
+                        amountPaid: 0,
+                    }).sort({ createdAt: -1 });
+
+                    if (existing) {
+                        existing.amountPaid = payment.planPrice;
+                        await existing.save();
+                    } else {
+                        await Membership.create({
+                            userId: user._id, userName: user.name, userEmail: user.email,
+                            packageName: payment.planName, planDuration,
+                            amountPaid: payment.planPrice, startDate, endDate,
+                        });
+                    }
+                } else {
+                    await Membership.create({
+                        userId: user._id, userName: user.name, userEmail: user.email,
+                        packageName: payment.planName, planDuration,
+                        amountPaid: payment.planPrice, startDate, endDate,
+                    });
+                }
 
                 // Capture for closure — all vars are in scope here
                 const bgUser = user;

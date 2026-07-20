@@ -1,33 +1,47 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import socket from '../utils/socket';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, ZoomIn, Images } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ZoomIn, Images, Folder } from 'lucide-react';
 
 const GalleryPage = () => {
     const [lightboxIdx, setLightboxIdx] = useState(null);
-    const [photos, setPhotos] = useState([]);
+    const [allPhotos, setAllPhotos] = useState([]);
+    const [activeFolder, setActiveFolder] = useState('All');
 
     useEffect(() => {
         const fetchGallery = async () => {
             try {
                 const { data } = await axios.get('/api/public/gallery');
-                setPhotos(data.filter(g => g.isActive).map((g, i) => ({
-                    id: g._id || i, src: g.imageUrl, alt: g.title || 'Gym Facility', caption: g.title || g.category || 'Gym Facility'
+                setAllPhotos(data.filter(g => g.isActive).map((g, i) => ({
+                    id: g._id || i,
+                    src: g.imageUrl,
+                    alt: g.title || 'Gym Facility',
+                    caption: g.title || g.category || 'Gym Facility',
+                    folder: g.folder || 'General',
                 })));
-            } catch(e) { console.error(e) }
+            } catch(e) { console.error(e); }
         };
         fetchGallery();
         socket.on('db_changed', fetchGallery);
         return () => socket.off('db_changed', fetchGallery);
     }, []);
 
+    const folders = useMemo(() => {
+        const set = new Set(allPhotos.map(p => p.folder));
+        return ['All', ...Array.from(set).sort()];
+    }, [allPhotos]);
+
+    const photos = useMemo(() => {
+        if (activeFolder === 'All') return allPhotos;
+        return allPhotos.filter(p => p.folder === activeFolder);
+    }, [allPhotos, activeFolder]);
+
     const openLightbox = (idx) => setLightboxIdx(idx);
     const closeLightbox = () => setLightboxIdx(null);
     const prev = () => setLightboxIdx((i) => (i - 1 + photos.length) % photos.length);
     const next = () => setLightboxIdx((i) => (i + 1) % photos.length);
 
-    // Keyboard navigation
     useEffect(() => {
         if (lightboxIdx === null) return;
         const handler = (e) => {
@@ -37,7 +51,7 @@ const GalleryPage = () => {
         };
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
-    }, [lightboxIdx]);
+    }, [lightboxIdx, photos]);
 
     return (
         <section className="py-24 bg-dark min-h-[calc(100vh-80px)] relative overflow-hidden">
@@ -47,7 +61,7 @@ const GalleryPage = () => {
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
                 {/* Header */}
-                <div className="text-center mb-16 mt-8">
+                <div className="text-center mb-10 mt-8">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
                         className="flex items-center justify-center gap-3 mb-4"
@@ -75,47 +89,90 @@ const GalleryPage = () => {
                     </motion.p>
                 </div>
 
+                {/* Folder Filter Tabs */}
+                {folders.length > 1 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
+                        className="flex flex-wrap justify-center gap-2 mb-10"
+                    >
+                        {folders.map(folder => (
+                            <button
+                                key={folder}
+                                onClick={() => { setActiveFolder(folder); setLightboxIdx(null); }}
+                                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold border transition-all duration-300 ${
+                                    activeFolder === folder
+                                        ? 'bg-primary text-white border-primary shadow-lg shadow-primary/30'
+                                        : 'bg-white/5 text-gray-400 border-white/10 hover:border-primary/40 hover:text-white'
+                                }`}
+                            >
+                                {folder !== 'All' && <Folder className="w-3.5 h-3.5" />}
+                                {folder}
+                                <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${activeFolder === folder ? 'bg-white/25 text-white' : 'bg-white/10 text-gray-500'}`}>
+                                    {folder === 'All' ? allPhotos.length : allPhotos.filter(p => p.folder === folder).length}
+                                </span>
+                            </button>
+                        ))}
+                    </motion.div>
+                )}
+
                 {/* Masonry-style Grid */}
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-auto"
-                >
-                    {photos.map((photo, idx) => (
-                        <motion.div
-                            key={photo.id}
-                            initial={{ opacity: 0, y: 30 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.05 * idx, duration: 0.5 }}
-                            onClick={() => openLightbox(idx)}
-                            className={`relative group cursor-pointer overflow-hidden rounded-2xl border border-white/5 hover:border-primary/40 transition-all duration-500 shadow-xl
-                                ${idx === 0 ? 'sm:col-span-2 lg:col-span-2 aspect-[16/8]' : 'aspect-[4/3]'}
-                            `}
-                        >
-                            <img
-                                src={photo.src}
-                                alt={photo.alt}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
-                            />
-                            {/* Overlay */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-400 flex flex-col justify-end p-5">
-                                <div className="flex items-center justify-between">
-                                    <p className="text-white font-display text-lg font-semibold tracking-wide translate-y-4 group-hover:translate-y-0 transition-transform duration-400">
-                                        {photo.caption}
-                                    </p>
-                                    <div className="w-10 h-10 rounded-full bg-primary/80 backdrop-blur-sm flex items-center justify-center scale-0 group-hover:scale-100 transition-transform duration-300">
-                                        <ZoomIn size={18} className="text-white" />
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={activeFolder}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.3 }}
+                        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-auto"
+                    >
+                        {photos.map((photo, idx) => (
+                            <motion.div
+                                key={photo.id}
+                                initial={{ opacity: 0, y: 30 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.04 * idx, duration: 0.4 }}
+                                onClick={() => openLightbox(idx)}
+                                className={`relative group cursor-pointer overflow-hidden rounded-2xl border border-white/5 hover:border-primary/40 transition-all duration-500 shadow-xl
+                                    ${idx === 0 ? 'sm:col-span-2 lg:col-span-2 aspect-[16/8]' : 'aspect-[4/3]'}
+                                `}
+                            >
+                                <img
+                                    src={photo.src}
+                                    alt={photo.alt}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+                                />
+                                {/* Overlay */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-400 flex flex-col justify-end p-5">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-white font-display text-lg font-semibold tracking-wide translate-y-4 group-hover:translate-y-0 transition-transform duration-400">
+                                                {photo.caption}
+                                            </p>
+                                            {photo.folder && photo.folder !== 'General' && (
+                                                <span className="text-xs text-white/60 flex items-center gap-1 mt-1">
+                                                    <Folder className="w-3 h-3" /> {photo.folder}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="w-10 h-10 rounded-full bg-primary/80 backdrop-blur-sm flex items-center justify-center scale-0 group-hover:scale-100 transition-transform duration-300">
+                                            <ZoomIn size={18} className="text-white" />
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            {/* Corner accent */}
-                            <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                        </motion.div>
-                    ))}
-                </motion.div>
+                                {/* Corner accent */}
+                                <div className="absolute top-3 right-3 w-2 h-2 rounded-full bg-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                            </motion.div>
+                        ))}
+                    </motion.div>
+                </AnimatePresence>
 
-                <p className="text-center text-gray-500 font-sans text-sm mt-10">{photos.length} photos • Click to open fullscreen</p>
+                {photos.length === 0 && (
+                    <div className="text-center py-20 text-gray-500">No photos in this folder yet.</div>
+                )}
+
+                <p className="text-center text-gray-500 font-sans text-sm mt-10">
+                    {photos.length} photos{activeFolder !== 'All' ? ` in "${activeFolder}"` : ''} • Click to open fullscreen
+                </p>
             </div>
 
             {/* Lightbox */}
@@ -130,23 +187,13 @@ const GalleryPage = () => {
                         className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex items-center justify-center"
                         onClick={closeLightbox}
                     >
-                        {/* Close */}
-                        <button
-                            onClick={closeLightbox}
-                            className="absolute top-5 right-5 z-10 w-11 h-11 rounded-full bg-white/10 hover:bg-primary flex items-center justify-center transition-colors"
-                        >
+                        <button onClick={closeLightbox} className="absolute top-5 right-5 z-10 w-11 h-11 rounded-full bg-white/10 hover:bg-primary flex items-center justify-center transition-colors">
                             <X size={20} className="text-white" />
                         </button>
-
-                        {/* Prev */}
-                        <button
-                            onClick={(e) => { e.stopPropagation(); prev(); }}
-                            className="absolute left-4 md:left-8 z-10 w-12 h-12 rounded-full bg-white/10 hover:bg-primary flex items-center justify-center transition-colors"
-                        >
+                        <button onClick={(e) => { e.stopPropagation(); prev(); }} className="absolute left-4 md:left-8 z-10 w-12 h-12 rounded-full bg-white/10 hover:bg-primary flex items-center justify-center transition-colors">
                             <ChevronLeft size={24} className="text-white" />
                         </button>
 
-                        {/* Image */}
                         <motion.div
                             key={lightboxIdx}
                             initial={{ opacity: 0, scale: 0.95 }}
@@ -163,19 +210,19 @@ const GalleryPage = () => {
                             />
                             <div className="mt-4 text-center">
                                 <p className="text-white font-display text-xl tracking-wide">{photos[lightboxIdx].caption}</p>
+                                {photos[lightboxIdx].folder && photos[lightboxIdx].folder !== 'General' && (
+                                    <p className="text-gray-400 text-xs mt-1 flex items-center justify-center gap-1">
+                                        <Folder className="w-3 h-3" /> {photos[lightboxIdx].folder}
+                                    </p>
+                                )}
                                 <p className="text-gray-500 font-sans text-sm mt-1">{lightboxIdx + 1} / {photos.length}</p>
                             </div>
                         </motion.div>
 
-                        {/* Next */}
-                        <button
-                            onClick={(e) => { e.stopPropagation(); next(); }}
-                            className="absolute right-4 md:right-8 z-10 w-12 h-12 rounded-full bg-white/10 hover:bg-primary flex items-center justify-center transition-colors"
-                        >
+                        <button onClick={(e) => { e.stopPropagation(); next(); }} className="absolute right-4 md:right-8 z-10 w-12 h-12 rounded-full bg-white/10 hover:bg-primary flex items-center justify-center transition-colors">
                             <ChevronRight size={24} className="text-white" />
                         </button>
 
-                        {/* Dot indicators */}
                         <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-2">
                             {photos.map((_, i) => (
                                 <button
