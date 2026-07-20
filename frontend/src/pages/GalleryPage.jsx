@@ -167,20 +167,20 @@ const GalleryPage = () => {
                         exit={{ opacity: 0, y: -10 }}
                     >
                         {/* Header controls */}
-                        <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/10">
-                            <div>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-4 border-b border-white/10">
+                            <div className="flex items-center gap-4">
                                 <button
                                     onClick={() => setActiveFolder(null)}
-                                    className="flex items-center gap-2 text-gray-400 hover:text-primary transition-colors text-xs font-bold uppercase tracking-widest mb-2"
+                                    className="flex items-center gap-2 bg-white/10 hover:bg-primary hover:text-white text-gray-300 transition-all px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest shadow-sm"
                                 >
-                                    <ArrowLeft size={14} /> Back to Folders
+                                    <ArrowLeft size={16} /> Back
                                 </button>
-                                <h2 className="text-2xl font-display font-bold text-white">
+                                <h2 className="text-2xl md:text-3xl font-display font-bold text-white">
                                     {activeFolder === 'All' ? 'All Photos' : activeFolder}
                                 </h2>
                             </div>
-                            <div className="text-sm text-gray-500 font-semibold">
-                                {photos.length} Photos
+                            <div className="text-sm text-gray-400 font-semibold bg-white/5 px-3 py-1.5 rounded-lg border border-white/10">
+                                {photos.length} Photo{photos.length !== 1 ? 's' : ''}
                             </div>
                         </div>
 
