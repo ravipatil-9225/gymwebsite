@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { 
   View, Text, TextInput, TouchableOpacity, 
   StyleSheet, Alert, ActivityIndicator, ScrollView,
-  KeyboardAvoidingView, Platform
+  KeyboardAvoidingView, Platform, Modal
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, Phone, Mail, Lock, Calendar } from 'lucide-react-native';
 import api from '../services/api';
 import { AuthContext } from '../context/AuthContext';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function RegisterScreen({ navigation }) {
   const { login } = React.useContext(AuthContext);
@@ -21,6 +22,7 @@ export default function RegisterScreen({ navigation }) {
     dob: ''
   });
   const [loading, setLoading] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const handleChange = (name, value) => {
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -91,16 +93,56 @@ export default function RegisterScreen({ navigation }) {
             />
           </View>
 
-          <View style={styles.inputContainer}>
+          <TouchableOpacity 
+            style={styles.inputContainer}
+            onPress={() => setShowDatePicker(true)}
+          >
             <Calendar color="#666" size={20} style={styles.icon} />
-            <TextInput
-              style={styles.input}
-              placeholder="DOB (YYYY-MM-DD) *"
-              placeholderTextColor="#666"
-              value={formData.dob}
-              onChangeText={(text) => handleChange('dob', text)}
-            />
-          </View>
+            <Text style={[styles.input, { color: formData.dob ? '#FFF' : '#666', paddingTop: 16, paddingBottom: 16 }]}>
+              {formData.dob || "DOB (YYYY-MM-DD) *"}
+            </Text>
+          </TouchableOpacity>
+
+          {showDatePicker && (
+            Platform.OS === 'ios' ? (
+              <Modal transparent={true} animationType="slide">
+                <View style={styles.modalOverlayPicker}>
+                  <View style={styles.modalContentPicker}>
+                    <View style={styles.modalHeaderPicker}>
+                      <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                        <Text style={styles.modalDoneText}>Done</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <DateTimePicker
+                      value={formData.dob ? new Date(formData.dob) : new Date()}
+                      mode="date"
+                      display="spinner"
+                      textColor="white"
+                      maximumDate={new Date()}
+                      onChange={(event, date) => {
+                        if (date) {
+                          handleChange('dob', date.toISOString().split('T')[0]);
+                        }
+                      }}
+                    />
+                  </View>
+                </View>
+              </Modal>
+            ) : (
+              <DateTimePicker
+                value={formData.dob ? new Date(formData.dob) : new Date()}
+                mode="date"
+                display="default"
+                maximumDate={new Date()}
+                onChange={(event, date) => {
+                  setShowDatePicker(false);
+                  if (date) {
+                    handleChange('dob', date.toISOString().split('T')[0]);
+                  }
+                }}
+              />
+            )
+          )}
 
           <View style={styles.inputContainer}>
             <Mail color="#666" size={20} style={styles.icon} />
@@ -252,6 +294,26 @@ const styles = StyleSheet.create({
   },
   footerLinkText: {
     color: '#E34A29',
+    fontWeight: 'bold',
+  },
+  modalOverlayPicker: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContentPicker: {
+    backgroundColor: '#151515',
+    padding: 16,
+    paddingBottom: 30,
+  },
+  modalHeaderPicker: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 10,
+  },
+  modalDoneText: {
+    color: '#E34A29',
+    fontSize: 16,
     fontWeight: 'bold',
   }
 });

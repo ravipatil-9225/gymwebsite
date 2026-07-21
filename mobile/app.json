@@ -55,7 +55,8 @@
         {
           "photosPermission": "Allow Tara Fitness to access your photos to update your profile picture."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "web": {
       "favicon": "./assets/favicon.png"

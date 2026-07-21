@@ -13,6 +13,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { AuthContext } from '../context/AuthContext';
 import api from '../services/api';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const FITNESS_GOALS = [
   'Weight Loss', 'Muscle Gain', 'Strength Training',
@@ -28,6 +29,7 @@ export default function SettingsScreen({ navigation }) {
   const [uploading, setUploading] = useState(false);
   const [goalModalVisible, setGoalModalVisible] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Subscription state
   const [subscription, setSubscription] = useState(null);
@@ -410,17 +412,57 @@ export default function SettingsScreen({ navigation }) {
 
           {/* DOB */}
           <Text style={styles.label}>DATE OF BIRTH</Text>
-          <View style={[styles.inputContainer, !editing && styles.inputDisabled]}>
+          <TouchableOpacity 
+            style={[styles.inputContainer, !editing && styles.inputDisabled]}
+            onPress={() => editing && setShowDatePicker(true)}
+            activeOpacity={editing ? 0.7 : 1}
+          >
             <Calendar color="#666" size={18} style={styles.icon} />
-            <TextInput
-              style={styles.input}
-              placeholder="DOB (YYYY-MM-DD)"
-              placeholderTextColor="#666"
-              value={formData.dob}
-              onChangeText={(text) => handleChange('dob', text)}
-              editable={editing}
-            />
-          </View>
+            <Text style={[styles.input, { color: formData.dob ? '#FFF' : '#666', paddingTop: 16, paddingBottom: 16 }]}>
+              {formData.dob || "DOB (YYYY-MM-DD)"}
+            </Text>
+          </TouchableOpacity>
+
+          {showDatePicker && (
+            Platform.OS === 'ios' ? (
+              <Modal transparent={true} animationType="slide">
+                <View style={styles.modalOverlayPicker}>
+                  <View style={styles.modalContentPicker}>
+                    <View style={styles.modalHeaderPicker}>
+                      <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                        <Text style={styles.modalDoneText}>Done</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <DateTimePicker
+                      value={formData.dob ? new Date(formData.dob) : new Date()}
+                      mode="date"
+                      display="spinner"
+                      textColor="white"
+                      maximumDate={new Date()}
+                      onChange={(event, date) => {
+                        if (date) {
+                          handleChange('dob', date.toISOString().split('T')[0]);
+                        }
+                      }}
+                    />
+                  </View>
+                </View>
+              </Modal>
+            ) : (
+              <DateTimePicker
+                value={formData.dob ? new Date(formData.dob) : new Date()}
+                mode="date"
+                display="default"
+                maximumDate={new Date()}
+                onChange={(event, date) => {
+                  setShowDatePicker(false);
+                  if (date) {
+                    handleChange('dob', date.toISOString().split('T')[0]);
+                  }
+                }}
+              />
+            )
+          )}
 
           {/* Fitness Goal */}
           <Text style={styles.label}>FITNESS GOAL</Text>
@@ -799,6 +841,26 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.02)',
     borderColor: 'rgba(255,255,255,0.04)',
   },
+  modalOverlayPicker: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContentPicker: {
+    backgroundColor: '#151515',
+    padding: 16,
+    paddingBottom: 30,
+  },
+  modalHeaderPicker: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 10,
+  },
+  modalDoneText: {
+    color: '#E34A29',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
   icon: { marginRight: 12 },
   input: { flex: 1, color: '#FFF', fontSize: 14 },
   formActions: {
@@ -945,5 +1007,5 @@ const styles = StyleSheet.create({
     backgroundColor: '#222',
     borderRadius: 12,
   },
-  modalCloseText: { color: '#FFF', fontWeight: 'bold' },
+  modalCloseText: { color: '#FFF', fontWeight: 'bold' }
 });
