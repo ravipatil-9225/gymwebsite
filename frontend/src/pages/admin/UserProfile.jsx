@@ -6,7 +6,8 @@ import {
     ArrowLeft, User, Phone, Mail, Calendar, Package, Clock,
     CheckCircle, XCircle, Edit, Trash2, Shield,
     Activity, CreditCard, ToggleLeft, ToggleRight, Save, X,
-    AlertTriangle, TrendingUp, Award, Dumbbell, RefreshCw
+    AlertTriangle, TrendingUp, Award, Dumbbell, RefreshCw,
+    MessageCircle, FileText, UtensilsCrossed, IndianRupee, ClipboardCheck, Send, ExternalLink
 } from 'lucide-react';
 
 const fmt = (dateStr) => {
@@ -230,6 +231,126 @@ const UserProfile = () => {
                                 {user.allowPendingPayment !== false ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
                                 {togglingPending ? '…' : (user.allowPendingPayment !== false ? 'Allow' : 'Enable')}
                             </button>
+                        </div>
+                    </div>
+
+                    {/* WhatsApp Quick Actions */}
+                    <div className="rounded-2xl overflow-hidden border-2 border-green-200 shadow-sm">
+                        <div className="px-5 py-3 flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-500">
+                            <MessageCircle className="w-3.5 h-3.5 text-white/80" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-white/90">WhatsApp Quick Actions</span>
+                            <span className="ml-auto text-[10px] font-black text-white bg-white/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <ExternalLink className="w-2.5 h-2.5" /> Direct
+                            </span>
+                        </div>
+                        <div className="bg-green-50/50 p-4 space-y-2.5">
+                            {user.phone ? (
+                                <>
+                                    {/* Main WhatsApp Chat Button */}
+                                    <a
+                                        href={`https://wa.me/${user.phone.replace(/[^0-9]/g, '').replace(/^(?!91)/, '91')}?text=${encodeURIComponent(`Hi ${user.name}, this is from Tara Fitness. `)}`}
+                                        target="_blank" rel="noopener noreferrer"
+                                        className="flex items-center gap-3 w-full px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl font-black text-sm transition-all hover:-translate-y-0.5 shadow-md shadow-green-200 group"
+                                    >
+                                        <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center shrink-0">
+                                            <Send className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="text-sm font-black">Open WhatsApp Chat</p>
+                                            <p className="text-[10px] text-white/70 font-semibold">Send a message to {user.name?.split(' ')[0]}</p>
+                                        </div>
+                                        <ExternalLink className="w-4 h-4 ml-auto opacity-60" />
+                                    </a>
+
+                                    {/* Quick Message Templates */}
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 pt-1">Quick Templates</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {[
+                                            {
+                                                label: 'Invoice',
+                                                icon: FileText,
+                                                msg: `Hi ${user.name}, here is your invoice from Tara Fitness. Please find the details of your recent payment. Thank you for being a valued member! 💪`,
+                                                bg: 'bg-blue-50 hover:bg-blue-100',
+                                                border: 'border-blue-200',
+                                                text: 'text-blue-700',
+                                                iconBg: 'bg-blue-100',
+                                                iconColor: 'text-blue-600'
+                                            },
+                                            {
+                                                label: 'Diet Plan',
+                                                icon: UtensilsCrossed,
+                                                msg: `Hi ${user.name}, here is your personalized diet plan from Tara Fitness. Follow this plan consistently for the best results! 🥗💪`,
+                                                bg: 'bg-orange-50 hover:bg-orange-100',
+                                                border: 'border-orange-200',
+                                                text: 'text-orange-700',
+                                                iconBg: 'bg-orange-100',
+                                                iconColor: 'text-orange-600'
+                                            },
+                                            {
+                                                label: 'Payment',
+                                                icon: IndianRupee,
+                                                msg: `Hi ${user.name}, this is a gentle reminder from Tara Fitness regarding your pending payment. Kindly clear the dues at your earliest convenience. Thank you! 🙏`,
+                                                bg: 'bg-violet-50 hover:bg-violet-100',
+                                                border: 'border-violet-200',
+                                                text: 'text-violet-700',
+                                                iconBg: 'bg-violet-100',
+                                                iconColor: 'text-violet-600'
+                                            },
+                                            {
+                                                label: 'Attendance',
+                                                icon: ClipboardCheck,
+                                                msg: `Hi ${user.name}, we noticed your attendance has been irregular at Tara Fitness. Consistency is key to achieving your fitness goals! We miss seeing you. 💪🏋️`,
+                                                bg: 'bg-teal-50 hover:bg-teal-100',
+                                                border: 'border-teal-200',
+                                                text: 'text-teal-700',
+                                                iconBg: 'bg-teal-100',
+                                                iconColor: 'text-teal-600'
+                                            },
+                                        ].map(({ label, icon: Icon, msg, bg, border, text, iconBg, iconColor }) => (
+                                            <a
+                                                key={label}
+                                                href={`https://wa.me/${user.phone.replace(/[^0-9]/g, '').replace(/^(?!91)/, '91')}?text=${encodeURIComponent(msg)}`}
+                                                target="_blank" rel="noopener noreferrer"
+                                                className={`flex items-center gap-2.5 px-3 py-2.5 ${bg} border ${border} rounded-xl transition-all hover:-translate-y-0.5 group cursor-pointer`}
+                                            >
+                                                <div className={`w-7 h-7 ${iconBg} rounded-lg flex items-center justify-center shrink-0`}>
+                                                    <Icon className={`w-3.5 h-3.5 ${iconColor}`} />
+                                                </div>
+                                                <div>
+                                                    <p className={`text-xs font-black ${text}`}>{label}</p>
+                                                    <p className="text-[9px] text-gray-400 font-semibold">Send via WhatsApp</p>
+                                                </div>
+                                            </a>
+                                        ))}
+                                    </div>
+
+                                    {/* Renewal Reminder */}
+                                    {!isActive && (
+                                        <a
+                                            href={`https://wa.me/${user.phone.replace(/[^0-9]/g, '').replace(/^(?!91)/, '91')}?text=${encodeURIComponent(`Hi ${user.name}, your membership at Tara Fitness has expired. We'd love to have you back! Renew your plan today and continue your fitness journey with us. 🏋️‍♂️🔥`)}`}
+                                            target="_blank" rel="noopener noreferrer"
+                                            className="flex items-center gap-3 w-full px-4 py-3 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white rounded-xl font-black text-sm transition-all hover:-translate-y-0.5 shadow-md shadow-red-200 group"
+                                        >
+                                            <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center shrink-0">
+                                                <AlertTriangle className="w-4 h-4" />
+                                            </div>
+                                            <div className="text-left">
+                                                <p className="text-sm font-black">Renewal Reminder</p>
+                                                <p className="text-[10px] text-white/70 font-semibold">Membership expired — send reminder</p>
+                                            </div>
+                                            <ExternalLink className="w-4 h-4 ml-auto opacity-60" />
+                                        </a>
+                                    )}
+                                </>
+                            ) : (
+                                <div className="text-center py-6">
+                                    <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+                                        <Phone className="w-5 h-5 text-gray-300" />
+                                    </div>
+                                    <p className="text-gray-400 font-bold text-sm">No phone number</p>
+                                    <p className="text-gray-300 text-xs mt-1">Add a phone number to enable WhatsApp messaging.</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
