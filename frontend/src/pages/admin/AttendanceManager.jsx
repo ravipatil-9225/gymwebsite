@@ -239,13 +239,13 @@ const AttendanceManager = () => {
                 row.userName,
                 row.userEmail,
                 row.batchTime,
-                row.record?.status || 'Not Marked',
+                row.record?.status === 'present' ? 'P' : row.record?.status === 'absent' ? 'A' : row.record?.status === 'late' ? 'L' : 'Not Marked',
                 row.record?.markedBy === 'self' ? 'Self Check-in' : row.record?.markedBy === 'admin' ? 'Admin' : '',
                 row.record?.checkInTime ? formatTime(row.record.checkInTime) : ''
             ]);
         });
         const csv  = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
-        const blob = new Blob([csv], { type: 'text/csv' });
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
         const url  = URL.createObjectURL(blob);
         const a    = document.createElement('a');
         a.href     = url;
@@ -279,9 +279,9 @@ const AttendanceManager = () => {
         historyData.records.forEach(rec => {
             rows.push([
                 formatDate(rec.date),
-                rec.status ? rec.status.charAt(0).toUpperCase() + rec.status.slice(1) : 'Unknown',
-                rec.markedBy === 'self' ? 'Self Check-in' : rec.markedBy === 'admin' ? 'Admin' : '—',
-                rec.checkInTime ? formatTime(rec.checkInTime) : '—'
+                rec.status === 'present' ? 'P' : rec.status === 'absent' ? 'A' : rec.status === 'late' ? 'L' : '-',
+                rec.markedBy === 'self' ? 'Self Check-in' : rec.markedBy === 'admin' ? 'Admin' : '-',
+                rec.checkInTime ? formatTime(rec.checkInTime) : '-'
             ]);
         });
         // Add summary row
@@ -297,7 +297,7 @@ const AttendanceManager = () => {
         }
 
         const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
-        const blob = new Blob([csv], { type: 'text/csv' });
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -344,15 +344,15 @@ const AttendanceManager = () => {
             for (let d = 1; d <= daysInMonth; d++) {
                 const dateStr = `${monthlyMonth}-${String(d).padStart(2, '0')}`;
                 const status = u.days[dateStr];
-                row.push(status ? status.charAt(0).toUpperCase() : '—');
+                row.push(status === 'present' ? 'P' : status === 'absent' ? 'A' : status === 'late' ? 'L' : '-');
             }
-            const pct = u.totalMarked > 0 ? ((u.present + u.late) / u.totalMarked * 100).toFixed(1) + '%' : '—';
+            const pct = u.totalMarked > 0 ? ((u.present + u.late) / u.totalMarked * 100).toFixed(1) + '%' : '-';
             row.push(u.present, u.absent, u.late, u.totalMarked, pct);
             rows.push(row);
         });
 
         const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
-        const blob = new Blob([csv], { type: 'text/csv' });
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
