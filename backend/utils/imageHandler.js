@@ -17,6 +17,14 @@ const compressPaymentScreenshot = async (buffer) => {
         .toBuffer();
 };
 
+const compressTrainerPhoto = async (buffer) => {
+    return await sharp(buffer)
+        .resize(800, 800, { fit: 'cover', position: 'top' })
+        .toFormat('webp')
+        .webp({ quality: 82 })
+        .toBuffer();
+};
+
 const uploadToCloudinary = (buffer, folder) => {
     return new Promise((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
@@ -49,6 +57,7 @@ const deleteFromCloudinary = async (public_id) => {
 module.exports = {
     compressProfileImage,
     compressPaymentScreenshot,
+    compressTrainerPhoto,
     uploadToCloudinary,
     deleteFromCloudinary
 };

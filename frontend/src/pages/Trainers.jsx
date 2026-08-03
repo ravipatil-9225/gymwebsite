@@ -110,12 +110,13 @@ const Trainers = () => {
                             />
 
                             {/* Image Section */}
-                            <div className="h-80 w-full overflow-hidden relative">
+                            <div className="h-72 w-full overflow-hidden relative">
                                 {trainer.image ? (
                                     <img
                                         src={trainer.image}
                                         alt={trainer.name}
-                                        className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700 ease-out"
+                                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
+                                        style={{ objectPosition: 'center 20%' }}
                                         onError={(e) => {
                                             e.target.style.display = 'none';
                                             e.target.parentElement.innerHTML = `<div class="w-full h-full flex items-center justify-center text-[80px] font-display font-black" style="color: ${trainer.accentColor}20; background: ${trainer.accentColor}08">${trainer.name.charAt(0)}</div>`;

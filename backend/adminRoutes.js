@@ -16,7 +16,7 @@ const socket = require('./socket');
 const emailService = require('./services/emailService');
 const whatsappService = require('./services/whatsappService');
 const notificationEmitter = require('./events/notificationEmitter');
-const { deleteFromCloudinary, uploadToCloudinary } = require('./utils/imageHandler');
+const { deleteFromCloudinary, uploadToCloudinary, compressTrainerPhoto } = require('./utils/imageHandler');
 
 // Helper to intercept base64 from React/React Native payloads and upload to Cloudinary
 const processBase64Image = async (imageString, folder) => {
@@ -563,8 +563,12 @@ router.get('/trainers', async (req, res) => {
 
 router.post('/trainers', async (req, res) => {
     try {
-        if (req.body.photo) {
-            req.body.photo = await processBase64Image(req.body.photo, 'gym_trainers');
+        if (req.body.photo && req.body.photo.startsWith('data:image')) {
+            const base64Data = req.body.photo.replace(/^data:image\/\w+;base64,/, "");
+            const rawBuffer = Buffer.from(base64Data, 'base64');
+            const compressed = await compressTrainerPhoto(rawBuffer);
+            const result = await uploadToCloudinary(compressed, 'gym_trainers');
+            req.body.photo = result.url;
         }
         const trainer = await Trainer.create(req.body);
         res.status(201).json(trainer);
@@ -601,8 +605,12 @@ router.post('/trainers/seed', async (req, res) => {
 
 router.put('/trainers/:id', async (req, res) => {
     try {
-        if (req.body.photo) {
-            req.body.photo = await processBase64Image(req.body.photo, 'gym_trainers');
+        if (req.body.photo && req.body.photo.startsWith('data:image')) {
+            const base64Data = req.body.photo.replace(/^data:image\/\w+;base64,/, "");
+            const rawBuffer = Buffer.from(base64Data, 'base64');
+            const compressed = await compressTrainerPhoto(rawBuffer);
+            const result = await uploadToCloudinary(compressed, 'gym_trainers');
+            req.body.photo = result.url;
         }
         const updated = await Trainer.findByIdAndUpdate(req.params.id, req.body, { new: true });
         res.json(updated);
