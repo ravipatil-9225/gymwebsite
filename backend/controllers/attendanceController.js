@@ -328,6 +328,70 @@ const deleteRecord = async (req, res) => {
     }
 };
 
+// ── ADMIN: MONTHLY OVERVIEW ──────────────────────────────────────────────────
+// GET /api/admin/attendance/monthly?month=2026-08
+// Returns per-user monthly summary + daily breakdown for that month
+const getMonthlyOverview = async (req, res) => {
+    try {
+        const month = req.query.month; // "YYYY-MM"
+        if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+            return res.status(400).json({ message: 'month query param required (YYYY-MM)' });
+        }
+
+        const [year, mon] = month.split('-').map(Number);
+        const daysInMonth = new Date(year, mon, 0).getDate();
+        const from = `${month}-01`;
+        const to   = `${month}-${String(daysInMonth).padStart(2, '0')}`;
+
+        // Get all users
+        const users = await User.find({ role: 'user' }).select('name email batchTime');
+
+        // Get all attendance records for the month
+        const records = await Attendance.find({
+            date: { $gte: from, $lte: to }
+        }).sort({ date: 1 });
+
+        // Build per-user map
+        const userRecordMap = {};
+        records.forEach(r => {
+            const uid = r.userId.toString();
+            if (!userRecordMap[uid]) userRecordMap[uid] = {};
+            userRecordMap[uid][r.date] = r.status;
+        });
+
+        // Build result
+        const result = users.map(u => {
+            const uid = u._id.toString();
+            const dayMap = userRecordMap[uid] || {};
+            let present = 0, absent = 0, late = 0;
+            Object.values(dayMap).forEach(s => {
+                if (s === 'present') present++;
+                else if (s === 'absent') absent++;
+                else if (s === 'late') late++;
+            });
+            return {
+                userId: u._id,
+                userName: u.name,
+                userEmail: u.email,
+                batchTime: u.batchTime || 'Not Assigned',
+                present,
+                absent,
+                late,
+                totalMarked: present + absent + late,
+                days: dayMap // { "2026-08-01": "present", ... }
+            };
+        });
+
+        // Sort by name
+        result.sort((a, b) => a.userName.localeCompare(b.userName));
+
+        res.json({ month, daysInMonth, from, to, users: result });
+    } catch (err) {
+        console.error('getMonthlyOverview error:', err.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
 module.exports = {
     selfCheckIn,
     getMyAttendance,
@@ -337,5 +401,6 @@ module.exports = {
     getUserReport,
     getDailyStats,
     deleteRecord,
+    getMonthlyOverview,
     todayIST
 };

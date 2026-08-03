@@ -39,6 +39,7 @@ import UserDashboard from './pages/UserDashboard';
 import AdminLayout from './components/layout/AdminLayout';
 import AdminRoute from './components/routing/AdminRoute';
 import PrivateRoute from './components/routing/PrivateRoute';
+import PublicRoute from './components/routing/PublicRoute';
 import Dashboard from './pages/admin/Dashboard';
 import UserManagement from './pages/admin/UserManagement';
 import PackagesManager from './pages/admin/PackagesManager';
@@ -69,47 +70,47 @@ function App() {
               <main className="flex-grow">
                 <Routes>
                   <Route path="/" element={<Navigate to="/login" replace />} />
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/register" element={<Register />} />
-                  <Route path="/home" element={<Home />} />
+                  <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+                  <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+                  <Route path="/home" element={<PrivateRoute><Home /></PrivateRoute>} />
                   <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
-                  <Route path="/services" element={<ServicesPage />} />
-                  <Route path="/packages" element={<Packages />} />
-                  <Route path="/trainers" element={<Trainers />} />
-                  <Route path="/media" element={<Media />} />
-                  <Route path="/contact" element={<Contact />} />
+                  <Route path="/services" element={<PrivateRoute><ServicesPage /></PrivateRoute>} />
+                  <Route path="/packages" element={<PrivateRoute><Packages /></PrivateRoute>} />
+                  <Route path="/trainers" element={<PrivateRoute><Trainers /></PrivateRoute>} />
+                  <Route path="/media" element={<PrivateRoute><Media /></PrivateRoute>} />
+                  <Route path="/contact" element={<PrivateRoute><Contact /></PrivateRoute>} />
                   <Route path="/portal" element={<PrivateRoute><Portal /></PrivateRoute>} />
                   <Route element={<AdminRoute />}>
                     <Route path="/smart-nutrition" element={<SmartNutrition />} />
                   </Route>
                   <Route path="/dashboard" element={<PrivateRoute><UserDashboard /></PrivateRoute>} />
-                  <Route path="/forgot-password" element={<ForgotPassword />} />
-                  <Route path="/reset-password" element={<ResetPassword />} />
-                  <Route path="/join" element={<JoinUs />} />
+                  <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+                  <Route path="/reset-password" element={<PublicRoute><ResetPassword /></PublicRoute>} />
+                  <Route path="/join" element={<PrivateRoute><JoinUs /></PrivateRoute>} />
 
                   {/* Forms Routes */}
-                  <Route path="/forms/join" element={<JoinUs />} />
-                  <Route path="/forms/book-pt" element={<BookPTSession />} />
-                  <Route path="/forms/book-class" element={<BookGroupClass />} />
-                  <Route path="/forms/enquiry" element={<EnquiryForm />} />
-                  <Route path="/forms/feedback" element={<FeedbackForm />} />
-                  <Route path="/forms/par-q" element={<ParQForm />} />
-                  <Route path="/forms/trial-waiver" element={<TrialWaiverForm />} />
-                  <Route path="/forms/pt-contract" element={<PTContractForm />} />
+                  <Route path="/forms/join" element={<PrivateRoute><JoinUs /></PrivateRoute>} />
+                  <Route path="/forms/book-pt" element={<PrivateRoute><BookPTSession /></PrivateRoute>} />
+                  <Route path="/forms/book-class" element={<PrivateRoute><BookGroupClass /></PrivateRoute>} />
+                  <Route path="/forms/enquiry" element={<PrivateRoute><EnquiryForm /></PrivateRoute>} />
+                  <Route path="/forms/feedback" element={<PrivateRoute><FeedbackForm /></PrivateRoute>} />
+                  <Route path="/forms/par-q" element={<PrivateRoute><ParQForm /></PrivateRoute>} />
+                  <Route path="/forms/trial-waiver" element={<PrivateRoute><TrialWaiverForm /></PrivateRoute>} />
+                  <Route path="/forms/pt-contract" element={<PrivateRoute><PTContractForm /></PrivateRoute>} />
 
                   {/* Media Routes */}
-                  <Route path="/media/gallery" element={<GalleryPage />} />
-                  <Route path="/media/transformations" element={<TransformationsPage />} />
+                  <Route path="/media/gallery" element={<PrivateRoute><GalleryPage /></PrivateRoute>} />
+                  <Route path="/media/transformations" element={<PrivateRoute><TransformationsPage /></PrivateRoute>} />
 
                   {/* Contact Routes */}
-                  <Route path="/contact/info" element={<ContactInfo />} />
-                  <Route path="/contact/see-feedback" element={<SeeFeedbackPage />} />
+                  <Route path="/contact/info" element={<PrivateRoute><ContactInfo /></PrivateRoute>} />
+                  <Route path="/contact/see-feedback" element={<PrivateRoute><SeeFeedbackPage /></PrivateRoute>} />
 
                   {/* Package Routes */}
-                  <Route path="/packages/plans" element={<MembershipPlans />} />
-                  <Route path="/packages/plans/:categoryName" element={<CategoryPlans />} />
-                  <Route path="/offers" element={<OffersPage />} />
-                  <Route path="/products" element={<ProductsPage />} />
+                  <Route path="/packages/plans" element={<PrivateRoute><MembershipPlans /></PrivateRoute>} />
+                  <Route path="/packages/plans/:categoryName" element={<PrivateRoute><CategoryPlans /></PrivateRoute>} />
+                  <Route path="/offers" element={<PrivateRoute><OffersPage /></PrivateRoute>} />
+                  <Route path="/products" element={<PrivateRoute><ProductsPage /></PrivateRoute>} />
 
                   <Route path="/admin" element={<AdminRoute />}>
                     <Route element={<AdminLayout />}>

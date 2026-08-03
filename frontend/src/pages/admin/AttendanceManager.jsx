@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     CalendarDays, CheckCircle2, XCircle, Clock, Wifi, RefreshCw,
-    ChevronLeft, ChevronRight, Download, UserCheck, UserX, AlertCircle
+    ChevronLeft, ChevronRight, Download, UserCheck, UserX, AlertCircle,
+    Calendar, FileText, Search
 } from 'lucide-react';
 import socket from '../../utils/socket';
 
@@ -40,6 +41,24 @@ function formatTime(ts) {
     return new Date(ts).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
 }
 
+function getCurrentMonthStr() {
+    const now = new Date();
+    const ist = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+    return ist.toISOString().slice(0, 7); // "YYYY-MM"
+}
+
+function getMonthLabel(monthStr) {
+    const [year, mon] = monthStr.split('-');
+    const d = new Date(parseInt(year), parseInt(mon) - 1, 1);
+    return d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+}
+
+function shiftMonth(monthStr, delta) {
+    const [year, mon] = monthStr.split('-').map(Number);
+    const d = new Date(year, mon - 1 + delta, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 // Recompute stats from the attendance array (no API needed for single-mark updates)
 function recomputeStats(attendanceArr, total) {
     let present = 0, absent = 0, late = 0;
@@ -71,6 +90,13 @@ const AttendanceManager = () => {
     const [historyTo, setHistoryTo] = useState(todayStr());
     const [historyData, setHistoryData] = useState(null);
     const [historyLoading, setHistoryLoading] = useState(false);
+
+    // Monthly Tab States
+    const [monthlyMonth, setMonthlyMonth] = useState(getCurrentMonthStr());
+    const [monthlyData, setMonthlyData] = useState(null);
+    const [monthlyLoading, setMonthlyLoading] = useState(false);
+    const [monthlySearch, setMonthlySearch] = useState('');
+    const [monthlyExpandedUser, setMonthlyExpandedUser] = useState(null);
 
     // ── Full fetch (used on initial load, date change, bulk ops) ──────────────
     const fetchData = useCallback(async (d, silent = false) => {
@@ -244,6 +270,97 @@ const AttendanceManager = () => {
         }
     };
 
+    // ── Download client history as CSV ────────────────────────────────────────
+    const downloadClientHistoryCSV = () => {
+        if (!historyData || !historyData.records?.length) return;
+        const selectedUser = attendance.find(r => r.userId.toString() === historyUser);
+        const userName = selectedUser?.userName || 'client';
+        const rows = [['Date', 'Status', 'Marked By', 'Check-In Time']];
+        historyData.records.forEach(rec => {
+            rows.push([
+                formatDate(rec.date),
+                rec.status ? rec.status.charAt(0).toUpperCase() + rec.status.slice(1) : 'Unknown',
+                rec.markedBy === 'self' ? 'Self Check-in' : rec.markedBy === 'admin' ? 'Admin' : '—',
+                rec.checkInTime ? formatTime(rec.checkInTime) : '—'
+            ]);
+        });
+        // Add summary row
+        rows.push([]);
+        rows.push(['Summary']);
+        rows.push(['Total Days', historyData.summary?.total || 0]);
+        rows.push(['Present', historyData.summary?.present || 0]);
+        rows.push(['Absent', historyData.summary?.absent || 0]);
+        rows.push(['Late', historyData.summary?.late || 0]);
+        if (historyData.summary?.total > 0) {
+            const pct = ((historyData.summary.present + historyData.summary.late) / historyData.summary.total * 100).toFixed(1);
+            rows.push(['Attendance %', `${pct}%`]);
+        }
+
+        const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `attendance_${userName.replace(/\s+/g, '_')}_${historyFrom}_to_${historyTo}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    // ── Fetch monthly data ────────────────────────────────────────────────────
+    const fetchMonthly = useCallback(async (month) => {
+        setMonthlyLoading(true);
+        try {
+            const res = await fetch(`/api/attendance/admin/monthly?month=${month}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const data = await res.json();
+            setMonthlyData(data);
+        } catch (err) {
+            console.error('Fetch monthly error:', err);
+        } finally {
+            setMonthlyLoading(false);
+        }
+    }, [token]);
+
+    useEffect(() => {
+        if (activeTab === 'monthly') {
+            fetchMonthly(monthlyMonth);
+        }
+    }, [activeTab, monthlyMonth, fetchMonthly]);
+
+    // ── Download monthly CSV ──────────────────────────────────────────────────
+    const downloadMonthlyCSV = () => {
+        if (!monthlyData?.users?.length) return;
+        const daysInMonth = monthlyData.daysInMonth;
+        const header = ['Name', 'Email', 'Batch'];
+        for (let d = 1; d <= daysInMonth; d++) {
+            header.push(String(d));
+        }
+        header.push('Present', 'Absent', 'Late', 'Total Marked', 'Attendance %');
+
+        const rows = [header];
+        monthlyData.users.forEach(u => {
+            const row = [u.userName, u.userEmail, u.batchTime];
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateStr = `${monthlyMonth}-${String(d).padStart(2, '0')}`;
+                const status = u.days[dateStr];
+                row.push(status ? status.charAt(0).toUpperCase() : '—');
+            }
+            const pct = u.totalMarked > 0 ? ((u.present + u.late) / u.totalMarked * 100).toFixed(1) + '%' : '—';
+            row.push(u.present, u.absent, u.late, u.totalMarked, pct);
+            rows.push(row);
+        });
+
+        const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `monthly_attendance_${monthlyMonth}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
     // Filter + search
     const displayed = attendance.filter(row => {
         const matchSearch = search === '' ||
@@ -256,6 +373,15 @@ const AttendanceManager = () => {
             filter === 'notMarked' ? !status :
             status === filter;
         return matchSearch && matchFilter;
+    });
+
+    // Monthly filtered users
+    const monthlyDisplayed = (monthlyData?.users || []).filter(u => {
+        if (!monthlySearch) return true;
+        const q = monthlySearch.toLowerCase();
+        return u.userName.toLowerCase().includes(q) ||
+               u.userEmail.toLowerCase().includes(q) ||
+               (u.batchTime || '').toLowerCase().includes(q);
     });
 
     const isToday = date === todayStr();
@@ -311,6 +437,16 @@ const AttendanceManager = () => {
                             </button>
                         </>
                     )}
+                    {activeTab === 'monthly' && (
+                        <button
+                            onClick={downloadMonthlyCSV}
+                            disabled={!monthlyData?.users?.length}
+                            className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                        >
+                            <Download size={14} />
+                            Download CSV
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -323,6 +459,12 @@ const AttendanceManager = () => {
                     Daily Attendance
                 </button>
                 <button
+                    onClick={() => setActiveTab('monthly')}
+                    className={`pb-2 px-1 text-sm font-semibold transition-colors border-b-2 ${activeTab === 'monthly' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                >
+                    Monthly Attendance
+                </button>
+                <button
                     onClick={() => setActiveTab('history')}
                     className={`pb-2 px-1 text-sm font-semibold transition-colors border-b-2 ${activeTab === 'history' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
                 >
@@ -330,7 +472,8 @@ const AttendanceManager = () => {
                 </button>
             </div>
 
-            {activeTab === 'daily' ? (
+            {/* ══════════════════════════ DAILY TAB ══════════════════════════ */}
+            {activeTab === 'daily' && (
                 <>
 
             {/* Date Navigator */}
@@ -577,7 +720,232 @@ const AttendanceManager = () => {
                 )}
             </div>
             </>
-            ) : (
+            )}
+
+            {/* ══════════════════════════ MONTHLY TAB ══════════════════════════ */}
+            {activeTab === 'monthly' && (
+                <div className="space-y-5">
+                    {/* Month Navigator */}
+                    <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => setMonthlyMonth(m => shiftMonth(m, -1))}
+                                className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
+                            >
+                                <ChevronLeft size={18} />
+                            </button>
+                            <div className="text-center">
+                                <div className="flex items-center gap-2 font-bold text-gray-900 text-lg">
+                                    <Calendar size={20} className="text-primary" />
+                                    {getMonthLabel(monthlyMonth)}
+                                </div>
+                                {monthlyMonth === getCurrentMonthStr() && (
+                                    <span className="text-xs text-primary font-semibold tracking-wide">CURRENT MONTH</span>
+                                )}
+                            </div>
+                            <button
+                                onClick={() => setMonthlyMonth(m => shiftMonth(m, 1))}
+                                disabled={monthlyMonth >= getCurrentMonthStr()}
+                                className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                                <ChevronRight size={18} />
+                            </button>
+                        </div>
+
+                        <input
+                            type="month"
+                            value={monthlyMonth}
+                            max={getCurrentMonthStr()}
+                            onChange={e => e.target.value && setMonthlyMonth(e.target.value)}
+                            className="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        />
+                    </div>
+
+                    {/* Monthly Stats Summary */}
+                    {monthlyData && !monthlyLoading && (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            {(() => {
+                                let totalPresent = 0, totalAbsent = 0, totalLate = 0, totalMarked = 0;
+                                monthlyData.users.forEach(u => {
+                                    totalPresent += u.present;
+                                    totalAbsent += u.absent;
+                                    totalLate += u.late;
+                                    totalMarked += u.totalMarked;
+                                });
+                                return [
+                                    { label: 'Total Members', value: monthlyData.users.length, color: 'text-gray-900', bg: 'bg-white' },
+                                    { label: 'Total Present', value: totalPresent, color: 'text-green-600', bg: 'bg-green-50 border-green-100' },
+                                    { label: 'Total Absent', value: totalAbsent, color: 'text-red-600', bg: 'bg-red-50 border-red-100' },
+                                    { label: 'Total Late', value: totalLate, color: 'text-yellow-600', bg: 'bg-yellow-50 border-yellow-100' },
+                                ].map(s => (
+                                    <div key={s.label} className={`${s.bg} border border-gray-200 rounded-xl p-4 text-center`}>
+                                        <div className={`text-3xl font-black ${s.color}`}>{s.value}</div>
+                                        <div className="text-xs text-gray-500 uppercase tracking-wider mt-1 font-medium">{s.label}</div>
+                                    </div>
+                                ));
+                            })()}
+                        </div>
+                    )}
+
+                    {/* Search bar */}
+                    <div className="bg-white rounded-xl border border-gray-200 p-4">
+                        <div className="relative">
+                            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Search by name, email, or batch..."
+                                value={monthlySearch}
+                                onChange={e => setMonthlySearch(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Monthly Grid/Table */}
+                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        {monthlyLoading ? (
+                            <div className="flex flex-col items-center justify-center py-20 gap-3">
+                                <RefreshCw size={28} className="animate-spin text-primary" />
+                                <p className="text-sm text-gray-500">Loading monthly attendance...</p>
+                            </div>
+                        ) : !monthlyData ? (
+                            <div className="flex flex-col items-center justify-center py-20 gap-3 text-gray-400">
+                                <Calendar size={32} />
+                                <p className="text-sm">Select a month to view attendance.</p>
+                            </div>
+                        ) : monthlyDisplayed.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-20 gap-3 text-gray-400">
+                                <AlertCircle size={32} />
+                                <p className="text-sm">No members found.</p>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-gray-50 border-b border-gray-200">
+                                        <tr>
+                                            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50 z-10 min-w-[180px]">Member</th>
+                                            <th className="text-center px-2 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Batch</th>
+                                            {/* Day columns */}
+                                            {Array.from({ length: monthlyData.daysInMonth }, (_, i) => (
+                                                <th key={i + 1} className="text-center px-1 py-3 text-xs font-semibold text-gray-400 min-w-[28px]">
+                                                    {i + 1}
+                                                </th>
+                                            ))}
+                                            <th className="text-center px-3 py-3 text-xs font-semibold text-green-600 uppercase tracking-wider bg-green-50/50">P</th>
+                                            <th className="text-center px-3 py-3 text-xs font-semibold text-red-600 uppercase tracking-wider bg-red-50/50">A</th>
+                                            <th className="text-center px-3 py-3 text-xs font-semibold text-yellow-600 uppercase tracking-wider bg-yellow-50/50">L</th>
+                                            <th className="text-center px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">%</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {monthlyDisplayed.map(u => {
+                                            const pct = u.totalMarked > 0 ? Math.round((u.present + u.late) / u.totalMarked * 100) : 0;
+                                            const isExpanded = monthlyExpandedUser === u.userId.toString();
+                                            return (
+                                                <React.Fragment key={u.userId}>
+                                                    <tr
+                                                        className="hover:bg-gray-50 cursor-pointer transition-colors"
+                                                        onClick={() => setMonthlyExpandedUser(isExpanded ? null : u.userId.toString())}
+                                                    >
+                                                        <td className="px-4 py-2.5 sticky left-0 bg-white z-10">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[10px] flex-shrink-0">
+                                                                    {u.userName.charAt(0).toUpperCase()}
+                                                                </div>
+                                                                <div>
+                                                                    <p className="font-medium text-gray-900 text-xs leading-tight">{u.userName}</p>
+                                                                    <p className="text-[10px] text-gray-400">{u.userEmail}</p>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="text-center px-2 py-2.5">
+                                                            <span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                                                                {u.batchTime}
+                                                            </span>
+                                                        </td>
+                                                        {/* Day cells */}
+                                                        {Array.from({ length: monthlyData.daysInMonth }, (_, i) => {
+                                                            const dayStr = `${monthlyMonth}-${String(i + 1).padStart(2, '0')}`;
+                                                            const status = u.days[dayStr];
+                                                            const isFuture = dayStr > todayStr();
+                                                            return (
+                                                                <td key={i + 1} className="text-center px-0.5 py-2.5">
+                                                                    {isFuture ? (
+                                                                        <span className="text-[10px] text-gray-200">·</span>
+                                                                    ) : status === 'present' ? (
+                                                                        <span className="inline-block w-5 h-5 rounded-md bg-green-100 text-green-600 text-[10px] font-bold leading-5">P</span>
+                                                                    ) : status === 'absent' ? (
+                                                                        <span className="inline-block w-5 h-5 rounded-md bg-red-100 text-red-600 text-[10px] font-bold leading-5">A</span>
+                                                                    ) : status === 'late' ? (
+                                                                        <span className="inline-block w-5 h-5 rounded-md bg-yellow-100 text-yellow-600 text-[10px] font-bold leading-5">L</span>
+                                                                    ) : (
+                                                                        <span className="inline-block w-5 h-5 rounded-md bg-gray-50 text-gray-300 text-[10px] leading-5">—</span>
+                                                                    )}
+                                                                </td>
+                                                            );
+                                                        })}
+                                                        <td className="text-center px-3 py-2.5 bg-green-50/30 font-bold text-green-700 text-xs">{u.present}</td>
+                                                        <td className="text-center px-3 py-2.5 bg-red-50/30 font-bold text-red-700 text-xs">{u.absent}</td>
+                                                        <td className="text-center px-3 py-2.5 bg-yellow-50/30 font-bold text-yellow-700 text-xs">{u.late}</td>
+                                                        <td className="text-center px-3 py-2.5">
+                                                            <span className={`text-xs font-bold ${pct >= 80 ? 'text-green-600' : pct >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                                                {u.totalMarked > 0 ? `${pct}%` : '—'}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                    {/* Expanded detail row */}
+                                                    {isExpanded && (
+                                                        <tr>
+                                                            <td colSpan={monthlyData.daysInMonth + 6} className="px-4 py-3 bg-gray-50/60">
+                                                                <div className="flex flex-wrap gap-3 text-xs">
+                                                                    <div className="bg-white border border-gray-200 rounded-lg px-3 py-2">
+                                                                        <span className="text-gray-500">Total Marked: </span>
+                                                                        <span className="font-bold text-gray-900">{u.totalMarked} / {monthlyData.daysInMonth} days</span>
+                                                                    </div>
+                                                                    <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                                                                        <span className="text-gray-500">Present: </span>
+                                                                        <span className="font-bold text-green-700">{u.present}</span>
+                                                                    </div>
+                                                                    <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                                                                        <span className="text-gray-500">Absent: </span>
+                                                                        <span className="font-bold text-red-700">{u.absent}</span>
+                                                                    </div>
+                                                                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+                                                                        <span className="text-gray-500">Late: </span>
+                                                                        <span className="font-bold text-yellow-700">{u.late}</span>
+                                                                    </div>
+                                                                    <div className={`border rounded-lg px-3 py-2 ${pct >= 80 ? 'bg-green-50 border-green-200' : pct >= 50 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'}`}>
+                                                                        <span className="text-gray-500">Attendance: </span>
+                                                                        <span className={`font-bold ${pct >= 80 ? 'text-green-700' : pct >= 50 ? 'text-yellow-700' : 'text-red-700'}`}>{u.totalMarked > 0 ? `${pct}%` : '—'}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </React.Fragment>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+
+                                {/* Footer */}
+                                <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 flex items-center justify-between">
+                                    <span>Showing {monthlyDisplayed.length} of {monthlyData.users.length} members</span>
+                                    <div className="flex items-center gap-4">
+                                        <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded bg-green-100 border border-green-300"></span> Present</span>
+                                        <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded bg-red-100 border border-red-300"></span> Absent</span>
+                                        <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded bg-yellow-100 border border-yellow-300"></span> Late</span>
+                                        <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded bg-gray-50 border border-gray-200"></span> Not Marked</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* ══════════════════════════ CLIENT HISTORY TAB ══════════════════════════ */}
+            {activeTab === 'history' && (
             <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
                 <div className="flex flex-col sm:flex-row gap-4">
                     <div className="flex-1">
@@ -611,7 +979,7 @@ const AttendanceManager = () => {
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                         />
                     </div>
-                    <div className="flex items-end">
+                    <div className="flex items-end gap-2">
                         <button
                             onClick={fetchHistory}
                             disabled={!historyUser || historyLoading}
@@ -625,23 +993,62 @@ const AttendanceManager = () => {
 
                 {historyData && (
                     <div className="space-y-4">
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center">
-                                <div className="text-2xl font-black text-gray-900">{historyData.summary?.total || 0}</div>
-                                <div className="text-xs text-gray-500 uppercase tracking-wider mt-1 font-medium">Total Days</div>
+                        {/* Summary Cards + Download Button */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 flex-1">
+                                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center">
+                                    <div className="text-2xl font-black text-gray-900">{historyData.summary?.total || 0}</div>
+                                    <div className="text-xs text-gray-500 uppercase tracking-wider mt-1 font-medium">Total Days</div>
+                                </div>
+                                <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-center">
+                                    <div className="text-2xl font-black text-green-600">{historyData.summary?.present || 0}</div>
+                                    <div className="text-xs text-gray-500 uppercase tracking-wider mt-1 font-medium">Present</div>
+                                </div>
+                                <div className="bg-red-50 border border-red-100 rounded-xl p-4 text-center">
+                                    <div className="text-2xl font-black text-red-600">{historyData.summary?.absent || 0}</div>
+                                    <div className="text-xs text-gray-500 uppercase tracking-wider mt-1 font-medium">Absent</div>
+                                </div>
+                                <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4 text-center">
+                                    <div className="text-2xl font-black text-yellow-600">{historyData.summary?.late || 0}</div>
+                                    <div className="text-xs text-gray-500 uppercase tracking-wider mt-1 font-medium">Late</div>
+                                </div>
+                                <div className={`border rounded-xl p-4 text-center ${
+                                    historyData.summary?.total > 0
+                                        ? ((historyData.summary.present + historyData.summary.late) / historyData.summary.total * 100) >= 80
+                                            ? 'bg-green-50 border-green-100'
+                                            : ((historyData.summary.present + historyData.summary.late) / historyData.summary.total * 100) >= 50
+                                                ? 'bg-yellow-50 border-yellow-100'
+                                                : 'bg-red-50 border-red-100'
+                                        : 'bg-gray-50 border-gray-200'
+                                }`}>
+                                    <div className={`text-2xl font-black ${
+                                        historyData.summary?.total > 0
+                                            ? ((historyData.summary.present + historyData.summary.late) / historyData.summary.total * 100) >= 80
+                                                ? 'text-green-600'
+                                                : ((historyData.summary.present + historyData.summary.late) / historyData.summary.total * 100) >= 50
+                                                    ? 'text-yellow-600'
+                                                    : 'text-red-600'
+                                            : 'text-gray-400'
+                                    }`}>
+                                        {historyData.summary?.total > 0
+                                            ? `${Math.round((historyData.summary.present + historyData.summary.late) / historyData.summary.total * 100)}%`
+                                            : '—'}
+                                    </div>
+                                    <div className="text-xs text-gray-500 uppercase tracking-wider mt-1 font-medium">Attendance</div>
+                                </div>
                             </div>
-                            <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-center">
-                                <div className="text-2xl font-black text-green-600">{historyData.summary?.present || 0}</div>
-                                <div className="text-xs text-gray-500 uppercase tracking-wider mt-1 font-medium">Present</div>
-                            </div>
-                            <div className="bg-red-50 border border-red-100 rounded-xl p-4 text-center">
-                                <div className="text-2xl font-black text-red-600">{historyData.summary?.absent || 0}</div>
-                                <div className="text-xs text-gray-500 uppercase tracking-wider mt-1 font-medium">Absent</div>
-                            </div>
-                            <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4 text-center">
-                                <div className="text-2xl font-black text-yellow-600">{historyData.summary?.late || 0}</div>
-                                <div className="text-xs text-gray-500 uppercase tracking-wider mt-1 font-medium">Late</div>
-                            </div>
+                        </div>
+
+                        {/* Download Button */}
+                        <div className="flex justify-end">
+                            <button
+                                onClick={downloadClientHistoryCSV}
+                                disabled={!historyData.records?.length}
+                                className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 shadow-sm"
+                            >
+                                <FileText size={16} />
+                                Download Attendance Report
+                            </button>
                         </div>
 
                         <div className="border border-gray-200 rounded-xl overflow-hidden mt-4">

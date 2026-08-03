@@ -10,7 +10,8 @@ const {
     adminBulkMark,
     getUserReport,
     getDailyStats,
-    deleteRecord
+    deleteRecord,
+    getMonthlyOverview
 } = require('../controllers/attendanceController');
 
 // ── MEMBER ROUTES (user JWT) ─────────────────────────────────────────────────
@@ -23,6 +24,7 @@ router.post('/admin/mark',     verifyAdmin, adminMarkAttendance);
 router.post('/admin/bulk',     verifyAdmin, adminBulkMark);
 router.get('/admin/report',    verifyAdmin, getUserReport);
 router.get('/admin/stats',     verifyAdmin, getDailyStats);
+router.get('/admin/monthly',   verifyAdmin, getMonthlyOverview);
 router.delete('/admin/:id',    verifyAdmin, deleteRecord);
 
 // ── MOBILE QR SCANNER ROUTES (admin scans member QR) ────────────────────────
