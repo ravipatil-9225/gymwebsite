@@ -75,7 +75,7 @@ const Navbar = () => {
                                         <Link
                                             key="attendance-pill"
                                             to="/dashboard"
-                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border font-bold text-[10px] tracking-[0.12em] uppercase transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 ml-1 ${
+                                            className={`flex items-center gap-1.5 px-3 py-1 rounded-full border font-display text-[13px] tracking-[0.05em] uppercase transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 ml-1 ${
                                                 isActive
                                                     ? 'bg-primary text-white border-primary shadow-[0_0_12px_rgba(227,74,41,0.4)]'
                                                     : 'bg-primary/10 text-primary border-primary/30 hover:bg-primary hover:text-white hover:shadow-[0_0_12px_rgba(227,74,41,0.4)]'
@@ -109,7 +109,7 @@ const Navbar = () => {
                                     <Link
                                         key={item.path}
                                         to={item.path}
-                                        className={`relative px-3 py-2 text-[11px] font-bold tracking-[0.18em] uppercase transition-all duration-200 rounded-md group ${
+                                        className={`relative px-2 py-2 text-[15px] font-display tracking-[0.08em] uppercase transition-all duration-200 rounded-md group ${
                                             isActive
                                                 ? 'text-primary'
                                                 : 'text-white/60 hover:text-white'
@@ -130,7 +130,7 @@ const Navbar = () => {
                             {(!user && adminUser) && (
                                 <Link
                                     to="/admin"
-                                    className="relative px-3 py-2 text-[11px] font-bold tracking-[0.18em] uppercase transition-all duration-200 rounded-md text-yellow-400/80 hover:text-yellow-400 group"
+                                    className="relative px-2 py-2 text-[15px] font-display tracking-[0.08em] uppercase transition-all duration-200 rounded-md text-yellow-400/80 hover:text-yellow-400 group"
                                 >
                                     <span className="relative z-10 flex items-center gap-1.5">
                                         <Zap size={11} className="fill-yellow-400" /> ADMIN
