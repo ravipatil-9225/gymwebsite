@@ -24,6 +24,11 @@ const getRemainingDays = (endDate) => {
     return Math.ceil((new Date(endDate) - new Date()) / (1000 * 60 * 60 * 24));
 };
 
+// Design tokens
+const CARD   = 'bg-[#111827] border border-[#1f2937] rounded-2xl overflow-hidden';
+const LBL    = 'text-[10px] font-semibold uppercase tracking-widest text-gray-500';
+const SEC_TI = `text-[10px] font-semibold uppercase tracking-widest text-gray-500 px-5 py-3 border-b border-[#1f2937]`;
+
 const UserProfile = () => {
     const { userId } = useParams();
     const navigate = useNavigate();
@@ -91,472 +96,471 @@ const UserProfile = () => {
 
     if (loading) return (
         <div className="flex flex-col items-center justify-center h-64 gap-3">
-            <div className="w-10 h-10 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin" />
-            <p className="text-sm text-gray-400 font-medium">Loading member profile…</p>
+            <div className="w-8 h-8 rounded-full border-2 border-gray-700 border-t-white animate-spin" />
+            <p className="text-sm text-gray-500">Loading profile…</p>
         </div>
     );
-    if (!user) return <div className="text-center py-20 text-gray-400">User not found.</div>;
+    if (!user) return <div className="text-center py-20 text-gray-500">User not found.</div>;
 
     const m = user.latestMembership;
     const daysLeft = m ? getRemainingDays(m.endDate) : null;
     const isActive = daysLeft !== null && daysLeft > 0;
     const totalSpent = user.allMemberships?.reduce((s, mem) => s + (mem.amountPaid || 0), 0) || 0;
     const presentDays = attendance.filter(a => a.status === 'present').length;
-    const daysColor = daysLeft === null ? 'text-gray-400' : daysLeft <= 0 ? 'text-red-500' : daysLeft <= 7 ? 'text-orange-500' : 'text-emerald-500';
+    const waBase = user.phone
+        ? `https://wa.me/${user.phone.replace(/[^0-9]/g, '').replace(/^(?!91)/, '91')}`
+        : null;
+    const waLink = (msg) => waBase ? `${waBase}?text=${encodeURIComponent(msg)}` : '#';
 
     return (
-        <div className="max-w-6xl mx-auto space-y-5 pb-10">
+        <div className="max-w-6xl mx-auto space-y-5 pb-12">
 
-            {/* Back */}
+            {/* ── Top bar */}
             <div className="flex items-center justify-between">
                 <button onClick={() => navigate('/admin/users')}
-                    className="flex items-center gap-2 text-gray-400 hover:text-gray-700 text-sm font-semibold transition-colors group">
-                    <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" /> Back to Users
+                    className="flex items-center gap-2 text-gray-500 hover:text-white text-sm font-medium transition-colors group">
+                    <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+                    Back to Users
                 </button>
-                <span className="flex items-center gap-1.5 text-xs text-emerald-500 font-semibold bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full">
-                    <RefreshCw className="w-3 h-3" style={{ animation: 'spin 3s linear infinite' }} /> Live sync
+                <span className="flex items-center gap-1.5 text-[11px] text-gray-600 font-medium">
+                    <RefreshCw className="w-3 h-3" style={{ animation: 'spin 4s linear infinite' }} />
+                    Live sync
                 </span>
             </div>
 
-            {/* HERO */}
-            <div className="rounded-2xl overflow-hidden shadow-md border border-gray-200 bg-white">
-
-                {/* Banner + Avatar Row — all inside one flex */}
-                <div className="relative" style={{ background: isActive ? 'linear-gradient(135deg,#1e3a5f 0%,#1a56db 55%,#0e9f6e 100%)' : 'linear-gradient(135deg,#1f2937 0%,#374151 55%,#6b7280 100%)' }}>
-                    <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 15% 50%,rgba(255,255,255,0.07) 0%,transparent 50%),radial-gradient(circle at 85% 20%,rgba(255,255,255,0.09) 0%,transparent 40%)' }} />
-
-                    <div className="relative px-6 py-5 flex items-center gap-5">
-                        {/* Avatar */}
-                        <div className="w-20 h-20 rounded-2xl border-4 border-white/30 shadow-2xl overflow-hidden shrink-0 bg-gradient-to-br from-white/20 to-white/10">
-                            {user.profileImage?.url
-                                ? <img src={user.profileImage.url} alt={user.name} className="w-full h-full object-cover" />
-                                : <div className="w-full h-full flex items-center justify-center"><User className="w-9 h-9 text-white/60" /></div>}
+            {/* ── Hero card */}
+            <div className={CARD}>
+                <div className="p-6 flex items-start gap-5">
+                    {/* Avatar */}
+                    <div className="w-16 h-16 rounded-2xl overflow-hidden shrink-0 bg-[#1f2937] flex items-center justify-center border border-[#374151]">
+                        {user.profileImage?.url
+                            ? <img src={user.profileImage.url} alt={user.name} className="w-full h-full object-cover" />
+                            : <User className="w-7 h-7 text-gray-600" />}
+                    </div>
+                    {/* Name */}
+                    <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                            <h1 className="text-xl font-bold text-white tracking-tight">{user.name}</h1>
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                                user.role === 'admin'
+                                    ? 'bg-violet-500/10 text-violet-400 border-violet-500/30'
+                                    : 'bg-[#1f2937] text-gray-500 border-[#374151]'}`}>
+                                {user.role === 'admin' ? 'Admin' : 'Member'}
+                            </span>
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border flex items-center gap-1 ${
+                                isActive
+                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                    : 'bg-red-500/10 text-red-400 border-red-500/30'}`}>
+                                {isActive ? <CheckCircle className="w-2.5 h-2.5" /> : <XCircle className="w-2.5 h-2.5" />}
+                                {isActive ? 'Active' : 'Expired'}
+                            </span>
                         </div>
-
-                        {/* Name + info */}
-                        <div className="flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center gap-2 mb-1">
-                                <h1 className="text-2xl font-black text-white tracking-tight drop-shadow">{user.name}</h1>
-                                <span className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider border backdrop-blur-sm ${user.role === 'admin' ? 'bg-violet-500/30 text-violet-100 border-violet-400/40' : 'bg-white/15 text-white/80 border-white/25'}`}>
-                                    {user.role === 'admin' ? '👑 Admin' : '🏋️ Member'}
-                                </span>
-                                <span className={`text-[10px] font-black px-2.5 py-1 rounded-full border backdrop-blur-sm flex items-center gap-1 ${isActive ? 'bg-emerald-500/25 border-emerald-400/40 text-emerald-200' : 'bg-red-500/25 border-red-400/40 text-red-200'}`}>
-                                    {isActive ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                                    {isActive ? 'Active' : 'Expired'}
-                                </span>
-                            </div>
-                            <p className="text-white/60 text-sm">{user.email}</p>
-                            {user.phone && <p className="text-white/80 text-sm font-semibold mt-0.5">{user.phone}</p>}
-                        </div>
-
-                        {/* Action buttons */}
-                        <div className="flex gap-2 shrink-0">
-                            <button onClick={() => { setEditing(true); setEditData(user); }}
-                                className="flex items-center gap-2 px-4 py-2 bg-white text-indigo-700 rounded-xl text-sm font-black transition-all shadow-lg hover:bg-indigo-50 hover:-translate-y-0.5 active:translate-y-0">
-                                <Edit className="w-4 h-4" /> Edit
-                            </button>
-                            <button onClick={handleDelete} disabled={deleting}
-                                className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-red-500/80 text-white border border-white/20 rounded-xl text-sm font-black transition-all hover:-translate-y-0.5 backdrop-blur-sm">
-                                <Trash2 className="w-4 h-4" /> {deleting ? '…' : 'Delete'}
-                            </button>
-                        </div>
+                        <p className="text-gray-500 text-sm">{user.email}</p>
+                        {user.phone && <p className="text-gray-400 text-sm mt-0.5">{user.phone}</p>}
+                    </div>
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 shrink-0">
+                        <button onClick={() => { setEditing(true); setEditData(user); }}
+                            className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-gray-300 bg-[#1f2937] border border-[#374151] rounded-xl hover:bg-[#2d3748] hover:text-white transition-all">
+                            <Edit className="w-3.5 h-3.5" /> Edit
+                        </button>
+                        <button onClick={handleDelete} disabled={deleting}
+                            className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-red-500 bg-red-500/10 border border-red-500/20 rounded-xl hover:bg-red-500/20 transition-all disabled:opacity-50">
+                            <Trash2 className="w-3.5 h-3.5" /> {deleting ? '…' : 'Delete'}
+                        </button>
                     </div>
                 </div>
 
-                {/* Stats Row */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-gray-100 border-t border-gray-100">
+                {/* Stats row */}
+                <div className="grid grid-cols-4 border-t border-[#1f2937] divide-x divide-[#1f2937]">
                     {[
-                        { label: 'Days Left', value: daysLeft !== null ? (daysLeft > 0 ? `${daysLeft}` : '0') : '—', unit: daysLeft > 0 ? 'days' : (daysLeft === 0 ? 'expired' : ''), vc: daysColor, icon: '⏳' },
-                        { label: 'Total Plans', value: user.allMemberships?.length || 0, unit: 'plans', vc: 'text-indigo-600', icon: '📋' },
-                        { label: 'Total Spent', value: `₹${totalSpent.toLocaleString('en-IN')}`, unit: '', vc: 'text-violet-700', icon: '💰' },
-                        { label: 'Attendance', value: presentDays, unit: 'days', vc: 'text-emerald-600', icon: '✅' },
-                    ].map(({ label, value, unit, vc, icon }) => (
-                        <div key={label} className="p-4 text-center hover:bg-gray-50 transition-colors">
-                            <p className={`text-xl font-black ${vc}`}>
-                                {value}
-                                {unit ? <span className="text-xs font-semibold ml-1 text-gray-400">{unit}</span> : null}
-                            </p>
-                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">{icon} {label}</p>
+                        { label: 'Days Left',   value: daysLeft !== null ? (daysLeft > 0 ? daysLeft : 0) : '—', color: daysLeft === null ? 'text-gray-500' : daysLeft <= 0 ? 'text-red-400' : daysLeft <= 7 ? 'text-amber-400' : 'text-emerald-400' },
+                        { label: 'Total Plans', value: user.allMemberships?.length || 0, color: 'text-white' },
+                        { label: 'Total Spent', value: `₹${totalSpent.toLocaleString('en-IN')}`, color: 'text-white' },
+                        { label: 'Attendance',  value: `${presentDays}d`, color: 'text-white' },
+                    ].map(({ label: l, value, color }) => (
+                        <div key={l} className="py-4 text-center">
+                            <p className={`text-lg font-bold ${color}`}>{value}</p>
+                            <p className={`mt-0.5 ${LBL}`}>{l}</p>
                         </div>
                     ))}
                 </div>
             </div>
 
-            {/* MAIN GRID */}
+            {/* ── Main 2-col grid */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
 
-                {/* LEFT */}
+                {/* Left column */}
                 <div className="lg:col-span-4 space-y-4">
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                        <div className="px-5 py-3.5 bg-gradient-to-r from-slate-700 to-slate-600 flex items-center gap-2">
-                            <User className="w-3.5 h-3.5 text-white/70" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-white/80">Personal Info</span>
-                        </div>
-                        <div className="divide-y divide-gray-50">
+
+                    {/* Personal Info */}
+                    <div className={CARD}>
+                        <p className={SEC_TI}>Personal Info</p>
+                        <div className="divide-y divide-[#1a2233]">
                             {[
-                                { icon: Phone, label: 'Phone', value: user.phone || 'Not provided', ib: 'bg-sky-100', ic: 'text-sky-600' },
-                                { icon: Mail, label: 'Email', value: user.email, ib: 'bg-indigo-100', ic: 'text-indigo-600' },
-                                { icon: Calendar, label: 'Date of Birth', value: fmt(user.dob), ib: 'bg-purple-100', ic: 'text-purple-600' },
-                                { icon: Calendar, label: 'Joining Date', value: fmt(user.registrationDate || user.createdAt), ib: 'bg-emerald-100', ic: 'text-emerald-600' },
-                                { icon: Clock, label: 'Batch Time', value: (user.batchTime && user.batchTime !== 'Not Assigned') ? user.batchTime : 'Not Assigned', ib: 'bg-amber-100', ic: 'text-amber-600' },
-                                { icon: Shield, label: 'Role', value: user.role?.toUpperCase(), ib: 'bg-violet-100', ic: 'text-violet-600' },
-                            ].map(({ icon: Icon, label, value, ib, ic }) => (
-                                <div key={label} className="flex items-center gap-3 px-5 py-3.5 hover:bg-slate-50/60 transition-colors">
-                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${ib}`}><Icon className={`w-3.5 h-3.5 ${ic}`} /></div>
-                                    <div className="min-w-0">
-                                        <p className="text-[10px] font-black uppercase tracking-wider text-gray-300">{label}</p>
-                                        <p className="text-sm font-semibold text-gray-800 truncate">{value || '—'}</p>
+                                { icon: Phone,    label: 'Phone',         value: user.phone || 'Not provided' },
+                                { icon: Mail,     label: 'Email',         value: user.email },
+                                { icon: Calendar, label: 'Date of Birth', value: fmt(user.dob) },
+                                { icon: Calendar, label: 'Joined',        value: fmt(user.registrationDate || user.createdAt) },
+                                { icon: Clock,    label: 'Batch Time',    value: (user.batchTime && user.batchTime !== 'Not Assigned') ? user.batchTime : 'Not Assigned' },
+                                { icon: Shield,   label: 'Role',          value: user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : '—' },
+                            ].map(({ icon: Icon, label: l, value }) => (
+                                <div key={l} className="flex items-center gap-3 px-5 py-3.5 hover:bg-[#1a2233] transition-colors">
+                                    <Icon className="w-3.5 h-3.5 text-gray-600 shrink-0" />
+                                    <div className="min-w-0 flex-1">
+                                        <p className={LBL}>{l}</p>
+                                        <p className="text-sm text-gray-300 mt-0.5 truncate">{value || '—'}</p>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    <div className={`rounded-2xl overflow-hidden border-2 shadow-sm ${user.allowPendingPayment !== false ? 'border-emerald-200' : 'border-rose-200'}`}>
-                        <div className={`px-5 py-3 flex items-center gap-2 ${user.allowPendingPayment !== false ? 'bg-gradient-to-r from-emerald-600 to-teal-500' : 'bg-gradient-to-r from-rose-500 to-red-600'}`}>
-                            <CreditCard className="w-3.5 h-3.5 text-white/80" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-white/90">Pending Payment</span>
-                        </div>
-                        <div className={`p-5 flex items-center justify-between ${user.allowPendingPayment !== false ? 'bg-emerald-50' : 'bg-rose-50'}`}>
+                    {/* Pending Payment */}
+                    <div className={CARD}>
+                        <p className={SEC_TI}>Pending Payment</p>
+                        <div className="px-5 py-4 flex items-center justify-between">
                             <div>
-                                <p className={`text-sm font-black ${user.allowPendingPayment !== false ? 'text-emerald-700' : 'text-rose-700'}`}>
-                                    {user.allowPendingPayment !== false ? '✅ Allowed' : '❌ Disabled'}
+                                <p className="text-sm font-medium text-gray-300">
+                                    {user.allowPendingPayment !== false ? 'Allowed' : 'Disabled'}
                                 </p>
-                                <p className={`text-xs mt-0.5 ${user.allowPendingPayment !== false ? 'text-emerald-500' : 'text-rose-400'}`}>
-                                    {user.allowPendingPayment !== false ? 'Can pay later' : 'Must pay upfront'}
+                                <p className="text-[11px] text-gray-600 mt-0.5">
+                                    {user.allowPendingPayment !== false ? 'Member can pay later' : 'Must pay upfront'}
                                 </p>
                             </div>
                             <button onClick={handleTogglePending} disabled={togglingPending}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black border shadow-sm transition-all hover:-translate-y-0.5 ${user.allowPendingPayment !== false ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700' : 'bg-rose-600 hover:bg-rose-700 text-white border-rose-700'}`}>
-                                {user.allowPendingPayment !== false ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
-                                {togglingPending ? '…' : (user.allowPendingPayment !== false ? 'Allow' : 'Enable')}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${
+                                    user.allowPendingPayment !== false ? 'bg-emerald-500' : 'bg-[#2d3748]'}`}>
+                                <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                                    user.allowPendingPayment !== false ? 'translate-x-6' : 'translate-x-1'}`} />
                             </button>
                         </div>
                     </div>
 
-                    {/* WhatsApp Quick Actions */}
-                    <div className="rounded-2xl overflow-hidden border-2 border-green-200 shadow-sm">
-                        <div className="px-5 py-3 flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-500">
-                            <MessageCircle className="w-3.5 h-3.5 text-white/80" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-white/90">WhatsApp Quick Actions</span>
-                            <span className="ml-auto text-[10px] font-black text-white bg-white/20 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                <ExternalLink className="w-2.5 h-2.5" /> Direct
-                            </span>
-                        </div>
-                        <div className="bg-green-50/50 p-4 space-y-2.5">
-                            {user.phone ? (
-                                <>
-                                    {/* Main WhatsApp Chat Button */}
-                                    <a
-                                        href={`https://wa.me/${user.phone.replace(/[^0-9]/g, '').replace(/^(?!91)/, '91')}?text=${encodeURIComponent(`Hi ${user.name}, this is from Tara Fitness. `)}`}
-                                        target="_blank" rel="noopener noreferrer"
-                                        className="flex items-center gap-3 w-full px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl font-black text-sm transition-all hover:-translate-y-0.5 shadow-md shadow-green-200 group"
-                                    >
-                                        <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center shrink-0">
-                                            <Send className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                                        </div>
-                                        <div className="text-left">
-                                            <p className="text-sm font-black">Open WhatsApp Chat</p>
-                                            <p className="text-[10px] text-white/70 font-semibold">Send a message to {user.name?.split(' ')[0]}</p>
-                                        </div>
-                                        <ExternalLink className="w-4 h-4 ml-auto opacity-60" />
-                                    </a>
-
-                                    {/* Quick Message Templates */}
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 pt-1">Quick Templates</p>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {[
-                                            {
-                                                label: 'Invoice',
-                                                icon: FileText,
-                                                msg: `Hi ${user.name}, here is your invoice from Tara Fitness. Please find the details of your recent payment. Thank you for being a valued member! 💪`,
-                                                bg: 'bg-blue-50 hover:bg-blue-100',
-                                                border: 'border-blue-200',
-                                                text: 'text-blue-700',
-                                                iconBg: 'bg-blue-100',
-                                                iconColor: 'text-blue-600'
-                                            },
-                                            {
-                                                label: 'Diet Plan',
-                                                icon: UtensilsCrossed,
-                                                msg: `Hi ${user.name}, here is your personalized diet plan from Tara Fitness. Follow this plan consistently for the best results! 🥗💪`,
-                                                bg: 'bg-orange-50 hover:bg-orange-100',
-                                                border: 'border-orange-200',
-                                                text: 'text-orange-700',
-                                                iconBg: 'bg-orange-100',
-                                                iconColor: 'text-orange-600'
-                                            },
-                                            {
-                                                label: 'Payment',
-                                                icon: IndianRupee,
-                                                msg: `Hi ${user.name}, this is a gentle reminder from Tara Fitness regarding your pending payment. Kindly clear the dues at your earliest convenience. Thank you! 🙏`,
-                                                bg: 'bg-violet-50 hover:bg-violet-100',
-                                                border: 'border-violet-200',
-                                                text: 'text-violet-700',
-                                                iconBg: 'bg-violet-100',
-                                                iconColor: 'text-violet-600'
-                                            },
-                                            {
-                                                label: 'Attendance',
-                                                icon: ClipboardCheck,
-                                                msg: `Hi ${user.name}, we noticed your attendance has been irregular at Tara Fitness. Consistency is key to achieving your fitness goals! We miss seeing you. 💪🏋️`,
-                                                bg: 'bg-teal-50 hover:bg-teal-100',
-                                                border: 'border-teal-200',
-                                                text: 'text-teal-700',
-                                                iconBg: 'bg-teal-100',
-                                                iconColor: 'text-teal-600'
-                                            },
-                                        ].map(({ label, icon: Icon, msg, bg, border, text, iconBg, iconColor }) => (
-                                            <a
-                                                key={label}
-                                                href={`https://wa.me/${user.phone.replace(/[^0-9]/g, '').replace(/^(?!91)/, '91')}?text=${encodeURIComponent(msg)}`}
-                                                target="_blank" rel="noopener noreferrer"
-                                                className={`flex items-center gap-2.5 px-3 py-2.5 ${bg} border ${border} rounded-xl transition-all hover:-translate-y-0.5 group cursor-pointer`}
-                                            >
-                                                <div className={`w-7 h-7 ${iconBg} rounded-lg flex items-center justify-center shrink-0`}>
-                                                    <Icon className={`w-3.5 h-3.5 ${iconColor}`} />
-                                                </div>
-                                                <div>
-                                                    <p className={`text-xs font-black ${text}`}>{label}</p>
-                                                    <p className="text-[9px] text-gray-400 font-semibold">Send via WhatsApp</p>
-                                                </div>
-                                            </a>
-                                        ))}
-                                    </div>
-
-                                    {/* Renewal Reminder */}
-                                    {!isActive && (
-                                        <a
-                                            href={`https://wa.me/${user.phone.replace(/[^0-9]/g, '').replace(/^(?!91)/, '91')}?text=${encodeURIComponent(`Hi ${user.name}, your membership at Tara Fitness has expired. We'd love to have you back! Renew your plan today and continue your fitness journey with us. 🏋️‍♂️🔥`)}`}
-                                            target="_blank" rel="noopener noreferrer"
-                                            className="flex items-center gap-3 w-full px-4 py-3 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white rounded-xl font-black text-sm transition-all hover:-translate-y-0.5 shadow-md shadow-red-200 group"
-                                        >
-                                            <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center shrink-0">
-                                                <AlertTriangle className="w-4 h-4" />
-                                            </div>
-                                            <div className="text-left">
-                                                <p className="text-sm font-black">Renewal Reminder</p>
-                                                <p className="text-[10px] text-white/70 font-semibold">Membership expired — send reminder</p>
-                                            </div>
-                                            <ExternalLink className="w-4 h-4 ml-auto opacity-60" />
+                    {/* WhatsApp */}
+                    <div className={CARD}>
+                        <p className={SEC_TI}>WhatsApp</p>
+                        {user.phone ? (
+                            <div className="p-4 space-y-2">
+                                <a href={waLink(`Hi ${user.name}, this is from Tara Fitness. `)}
+                                    target="_blank" rel="noopener noreferrer"
+                                    className="flex items-center gap-3 w-full px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl hover:bg-emerald-500/15 hover:border-emerald-500/30 transition-all text-sm font-medium group">
+                                    <Send className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                                    Open WhatsApp Chat
+                                    <ExternalLink className="w-3.5 h-3.5 ml-auto opacity-40" />
+                                </a>
+                                <p className={`${LBL} px-1 pt-1`}>Quick Templates</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {[
+                                        { label: 'Invoice',    icon: FileText,        msg: `Hi ${user.name}, here is your invoice from Tara Fitness. Thank you! 💪` },
+                                        { label: 'Diet Plan',  icon: UtensilsCrossed, msg: `Hi ${user.name}, here is your personalized diet plan from Tara Fitness. 🥗💪` },
+                                        { label: 'Payment',    icon: IndianRupee,     msg: `Hi ${user.name}, gentle reminder regarding your pending payment at Tara Fitness. 🙏` },
+                                        { label: 'Attendance', icon: ClipboardCheck,  msg: `Hi ${user.name}, we noticed your attendance has been irregular. We miss you! 💪🏋️` },
+                                    ].map(({ label: l, icon: Icon, msg }) => (
+                                        <a key={l} href={waLink(msg)} target="_blank" rel="noopener noreferrer"
+                                            className="flex items-center gap-2 px-3 py-2.5 bg-[#1a2233] border border-[#2d3748] rounded-xl hover:bg-[#232d42] hover:border-[#4a5568] text-gray-400 hover:text-gray-200 transition-all">
+                                            <Icon className="w-3.5 h-3.5 shrink-0" />
+                                            <span className="text-xs font-medium">{l}</span>
                                         </a>
-                                    )}
-                                </>
-                            ) : (
-                                <div className="text-center py-6">
-                                    <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-2">
-                                        <Phone className="w-5 h-5 text-gray-300" />
-                                    </div>
-                                    <p className="text-gray-400 font-bold text-sm">No phone number</p>
-                                    <p className="text-gray-300 text-xs mt-1">Add a phone number to enable WhatsApp messaging.</p>
+                                    ))}
                                 </div>
-                            )}
-                        </div>
+                                {!isActive && (
+                                    <a href={waLink(`Hi ${user.name}, your membership at Tara Fitness has expired. Renew today! 🏋️‍♂️🔥`)}
+                                        target="_blank" rel="noopener noreferrer"
+                                        className="flex items-center gap-2.5 w-full px-4 py-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl hover:bg-red-500/15 transition-all text-sm font-medium">
+                                        <AlertTriangle className="w-4 h-4" />
+                                        Renewal Reminder
+                                        <ExternalLink className="w-3.5 h-3.5 ml-auto opacity-40" />
+                                    </a>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="text-center py-8">
+                                <Phone className="w-5 h-5 text-gray-700 mx-auto mb-2" />
+                                <p className="text-sm text-gray-600">No phone number on record</p>
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                {/* RIGHT */}
+                {/* Right column */}
                 <div className="lg:col-span-8 space-y-5">
 
-                    {/* Membership */}
-                    <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100">
-                        <div className={`px-5 py-3.5 flex items-center gap-2 ${isActive ? 'bg-gradient-to-r from-blue-700 to-indigo-600' : 'bg-gradient-to-r from-gray-600 to-gray-500'}`}>
-                            <Package className="w-4 h-4 text-white/80" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-white/90">Current Membership</span>
-                            <span className={`ml-auto text-[10px] font-black px-2.5 py-1 rounded-full ${isActive ? 'bg-emerald-400/30 text-emerald-200' : 'bg-white/10 text-white/60'}`}>
-                                {isActive ? '🟢 ACTIVE' : '🔴 EXPIRED'}
+                    {/* Current Membership */}
+                    <div className={CARD}>
+                        <div className="flex items-center justify-between px-5 py-3 border-b border-[#1f2937]">
+                            <p className={LBL}>Current Membership</p>
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                                isActive
+                                    ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
+                                    : 'text-red-400 border-red-500/30 bg-red-500/10'}`}>
+                                {isActive ? 'Active' : 'Expired'}
                             </span>
                         </div>
-                        <div className="bg-white p-5">
+                        <div className="p-5">
                             {m ? (
                                 <>
-                                    <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+                                    <div className="flex items-start justify-between gap-3 mb-5">
                                         <div>
-                                            <p className="text-[10px] text-gray-300 font-bold uppercase tracking-wider">Plan</p>
-                                            <h3 className="text-2xl font-black text-gray-900 mt-0.5">{m.packageName}</h3>
+                                            <p className={LBL}>Plan</p>
+                                            <h3 className="text-2xl font-bold text-white mt-1">{m.packageName}</h3>
                                         </div>
-                                        {!isActive && <div className="flex items-center gap-1.5 bg-red-50 text-red-500 text-xs font-black px-3 py-1.5 rounded-lg border border-red-100"><AlertTriangle className="w-3.5 h-3.5" /> Renewal Required</div>}
-                                        {isActive && daysLeft <= 7 && <div className="flex items-center gap-1.5 bg-orange-50 text-orange-500 text-xs font-black px-3 py-1.5 rounded-lg border border-orange-100"><AlertTriangle className="w-3.5 h-3.5" /> Expiring in {daysLeft}d</div>}
+                                        {!isActive && (
+                                            <div className="flex items-center gap-1.5 text-xs font-medium text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg">
+                                                <AlertTriangle className="w-3.5 h-3.5" /> Renewal needed
+                                            </div>
+                                        )}
+                                        {isActive && daysLeft <= 7 && (
+                                            <div className="flex items-center gap-1.5 text-xs font-medium text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg">
+                                                <AlertTriangle className="w-3.5 h-3.5" /> Expiring in {daysLeft}d
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                         {[
-                                            { label: 'Start Date', value: fmt(m.startDate), bg: 'bg-sky-50', b: 'border-sky-100', vc: 'text-sky-800', lc: 'text-sky-400', icon: '📅' },
-                                            { label: 'End Date', value: fmt(m.endDate), bg: isActive ? 'bg-slate-50' : 'bg-red-50', b: isActive ? 'border-slate-100' : 'border-red-100', vc: isActive ? 'text-slate-800' : 'text-red-600', lc: isActive ? 'text-slate-400' : 'text-red-300', icon: '📅' },
-                                            { label: 'Duration', value: m.planDuration ? `${m.planDuration} days` : '30 days', bg: 'bg-violet-50', b: 'border-violet-100', vc: 'text-violet-800', lc: 'text-violet-400', icon: '⏱️' },
-                                            { label: 'Amount Paid', value: m.amountPaid ? `₹${m.amountPaid.toLocaleString('en-IN')}` : '—', bg: 'bg-emerald-50', b: 'border-emerald-100', vc: 'text-emerald-800', lc: 'text-emerald-400', icon: '💰' },
-                                            { label: 'Days Left', value: daysLeft !== null ? (daysLeft > 0 ? `${daysLeft} days` : 'Expired') : '—', bg: daysLeft > 7 ? 'bg-green-50' : daysLeft > 0 ? 'bg-orange-50' : 'bg-red-50', b: daysLeft > 7 ? 'border-green-100' : daysLeft > 0 ? 'border-orange-100' : 'border-red-100', vc: daysLeft > 7 ? 'text-green-700' : daysLeft > 0 ? 'text-orange-600' : 'text-red-600', lc: daysLeft > 7 ? 'text-green-400' : 'text-orange-300', icon: '⏳' },
-                                            { label: 'Payment Method', value: m.paymentMethod || '—', bg: 'bg-indigo-50', b: 'border-indigo-100', vc: 'text-indigo-800', lc: 'text-indigo-400', icon: '💳' },
-                                        ].map(({ label, value, bg, b, vc, lc, icon }) => (
-                                            <div key={label} className={`${bg} border ${b} rounded-xl p-3.5`}>
-                                                <p className={`text-[10px] font-black uppercase tracking-wider mb-1.5 ${lc}`}>{icon} {label}</p>
-                                                <p className={`text-sm font-black ${vc}`}>{value}</p>
+                                            { label: 'Start Date',     value: fmt(m.startDate) },
+                                            { label: 'End Date',       value: fmt(m.endDate) },
+                                            { label: 'Duration',       value: m.planDuration ? `${m.planDuration} days` : '30 days' },
+                                            { label: 'Amount Paid',    value: m.amountPaid ? `₹${m.amountPaid.toLocaleString('en-IN')}` : '—' },
+                                            {
+                                                label: 'Days Left',
+                                                value: daysLeft !== null ? (daysLeft > 0 ? `${daysLeft} days` : 'Expired') : '—',
+                                                accent: daysLeft !== null && daysLeft <= 0 ? 'text-red-400'
+                                                    : daysLeft !== null && daysLeft <= 7 ? 'text-amber-400'
+                                                    : 'text-emerald-400'
+                                            },
+                                            { label: 'Payment Method', value: m.paymentMethod || '—' },
+                                        ].map(({ label: l, value, accent }) => (
+                                            <div key={l} className="bg-[#1a2233] border border-[#2d3748] rounded-xl p-3.5">
+                                                <p className={LBL}>{l}</p>
+                                                <p className={`text-sm font-semibold mt-1.5 ${accent || 'text-gray-300'}`}>{value}</p>
                                             </div>
                                         ))}
                                     </div>
                                 </>
                             ) : (
                                 <div className="text-center py-12">
-                                    <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-3"><Package className="w-8 h-8 text-gray-300" /></div>
-                                    <p className="text-gray-400 font-bold">No active membership plan</p>
-                                    <p className="text-gray-300 text-sm mt-1">Assign a plan from the Payments section.</p>
+                                    <Package className="w-8 h-8 text-gray-700 mx-auto mb-3" />
+                                    <p className="text-gray-500 font-medium">No active plan</p>
+                                    <p className="text-gray-700 text-sm mt-1">Assign a plan from the Payments section.</p>
                                 </div>
                             )}
                         </div>
                     </div>
 
                     {/* Plan History */}
-                    <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100">
-                        <div className="px-5 py-3.5 flex items-center gap-2 bg-gradient-to-r from-violet-700 to-purple-600">
-                            <TrendingUp className="w-4 h-4 text-white/80" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-white/90">Plan History</span>
-                            <span className="ml-auto text-[10px] font-black text-white bg-white/20 px-2.5 py-0.5 rounded-full">{user.allMemberships?.length || 0} plans · ₹{totalSpent.toLocaleString('en-IN')}</span>
+                    <div className={CARD}>
+                        <div className="flex items-center justify-between px-5 py-3 border-b border-[#1f2937]">
+                            <p className={LBL}>Plan History</p>
+                            <span className="text-[11px] text-gray-600">
+                                {user.allMemberships?.length || 0} plans · ₹{totalSpent.toLocaleString('en-IN')}
+                            </span>
                         </div>
-                        <div className="bg-white">
-                            {(!user.allMemberships || user.allMemberships.length === 0) ? (
-                                <div className="text-center py-12"><Award className="w-8 h-8 text-gray-200 mx-auto mb-2" /><p className="text-gray-300 font-semibold text-sm">No plan history found.</p></div>
-                            ) : (
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                        <thead><tr className="bg-gray-50 border-b border-gray-100">{['#','Plan','Duration','Start','End','Amount','Status'].map(h=><th key={h} className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400">{h}</th>)}</tr></thead>
-                                        <tbody>
-                                            {user.allMemberships.map((mem, idx) => {
-                                                const dl = getRemainingDays(mem.endDate);
-                                                const active = dl !== null && dl > 0;
-                                                return (
-                                                    <tr key={mem._id || idx} className={`border-b border-gray-50 transition-colors ${idx === 0 ? 'bg-violet-50/50' : 'hover:bg-gray-50'}`}>
-                                                        <td className="px-4 py-3"><span className="text-xs font-black text-gray-300 font-mono">{user.allMemberships.length - idx}</span>{idx === 0 && <span className="ml-1 text-[9px] bg-violet-100 text-violet-600 font-black px-1.5 py-0.5 rounded-full">LATEST</span>}</td>
-                                                        <td className="px-4 py-3 font-bold text-gray-800">{mem.packageName}</td>
-                                                        <td className="px-4 py-3 text-gray-400 text-xs">{mem.planDuration ? `${mem.planDuration}d` : '30d'}</td>
-                                                        <td className="px-4 py-3 text-gray-500 text-xs">{fmt(mem.startDate)}</td>
-                                                        <td className="px-4 py-3 text-xs"><span className={active ? 'text-gray-600' : 'text-red-500 font-semibold'}>{fmt(mem.endDate)}</span></td>
-                                                        <td className="px-4 py-3 font-bold text-gray-700">₹{mem.amountPaid?.toLocaleString('en-IN') || '0'}</td>
-                                                        <td className="px-4 py-3"><span className={`text-[10px] font-black px-2 py-1 rounded-full ${active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>{active ? `✓ ${dl}d left` : '✗ Expired'}</span></td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-                        </div>
+                        {(!user.allMemberships || user.allMemberships.length === 0) ? (
+                            <div className="text-center py-12">
+                                <Award className="w-8 h-8 text-gray-700 mx-auto mb-2" />
+                                <p className="text-gray-600 text-sm">No plan history found.</p>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b border-[#1f2937]">
+                                            {['#', 'Plan', 'Duration', 'Start', 'End', 'Amount', 'Status'].map(h => (
+                                                <th key={h} className={`px-4 py-3 text-left ${LBL}`}>{h}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {user.allMemberships.map((mem, idx) => {
+                                            const dl = getRemainingDays(mem.endDate);
+                                            const active = dl !== null && dl > 0;
+                                            return (
+                                                <tr key={mem._id || idx} className="border-b border-[#1a2233] hover:bg-[#1a2233] transition-colors">
+                                                    <td className="px-4 py-3 text-gray-600 text-xs font-mono">
+                                                        {user.allMemberships.length - idx}
+                                                        {idx === 0 && (
+                                                            <span className="ml-1.5 text-[9px] bg-[#1f2937] text-gray-400 font-semibold px-1.5 py-0.5 rounded border border-[#374151]">
+                                                                LATEST
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-gray-300 font-medium">{mem.packageName}</td>
+                                                    <td className="px-4 py-3 text-gray-600 text-xs">{mem.planDuration ? `${mem.planDuration}d` : '30d'}</td>
+                                                    <td className="px-4 py-3 text-gray-500 text-xs">{fmt(mem.startDate)}</td>
+                                                    <td className="px-4 py-3 text-xs">
+                                                        <span className={active ? 'text-gray-500' : 'text-red-500'}>{fmt(mem.endDate)}</span>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-gray-300 font-medium">₹{mem.amountPaid?.toLocaleString('en-IN') || '0'}</td>
+                                                    <td className="px-4 py-3">
+                                                        <span className={`text-[10px] font-semibold px-2 py-1 rounded-full border ${
+                                                            active
+                                                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                                                : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                                                            {active ? `${dl}d left` : 'Expired'}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
 
                     {/* Attendance */}
-                    <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100">
-                        <div className="px-5 py-3.5 flex items-center gap-2 bg-gradient-to-r from-teal-600 to-cyan-500">
-                            <Dumbbell className="w-4 h-4 text-white/80" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-white/90">Attendance Log</span>
-                            <span className="ml-auto text-[10px] font-black text-white bg-white/20 px-2.5 py-0.5 rounded-full">{presentDays} days present</span>
+                    <div className={CARD}>
+                        <div className="flex items-center justify-between px-5 py-3 border-b border-[#1f2937]">
+                            <p className={LBL}>Attendance Log</p>
+                            <span className="text-[11px] text-gray-600">{presentDays} days present</span>
                         </div>
-                        <div className="bg-white">
-                            {attendance.length === 0 ? (
-                                <div className="text-center py-12"><Activity className="w-8 h-8 text-gray-200 mx-auto mb-2" /><p className="text-gray-300 font-semibold text-sm">No attendance records found.</p></div>
-                            ) : (
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                        <thead><tr className="bg-gray-50 border-b border-gray-100">{['Date','Status','Check-in Time','Marked By'].map(h=><th key={h} className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-gray-400">{h}</th>)}</tr></thead>
-                                        <tbody>
-                                            {attendance.slice(0, 30).map((rec) => (
-                                                <tr key={rec._id} className="border-b border-gray-50 hover:bg-teal-50/30 transition-colors">
-                                                    <td className="px-4 py-3 font-semibold text-gray-700">{fmt(rec.date)}</td>
-                                                    <td className="px-4 py-3"><span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${rec.status === 'present' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-500'}`}>{rec.status === 'present' ? '✓ Present' : '✗ Absent'}</span></td>
-                                                    <td className="px-4 py-3 text-gray-400 text-xs font-mono">{rec.checkInTime ? new Date(rec.checkInTime).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}) : '—'}</td>
-                                                    <td className="px-4 py-3 text-gray-400 text-xs capitalize">{rec.markedBy || '—'}</td>
-                                                </tr>
+                        {attendance.length === 0 ? (
+                            <div className="text-center py-12">
+                                <Activity className="w-8 h-8 text-gray-700 mx-auto mb-2" />
+                                <p className="text-gray-600 text-sm">No attendance records found.</p>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b border-[#1f2937]">
+                                            {['Date', 'Status', 'Check-in Time', 'Marked By'].map(h => (
+                                                <th key={h} className={`px-4 py-3 text-left ${LBL}`}>{h}</th>
                                             ))}
-                                        </tbody>
-                                    </table>
-                                    {attendance.length > 30 && <p className="text-center text-xs text-gray-300 py-3 font-semibold">Showing last 30 of {attendance.length} records</p>}
-                                </div>
-                            )}
-                        </div>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {attendance.slice(0, 30).map((rec) => (
+                                            <tr key={rec._id} className="border-b border-[#1a2233] hover:bg-[#1a2233] transition-colors">
+                                                <td className="px-4 py-3 text-gray-400 font-medium">{fmt(rec.date)}</td>
+                                                <td className="px-4 py-3">
+                                                    <span className={`text-[10px] font-semibold px-2 py-1 rounded-full border ${
+                                                        rec.status === 'present'
+                                                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                                            : rec.status === 'late'
+                                                                ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                                                : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                                                        {rec.status === 'present' ? 'Present' : rec.status === 'late' ? 'Late' : 'Absent'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-gray-600 text-xs font-mono">
+                                                    {rec.checkInTime
+                                                        ? new Date(rec.checkInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+                                                        : '—'}
+                                                </td>
+                                                <td className="px-4 py-3 text-gray-600 text-xs capitalize">{rec.markedBy || '—'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                {attendance.length > 30 && (
+                                    <p className="text-center text-xs text-gray-700 py-3">
+                                        Showing last 30 of {attendance.length} records
+                                    </p>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
 
-            {/* EDIT MODAL */}
+            {/* ── Edit Modal */}
             {editing && editData && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col border border-gray-100" style={{ maxHeight: '90vh' }}>
-                        <div className="px-6 py-4 flex justify-between items-center shrink-0 bg-gradient-to-r from-indigo-600 to-violet-600 rounded-t-2xl">
-                            <h2 className="text-sm font-black text-white flex items-center gap-2"><Edit className="w-4 h-4" /> Edit Member Profile</h2>
-                            <button onClick={() => setEditing(false)} className="text-white/60 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-[#0f1117] border border-[#1f2937] rounded-2xl shadow-2xl w-full max-w-md flex flex-col" style={{ maxHeight: '90vh' }}>
+                        <div className="px-6 py-4 flex justify-between items-center shrink-0 border-b border-[#1f2937]">
+                            <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+                                <Edit className="w-4 h-4 text-gray-500" /> Edit Member Profile
+                            </h2>
+                            <button onClick={() => setEditing(false)} className="text-gray-600 hover:text-gray-300 transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
                         </div>
                         <form onSubmit={handleSave} className="overflow-y-auto p-6 space-y-4">
                             {[
-                                { label: 'Full Name', key: 'name', type: 'text', required: true },
-                                { label: 'Email', key: 'email', type: 'email', required: true },
-                                { label: 'Phone', key: 'phone', type: 'text' },
-                                { label: 'Date of Birth', key: 'dob', type: 'date' },
-                            ].map(({ label, key, type, required }) => (
+                                { label: 'Full Name',     key: 'name',  type: 'text',  required: true },
+                                { label: 'Email',         key: 'email', type: 'email', required: true },
+                                { label: 'Phone',         key: 'phone', type: 'text' },
+                                { label: 'Date of Birth', key: 'dob',   type: 'date' },
+                            ].map(({ label: l, key, type, required }) => (
                                 <div key={key}>
-                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">{label}</label>
+                                    <label className={`block ${LBL} mb-1.5`}>{l}</label>
                                     <input type={type} required={required}
-                                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 focus:border-transparent outline-none bg-gray-50 focus:bg-white transition-all"
+                                        className="w-full px-4 py-2.5 border border-[#2d3748] rounded-xl text-sm text-gray-300 bg-[#1a2233] focus:ring-1 focus:ring-white/20 focus:border-white/30 outline-none transition-all"
                                         value={type === 'date' ? fmtInput(editData[key]) : (editData[key] || '')}
                                         onChange={(e) => setEditData({ ...editData, [key]: e.target.value })} />
                                 </div>
                             ))}
-                            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-4">
-                                <label className="flex items-center gap-1 text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-2">
-                                    <Calendar className="w-3 h-3" /> Registration / Joining Date
-                                    <span className="ml-auto text-[9px] bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded font-black">ADMIN ONLY</span>
+
+                            {/* Joining Date */}
+                            <div className="bg-[#1a2233] border border-[#2d3748] rounded-xl p-4">
+                                <label className={`flex items-center gap-1.5 ${LBL} mb-2`}>
+                                    <Calendar className="w-3 h-3" /> Joining Date
+                                    <span className="ml-auto text-[9px] text-gray-600 font-semibold">Admin only</span>
                                 </label>
-                                <input type="date" className="w-full px-4 py-2.5 border border-emerald-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-400 outline-none bg-white"
+                                <input type="date"
+                                    className="w-full px-4 py-2.5 border border-[#374151] rounded-xl text-sm text-gray-300 bg-[#111827] focus:ring-1 focus:ring-white/20 outline-none"
                                     value={fmtInput(editData.registrationDate || editData.createdAt)}
                                     onChange={(e) => setEditData({ ...editData, registrationDate: e.target.value })} />
                             </div>
 
+                            {/* Plan dates */}
                             {editData.latestMembership && (
-                                <div className="bg-sky-50 border border-sky-200 rounded-xl p-4">
-                                    <label className="flex items-center gap-1 text-[10px] font-black text-sky-700 uppercase tracking-widest mb-2">
+                                <div className="bg-[#1a2233] border border-[#2d3748] rounded-xl p-4">
+                                    <label className={`flex items-center gap-1.5 ${LBL} mb-3`}>
                                         <Package className="w-3 h-3" /> Plan Start & End Date
-                                        <span className="ml-auto text-[9px] bg-sky-100 text-sky-600 px-1.5 py-0.5 rounded font-black">ADMIN ONLY</span>
+                                        <span className="ml-auto text-[9px] text-gray-600 font-semibold">Admin only</span>
                                     </label>
                                     <div className="flex gap-3">
                                         <div className="flex-1">
-                                            <label className="block text-[9px] font-black text-sky-600 uppercase tracking-widest mb-1.5">Start Date</label>
-                                            <input type="date" className="w-full px-3 py-2 border border-sky-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-400 outline-none bg-white"
+                                            <label className={`block ${LBL} mb-1.5`}>Start</label>
+                                            <input type="date"
+                                                className="w-full px-3 py-2 border border-[#374151] rounded-xl text-sm text-gray-300 bg-[#111827] focus:ring-1 focus:ring-white/20 outline-none"
                                                 value={fmtInput(editData.latestMembership.startDate)}
-                                                onChange={(e) => setEditData({
-                                                    ...editData,
-                                                    latestMembership: { ...editData.latestMembership, startDate: e.target.value }
-                                                })} />
+                                                onChange={(e) => setEditData({ ...editData, latestMembership: { ...editData.latestMembership, startDate: e.target.value } })} />
                                         </div>
                                         <div className="flex-1">
-                                            <label className="block text-[9px] font-black text-sky-600 uppercase tracking-widest mb-1.5">End Date</label>
-                                            <input type="date" className="w-full px-3 py-2 border border-sky-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-400 outline-none bg-white"
+                                            <label className={`block ${LBL} mb-1.5`}>End</label>
+                                            <input type="date"
+                                                className="w-full px-3 py-2 border border-[#374151] rounded-xl text-sm text-gray-300 bg-[#111827] focus:ring-1 focus:ring-white/20 outline-none"
                                                 value={fmtInput(editData.latestMembership.endDate)}
-                                                onChange={(e) => setEditData({
-                                                    ...editData,
-                                                    latestMembership: { ...editData.latestMembership, endDate: e.target.value }
-                                                })} />
+                                                onChange={(e) => setEditData({ ...editData, latestMembership: { ...editData.latestMembership, endDate: e.target.value } })} />
                                         </div>
                                     </div>
                                 </div>
                             )}
+
+                            {/* Batch Time */}
                             <div>
-                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Batch Time</label>
-                                <select className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 outline-none bg-gray-50 focus:bg-white"
+                                <label className={`block ${LBL} mb-1.5`}>Batch Time</label>
+                                <select className="w-full px-4 py-2.5 border border-[#2d3748] rounded-xl text-sm text-gray-300 bg-[#1a2233] focus:ring-1 focus:ring-white/20 outline-none"
                                     value={editData.batchTime || ''} onChange={(e) => setEditData({ ...editData, batchTime: e.target.value })}>
                                     <option value="">Not Assigned</option>
                                     <option value="5:30 AM to 7:30 am">5:30 AM to 7:30 am</option>
                                     <option value="7:30 am to 9:30 am">7:30 am to 9:30 am</option>
-                                    <option value="5:00PM  to 7:00 pm">5:00PM  to 7:00 pm</option>
-                                    <option value="7:00PM  to 9:00 pm">7:00PM  to 9:00 pm</option>
+                                    <option value="5:00PM  to 7:00 pm">5:00 PM to 7:00 pm</option>
+                                    <option value="7:00PM  to 9:00 pm">7:00 PM to 9:00 pm</option>
                                 </select>
                             </div>
+
+                            {/* Role */}
                             <div>
-                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Role</label>
-                                <select className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 outline-none bg-gray-50 focus:bg-white"
+                                <label className={`block ${LBL} mb-1.5`}>Role</label>
+                                <select className="w-full px-4 py-2.5 border border-[#2d3748] rounded-xl text-sm text-gray-300 bg-[#1a2233] focus:ring-1 focus:ring-white/20 outline-none"
                                     value={editData.role || 'user'} onChange={(e) => setEditData({ ...editData, role: e.target.value })}>
                                     <option value="user">User</option>
                                     <option value="admin">Admin</option>
                                 </select>
                             </div>
+
                             <div className="pt-2 flex gap-3">
-                                <button type="button" onClick={() => setEditing(false)} className="flex-1 py-2.5 text-sm text-gray-500 bg-gray-100 rounded-xl hover:bg-gray-200 font-bold transition-colors">Cancel</button>
-                                <button type="submit" disabled={saving} className="flex-1 py-2.5 text-sm text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 font-black flex items-center justify-center gap-2 disabled:opacity-60 transition-all shadow-md shadow-indigo-200">
+                                <button type="button" onClick={() => setEditing(false)}
+                                    className="flex-1 py-2.5 text-sm font-medium text-gray-500 bg-[#1a2233] border border-[#2d3748] rounded-xl hover:bg-[#232d42] hover:text-gray-300 transition-colors">
+                                    Cancel
+                                </button>
+                                <button type="submit" disabled={saving}
+                                    className="flex-1 py-2.5 text-sm font-semibold text-white bg-white/10 border border-white/20 rounded-xl hover:bg-white/15 flex items-center justify-center gap-2 disabled:opacity-50 transition-all">
                                     <Save className="w-4 h-4" /> {saving ? 'Saving…' : 'Save Changes'}
                                 </button>
                             </div>
