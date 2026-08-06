@@ -71,7 +71,7 @@
 @layer components {
   /* Premium button */
   .btn-primary {
-    @apply relative bg-primary text-white font-sans font-bold py-3.5 px-8 tracking-wider overflow-hidden transition-all duration-300;
+    @apply relative bg-primary text-white font-display py-3.5 px-8 tracking-wider overflow-hidden transition-all duration-300;
     box-shadow: 0 0 25px rgba(227, 74, 41, 0.35), inset 0 1px 0 rgba(255,255,255,0.1);
   }
   .btn-primary::before {
@@ -116,13 +116,13 @@
 
   /* Nav link */
   .nav-link {
-    @apply text-xs font-bold transition-all tracking-[0.18em] uppercase relative;
+    @apply text-sm font-display transition-all tracking-[0.14em] uppercase relative;
     color: var(--color-text-main);
   }
 
   /* Section heading style */
   .section-eyebrow {
-    @apply text-primary tracking-[0.3em] font-sans font-bold text-xs uppercase;
+    @apply text-primary tracking-[0.3em] font-display text-sm uppercase;
     text-shadow: 0 0 20px rgba(227,74,41,0.4);
   }
 
