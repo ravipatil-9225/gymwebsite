@@ -72,15 +72,17 @@ async function sendWhatsAppTemplate(to, templateName, components = []) {
 /**
  * cash_payment_request_template
  * Sent to user when they choose "Cash on Bench" — asks them to bring cash.
- * Header: document (PDF) when available, Body: {{1}}=name, {{2}}=planName, {{3}}=amount
- * 
- * The Meta template requires a document header. When documentUrl is null (PDF failed),
- * we fall back to text-only — this may still fail delivery depending on template config,
- * but avoids the #132012 error from sending an invalid/null document URL.
+ * Header: None (No document/PDF), Body: {{1}}=name, {{2}}=planName, {{3}}=amount
  */
 exports.sendPaymentPendingMessage = async (user, paymentData, documentUrl) => {
     if (!user || !user.phone) {
         console.warn('[WHATSAPP] sendPaymentPendingMessage: no user or phone, skipping.');
+        return null;
+    }
+
+    // Role check: Only send to role 'user'
+    if (user.role && user.role !== 'user') {
+        console.log(`[WHATSAPP] Skipping sendPaymentPendingMessage: user ${user.email || ''} has role "${user.role}"`);
         return null;
     }
 
@@ -90,37 +92,16 @@ exports.sendPaymentPendingMessage = async (user, paymentData, documentUrl) => {
         { type: 'text', text: String(paymentData.amount || '0').replace(/[^0-9.]/g, '') }
     ];
 
-    if (!documentUrl) {
-        // PDF unavailable — send text-only (body params only, no document header)
-        console.warn('[WHATSAPP] sendPaymentPendingMessage: no documentUrl — using text-only fallback.');
-        return await sendWhatsAppTemplate(user.phone, 'cash_payment_request_template', [
-            { type: 'body', parameters: bodyParams }
-        ]);
-    }
-
-    // Full send: document header + body parameters
-    console.log('[WHATSAPP] sendPaymentPendingMessage: sending with PDF document header.');
+    console.log('[WHATSAPP] sendPaymentPendingMessage: sending cash_payment_request_template (no PDF).');
     return await sendWhatsAppTemplate(user.phone, 'cash_payment_request_template', [
-        {
-            type: 'header',
-            parameters: [
-                {
-                    type: 'document',
-                    document: {
-                        link: documentUrl,
-                        filename: `Payment_Pending_${String(user.name).replace(/\s+/g, '_')}.pdf`
-                    }
-                }
-            ]
-        },
         { type: 'body', parameters: bodyParams }
     ]);
 };
 
 /**
- * payment_receipt_template (with PDF) or payment_receipt_template_fallback (no PDF)
+ * payment_receipt_template_fallback
  * Sent after admin confirms a payment.
- * Body: {{1}}=name, {{2}}=plan, {{3}}=amount, {{4}}=startDate, {{5}}=endDate
+ * Header: None (No PDF), Body: {{1}}=name, {{2}}=amount, {{3}}=planName, {{4}}=startDate, {{5}}=endDate
  */
 exports.sendPaymentConfirmedMessage = async (user, paymentData, documentUrl) => {
     if (!user || !user.phone) {
@@ -128,35 +109,25 @@ exports.sendPaymentConfirmedMessage = async (user, paymentData, documentUrl) => 
         return null;
     }
 
+    // Role check: Only send to role 'user'
+    if (user.role && user.role !== 'user') {
+        console.log(`[WHATSAPP] Skipping sendPaymentConfirmedMessage: user ${user.email || ''} has role "${user.role}"`);
+        return null;
+    }
+
+    // Exact Meta template order: {{1}}=Name, {{2}}=Amount, {{3}}=Plan, {{4}}=Start Date, {{5}}=End Date
     const bodyParams = [
         { type: 'text', text: String(user.name || 'Member') },
-        { type: 'text', text: String(paymentData.planName || 'Plan') },
         { type: 'text', text: String(paymentData.amount || '0').replace(/[^0-9.]/g, '') },
+        { type: 'text', text: String(paymentData.planName || 'Plan') },
         { type: 'text', text: String(paymentData.startDate || '') },
         { type: 'text', text: String(paymentData.endDate || '') }
     ];
 
-    if (documentUrl) {
-        return await sendWhatsAppTemplate(user.phone, 'payment_receipt_template', [
-            {
-                type: 'header',
-                parameters: [
-                    {
-                        type: 'document',
-                        document: {
-                            link: documentUrl,
-                            filename: `Receipt_${String(user.name).replace(/\s+/g, '_')}.pdf`
-                        }
-                    }
-                ]
-            },
-            { type: 'body', parameters: bodyParams }
-        ]);
-    } else {
-        return await sendWhatsAppTemplate(user.phone, 'payment_receipt_template_fallback', [
-            { type: 'body', parameters: bodyParams }
-        ]);
-    }
+    console.log('[WHATSAPP] sendPaymentConfirmedMessage: sending payment_receipt_template_fallback (no PDF).');
+    return await sendWhatsAppTemplate(user.phone, 'payment_receipt_template_fallback', [
+        { type: 'body', parameters: bodyParams }
+    ]);
 };
 
 /**
@@ -169,6 +140,12 @@ exports.sendUpiPaymentPendingUser = async ({ userName, email, planName, planPric
     const user = await User.findOne({ email: new RegExp(`^${email}$`, 'i') });
     if (!user || !user.phone) {
         console.warn(`[WHATSAPP] sendUpiPaymentPendingUser: no user/phone for ${email}`);
+        return null;
+    }
+
+    // Role check: Only send to role 'user'
+    if (user.role && user.role !== 'user') {
+        console.log(`[WHATSAPP] Skipping sendUpiPaymentPendingUser: user ${user.email || ''} has role "${user.role}"`);
         return null;
     }
 
@@ -218,6 +195,13 @@ exports.sendWelcomeMessage = async (user) => {
         console.warn('[WHATSAPP] sendWelcomeMessage: no user or phone, skipping.');
         return null;
     }
+
+    // Role check: Only send to role 'user'
+    if (user.role && user.role !== 'user') {
+        console.log(`[WHATSAPP] Skipping sendWelcomeMessage: user ${user.email || ''} has role "${user.role}"`);
+        return null;
+    }
+
     return await sendWhatsAppTemplate(user.phone, 'welcome_message_template', [
         { type: 'header', parameters: [GYM_LOCATION] },
         { type: 'body', parameters: [{ type: 'text', text: String(user.name || 'Member') }] }
@@ -235,6 +219,13 @@ exports.sendExpiryReminder = async ({ name, email, planName, daysLeft }) => {
         console.warn(`[WHATSAPP] sendExpiryReminder: no user/phone for ${email}`);
         return null;
     }
+
+    // Role check: Only send to role 'user'
+    if (user.role && user.role !== 'user') {
+        console.log(`[WHATSAPP] Skipping sendExpiryReminder: user ${user.email || ''} has role "${user.role}"`);
+        return null;
+    }
+
     return await sendWhatsAppTemplate(user.phone, 'membership_expiry_reminder_template', [
         { type: 'header', parameters: [GYM_LOCATION] },
         {
@@ -259,6 +250,13 @@ exports.sendOverdueReminder = async ({ name, email, planName }) => {
         console.warn(`[WHATSAPP] sendOverdueReminder: no user/phone for ${email}`);
         return null;
     }
+
+    // Role check: Only send to role 'user'
+    if (user.role && user.role !== 'user') {
+        console.log(`[WHATSAPP] Skipping sendOverdueReminder: user ${user.email || ''} has role "${user.role}"`);
+        return null;
+    }
+
     return await sendWhatsAppTemplate(user.phone, 'membership_overdue_reminder_template', [
         { type: 'header', parameters: [GYM_LOCATION] },
         {
@@ -282,6 +280,13 @@ exports.sendExpiredAlert = async ({ name, email, planName }) => {
         console.warn(`[WHATSAPP] sendExpiredAlert: no user/phone for ${email}`);
         return null;
     }
+
+    // Role check: Only send to role 'user'
+    if (user.role && user.role !== 'user') {
+        console.log(`[WHATSAPP] Skipping sendExpiredAlert: user ${user.email || ''} has role "${user.role}"`);
+        return null;
+    }
+
     return await sendWhatsAppTemplate(user.phone, 'membership_expired_template', [
         { type: 'header', parameters: [GYM_LOCATION] },
         {
