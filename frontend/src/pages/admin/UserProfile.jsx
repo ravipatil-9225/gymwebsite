@@ -113,7 +113,8 @@ const UserProfile = () => {
     const waLink = (msg) => waBase ? `${waBase}?text=${encodeURIComponent(msg)}` : '#';
 
     return (
-        <div className="max-w-6xl mx-auto space-y-5 pb-12">
+        <div className="min-h-[calc(100vh-4rem)] bg-[#0f1117] -m-4 lg:-m-8 p-4 lg:p-8">
+            <div className="max-w-6xl mx-auto space-y-5 pb-12">
 
             {/* ── Top bar */}
             <div className="flex items-center justify-between">
@@ -568,6 +569,7 @@ const UserProfile = () => {
                     </div>
                 </div>
             )}
+        </div>
         </div>
     );
 };
