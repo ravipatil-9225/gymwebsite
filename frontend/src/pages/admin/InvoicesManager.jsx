@@ -126,7 +126,11 @@ const InvoicePrint = React.forwardRef(({ inv }, ref) => {
             {/* TOP HEADER */}
             <div className="inv-header-top">
                 <div>
-                    <div style={{ width: 40, height: 40, background: '#1e3a5f', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 900, fontSize: 14 }}>TF</div>
+                    <img
+                        src="/logo.png"
+                        alt="Tara Fitness Centre"
+                        style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', display: 'block', border: '2px solid #1e3a5f' }}
+                    />
                 </div>
                 <div className="inv-gym-address">
                     <div>Address: {GYM_INFO.address.replace('\n', ', ')}</div>
