@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import socket from '../../utils/socket';
 import { Link } from 'react-router-dom';
-import { Trash2, Edit, X, User, Phone, Mail, Calendar, Package, Clock, CheckCircle, XCircle, Search, History } from 'lucide-react';
+import { Trash2, Edit, X, User, Phone, Mail, Calendar, Package, Clock, CheckCircle, XCircle, Search, History, RefreshCw } from 'lucide-react';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 const fmt = (dateStr) => {
@@ -68,6 +68,14 @@ const UserManagement = () => {
     const [historyUser, setHistoryUser] = useState(null);
     const [search, setSearch] = useState('');
 
+    // ── Renew / Assign Membership ────────────────────────────────────────────
+    const [renewalUser, setRenewalUser] = useState(null);
+    const [packages, setPackages] = useState([]);
+    const [renewPkgId, setRenewPkgId] = useState('');
+    const [renewPayMethod, setRenewPayMethod] = useState('cash_on_bench');
+    const [renewStartDate, setRenewStartDate] = useState('');
+    const [renewing, setRenewing] = useState(false);
+
     const fetchUsers = async (silent = false) => {
         try {
             const token = localStorage.getItem('adminToken');
@@ -83,16 +91,53 @@ const UserManagement = () => {
         }
     };
 
+    const fetchPackages = useCallback(async () => {
+        try {
+            const token = localStorage.getItem('adminToken');
+            const { data } = await axios.get('/api/admin/packages', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setPackages(data);
+        } catch (err) { console.error('Failed to fetch packages', err); }
+    }, []);
+
+    const handleRenewMembership = async (e) => {
+        if (e) e.preventDefault();
+        if (!renewalUser) return;
+        setRenewing(true);
+        const token = localStorage.getItem('adminToken');
+        try {
+            const payload = renewPkgId
+                ? { packageId: renewPkgId, paymentMethod: renewPayMethod, startDate: renewStartDate || undefined }
+                : { packageName: renewalUser.latestMembership.packageName, planDuration: renewalUser.latestMembership.planDuration, amountPaid: renewalUser.latestMembership.amountPaid, paymentMethod: renewPayMethod };
+
+            await axios.post(`/api/admin/users/${renewalUser._id}/assign-membership`, payload, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            alert('Membership updated successfully!');
+            setRenewalUser(null);
+            setRenewPkgId('');
+            setRenewStartDate('');
+            setRenewPayMethod('cash_on_bench');
+            fetchUsers(true);
+        } catch (err) {
+            alert(err.response?.data?.message || 'Error updating membership');
+        } finally {
+            setRenewing(false);
+        }
+    };
+
     useEffect(() => {
         fetchUsers();
-        const onDbChange = () => { if (!editingUser && !addingUser) fetchUsers(true); };
+        fetchPackages();
+        const onDbChange = () => { if (!editingUser && !addingUser && !renewalUser) fetchUsers(true); };
         socket.on('db_changed', onDbChange);
-        const interval = setInterval(() => { if (!editingUser && !addingUser) fetchUsers(true); }, 5000);
+        const interval = setInterval(() => { if (!editingUser && !addingUser && !renewalUser) fetchUsers(true); }, 5000);
         return () => {
             clearInterval(interval);
             socket.off('db_changed', onDbChange);
         };
-    }, [editingUser, addingUser]);
+    }, [editingUser, addingUser, renewalUser]);
 
     // Live search
     useEffect(() => {
@@ -390,6 +435,13 @@ const UserManagement = () => {
                                         {/* Actions */}
                                         <td className="px-4 py-3 text-right whitespace-nowrap">
                                             <button
+                                                onClick={() => { setRenewalUser(user); setRenewPkgId(''); setRenewStartDate(''); setRenewPayMethod('cash_on_bench'); }}
+                                                className="text-emerald-500 hover:text-emerald-700 mr-3 transition-colors"
+                                                title="Renew / Assign Membership"
+                                            >
+                                                <RefreshCw className="w-4 h-4 inline" />
+                                            </button>
+                                            <button
                                                 onClick={() => setHistoryUser(user)}
                                                 className="text-purple-500 hover:text-purple-700 mr-3 transition-colors"
                                                 title="View plan history"
@@ -426,6 +478,131 @@ const UserManagement = () => {
                     </table>
                 </div>
             </div>
+
+            {/* ── Renew / Assign Membership Modal ─────────────────────────── */}
+            {renewalUser && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col" style={{ maxHeight: '90vh' }}>
+                        {/* Header */}
+                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center shrink-0">
+                            <div>
+                                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                    <RefreshCw className="w-5 h-5 text-emerald-500" />
+                                    Renew / Assign Plan
+                                </h2>
+                                <p className="text-xs text-gray-400 mt-0.5">{renewalUser.name} — {renewalUser.email}</p>
+                            </div>
+                            <button onClick={() => setRenewalUser(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleRenewMembership} className="overflow-y-auto p-6 space-y-5">
+                            {/* Current Plan Banner */}
+                            {renewalUser.latestMembership && (
+                                <div className={`rounded-xl p-4 border ${
+                                    getRemainingDays(renewalUser.latestMembership.endDate) > 0
+                                        ? 'bg-green-50 border-green-100'
+                                        : 'bg-red-50 border-red-100'
+                                }`}>
+                                    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Current Plan</p>
+                                    <p className="text-base font-bold text-gray-800">{renewalUser.latestMembership.packageName}</p>
+                                    <div className="flex gap-4 mt-1.5 text-xs text-gray-500">
+                                        <span>Ends: <strong>{fmt(renewalUser.latestMembership.endDate)}</strong></span>
+                                        <span className={getRemainingDays(renewalUser.latestMembership.endDate) > 0 ? 'text-green-600 font-semibold' : 'text-red-500 font-semibold'}>
+                                            {getRemainingDays(renewalUser.latestMembership.endDate) > 0
+                                                ? `${getRemainingDays(renewalUser.latestMembership.endDate)} days left`
+                                                : 'Expired'}
+                                        </span>
+                                    </div>
+                                    {/* Quick renew same plan */}
+                                    <button
+                                        type="button"
+                                        disabled={renewing}
+                                        onClick={() => {
+                                            if (window.confirm(`Quick-renew "${renewalUser.latestMembership.packageName}" for ₹${renewalUser.latestMembership.amountPaid}?`)) {
+                                                handleRenewMembership(null);
+                                            }
+                                        }}
+                                        className="mt-3 flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 transition disabled:opacity-50"
+                                    >
+                                        <RefreshCw className={`w-3.5 h-3.5 ${renewing ? 'animate-spin' : ''}`} />
+                                        Renew Same Plan (₹{renewalUser.latestMembership.amountPaid})
+                                    </button>
+                                </div>
+                            )}
+
+                            <div className="relative flex items-center gap-3">
+                                <div className="flex-1 border-t border-gray-200" />
+                                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">or choose a new plan</span>
+                                <div className="flex-1 border-t border-gray-200" />
+                            </div>
+
+                            {/* Package selector */}
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Select Package</label>
+                                <select
+                                    value={renewPkgId}
+                                    onChange={(e) => setRenewPkgId(e.target.value)}
+                                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                                >
+                                    <option value="">-- Select a package --</option>
+                                    {packages.map(p => (
+                                        <option key={p._id} value={p._id}>
+                                            {p.name} ({p.duration}) — ₹{p.price}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Payment Method */}
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Payment Method</label>
+                                <select
+                                    value={renewPayMethod}
+                                    onChange={(e) => setRenewPayMethod(e.target.value)}
+                                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                                >
+                                    <option value="cash_on_bench">Cash (Bench / Reception)</option>
+                                    <option value="upi">UPI</option>
+                                    <option value="pay_later">Pay Later</option>
+                                </select>
+                            </div>
+
+                            {/* Optional start date */}
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                                    Custom Start Date <span className="text-gray-400 font-normal normal-case">(optional — defaults to today or after current plan)</span>
+                                </label>
+                                <input
+                                    type="date"
+                                    value={renewStartDate}
+                                    onChange={(e) => setRenewStartDate(e.target.value)}
+                                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                                />
+                            </div>
+
+                            <div className="flex justify-end gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setRenewalUser(null)}
+                                    className="px-4 py-2 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={renewing || !renewPkgId}
+                                    className="px-5 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    <RefreshCw className={`w-4 h-4 ${renewing ? 'animate-spin' : ''}`} />
+                                    {renewing ? 'Assigning...' : 'Assign Plan'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {/* ── Plan History Modal ────────────────────────────────────── */}
             {historyUser && (

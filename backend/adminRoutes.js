@@ -355,6 +355,125 @@ router.put('/users/:id/toggle-pending', async (req, res) => {
     }
 });
 
+router.post('/users/:id/assign-membership', async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        let { packageId, packageName, planDuration, amountPaid, startDate, paymentMethod } = req.body;
+
+        if (packageId) {
+            const pkg = await Package.findById(packageId);
+            if (!pkg) return res.status(400).json({ message: 'Selected package not found' });
+            packageName = pkg.name;
+            amountPaid = pkg.price;
+            
+            const parseDurationDays = (name = '') => {
+                const n = typeof name === 'string' ? name.toLowerCase() : '';
+                if (n.includes('year')) { const m = n.match(/(\d+)\s*year/); return (m ? parseInt(m[1]) : 1) * 365; }
+                if (n.includes('month')) { const m = n.match(/(\d+)\s*month/); return (m ? parseInt(m[1]) : 1) * 30; }
+                if (n.includes('week')) { const m = n.match(/(\d+)\s*week/); return (m ? parseInt(m[1]) : 1) * 7; }
+                if (n.includes('day')) { const m = n.match(/(\d+)\s*day/); return m ? parseInt(m[1]) : 30; }
+                return 30;
+            };
+            planDuration = parseDurationDays(pkg.duration);
+        }
+
+        if (!packageName || !planDuration || amountPaid === undefined) {
+            return res.status(400).json({ message: 'Package details are missing' });
+        }
+
+        // Smart start/end date calculation
+        let calculatedStartDate;
+        if (startDate) {
+            calculatedStartDate = new Date(startDate);
+        } else {
+            const activeMembership = await Membership.findOne({
+                userId: user._id,
+                status: 'active',
+                endDate: { $gt: new Date() }
+            }).sort({ endDate: -1 });
+
+            if (activeMembership) {
+                calculatedStartDate = new Date(activeMembership.endDate);
+            } else {
+                calculatedStartDate = new Date();
+            }
+        }
+
+        const calculatedEndDate = new Date(calculatedStartDate);
+        calculatedEndDate.setDate(calculatedEndDate.getDate() + Number(planDuration));
+
+        // Create the membership
+        const newMembership = await Membership.create({
+            userId: user._id,
+            userName: user.name,
+            userEmail: user.email,
+            packageName,
+            planDuration: Number(planDuration),
+            amountPaid: Number(amountPaid),
+            startDate: calculatedStartDate,
+            endDate: calculatedEndDate,
+            status: 'active'
+        });
+
+        // Also create a payment record
+        const newPayment = await Payment.create({
+            userId: user._id,
+            userName: user.name,
+            email: user.email,
+            planName: packageName,
+            planPrice: Number(amountPaid),
+            originalAmount: Number(amountPaid),
+            paymentMethod: paymentMethod || 'cash_on_bench',
+            transactionId: `ADMIN-ASSIGN-${Date.now()}`,
+            verificationStatus: 'cash_collected',
+            startDate: calculatedStartDate,
+            expiryDate: calculatedEndDate
+        });
+
+        // Send notifications asynchronously
+        setImmediate(async () => {
+            try {
+                const startStr = new Date(calculatedStartDate).toLocaleDateString('en-IN');
+                const endStr   = new Date(calculatedEndDate).toLocaleDateString('en-IN');
+                let secureUrl = null;
+                try {
+                    const { generateAndUploadReceipt } = require('./services/generateReceiptPDF');
+                    secureUrl = await generateAndUploadReceipt({
+                        userId: user._id.toString(),
+                        paymentId: newPayment._id.toString(),
+                        userName: user.name,
+                        planName: packageName,
+                        amount: Number(amountPaid),
+                        startDate: calculatedStartDate,
+                        endDate: calculatedEndDate,
+                        paymentDate: new Date(),
+                        paymentMethod: paymentMethod || 'cash_on_bench'
+                    }, 'confirmed');
+                } catch (pdfErr) {
+                    console.error('[BG] PDF generation failed:', pdfErr.message);
+                }
+                emailService.sendPaymentConfirmation({ name: user.name, email: user.email, packageName, amountPaid: Number(amountPaid), startDate: calculatedStartDate, endDate: calculatedEndDate }).catch(console.error);
+                emailService.sendPaymentApprovedOwner({ userName: user.name, email: user.email, planName: packageName, planPrice: Number(amountPaid), paymentMethod: paymentMethod || 'cash_on_bench', startDate: calculatedStartDate, endDate: calculatedEndDate }).catch(console.error);
+                notificationEmitter.emit('payment_confirmed', {
+                    user,
+                    paymentData: { planName: packageName, amount: Number(amountPaid), startDate: startStr, endDate: endStr },
+                    documentUrl: secureUrl
+                });
+            } catch (bgErr) {
+                console.error('[BG] Admin assign membership tasks failed:', bgErr.message);
+            }
+        });
+
+        res.status(201).json({ message: 'Membership assigned successfully', membership: newMembership });
+        socket.getIO().emit('db_changed', { type: 'membership_created' });
+    } catch (err) {
+        console.error('Assign membership error:', err);
+        res.status(500).json({ message: 'Error assigning membership' });
+    }
+});
+
 router.delete('/users/:id', async (req, res) => {
     try {
         const user = await User.findById(req.params.id);

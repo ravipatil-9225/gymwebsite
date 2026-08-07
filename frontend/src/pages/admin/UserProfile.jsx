@@ -41,6 +41,13 @@ const UserProfile = () => {
     const [deleting, setDeleting] = useState(false);
     const [togglingPending, setTogglingPending] = useState(false);
 
+    const [packages, setPackages] = useState([]);
+    const [showAssignForm, setShowAssignForm] = useState(false);
+    const [assignPkgId, setAssignPkgId] = useState('');
+    const [assignPaymentMethod, setAssignPaymentMethod] = useState('cash_on_bench');
+    const [assignStartDate, setAssignStartDate] = useState('');
+    const [assigning, setAssigning] = useState(false);
+
     const token = localStorage.getItem('adminToken');
     const headers = { Authorization: `Bearer ${token}` };
 
@@ -61,13 +68,59 @@ const UserProfile = () => {
         } catch { setAttendance([]); }
     }, [userId]);
 
+    const fetchPackages = useCallback(async () => {
+        try {
+            const { data } = await axios.get('/api/admin/packages', { headers });
+            setPackages(data);
+        } catch (err) { console.error(err); }
+    }, []);
+
     useEffect(() => {
-        fetchUser(); fetchAttendance();
+        fetchUser(); fetchAttendance(); fetchPackages();
         const onDbChange = () => { if (!editing) { fetchUser(true); fetchAttendance(); } };
         socket.on('db_changed', onDbChange);
         const interval = setInterval(() => { if (!editing) { fetchUser(true); fetchAttendance(); } }, 5000);
         return () => { clearInterval(interval); socket.off('db_changed', onDbChange); };
     }, [userId, editing]);
+
+    const handleAssignMembership = async (e, packageData = null) => {
+        if (e) e.preventDefault();
+        setAssigning(true);
+        try {
+            let payload = {};
+            if (packageData) {
+                payload = {
+                    packageName: packageData.packageName,
+                    planDuration: packageData.planDuration,
+                    amountPaid: packageData.amountPaid,
+                    paymentMethod: 'cash_on_bench'
+                };
+            } else {
+                if (!assignPkgId) {
+                    alert('Please select a plan');
+                    setAssigning(false);
+                    return;
+                }
+                payload = {
+                    packageId: assignPkgId,
+                    paymentMethod: assignPaymentMethod,
+                    startDate: assignStartDate || undefined
+                };
+            }
+
+            await axios.post(`/api/admin/users/${userId}/assign-membership`, payload, { headers });
+            alert('Membership updated successfully!');
+            setShowAssignForm(false);
+            setAssignPkgId('');
+            setAssignStartDate('');
+            fetchUser(true);
+        } catch (err) {
+            console.error(err);
+            alert(err.response?.data?.message || 'Error updating membership');
+        } finally {
+            setAssigning(false);
+        }
+    };
 
     const handleSave = async (e) => {
         e.preventDefault(); setSaving(true);
@@ -343,9 +396,102 @@ const UserProfile = () => {
                                 <div className="text-center py-12">
                                     <Package className="w-8 h-8 text-gray-700 mx-auto mb-3" />
                                     <p className="text-gray-500 font-medium">No active plan</p>
-                                    <p className="text-gray-700 text-sm mt-1">Assign a plan from the Payments section.</p>
+                                    <p className="text-gray-600 text-sm mt-1 mb-4">You can assign a new plan below.</p>
                                 </div>
                             )}
+
+                            {/* Admin Quick Renew/Assign Section */}
+                            <div className="mt-5 pt-5 border-t border-[#1f2937]">
+                                {!showAssignForm ? (
+                                    <div className="flex flex-wrap gap-3">
+                                        {m && (
+                                            <button
+                                                onClick={() => {
+                                                    if (window.confirm(`Renew existing plan "${m.packageName}" for ₹${m.amountPaid}?`)) {
+                                                        handleAssignMembership(null, m);
+                                                    }
+                                                }}
+                                                disabled={assigning}
+                                                className="flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all disabled:opacity-50"
+                                            >
+                                                <RefreshCw className={`w-3.5 h-3.5 ${assigning ? 'animate-spin' : ''}`} />
+                                                Renew Existing Plan
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => setShowAssignForm(true)}
+                                            disabled={assigning}
+                                            className="flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-gray-300 bg-[#1f2937] border border-[#374151] hover:bg-[#2d3748] rounded-xl transition-all disabled:opacity-50"
+                                        >
+                                            <Package className="w-3.5 h-3.5" />
+                                            Choose Plan
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <form onSubmit={(e) => handleAssignMembership(e)} className="space-y-4 bg-[#161d2a] p-4 rounded-xl border border-[#2d3748]">
+                                        <h4 className="text-xs font-bold text-white uppercase tracking-wider">Select & Assign New Plan</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className={`block ${LBL} mb-1.5`}>Select Package</label>
+                                                <select
+                                                    required
+                                                    value={assignPkgId}
+                                                    onChange={(e) => setAssignPkgId(e.target.value)}
+                                                    className="w-full px-3 py-2 border border-[#2d3748] rounded-xl text-xs text-gray-300 bg-[#111827] outline-none"
+                                                >
+                                                    <option value="">-- Choose a package --</option>
+                                                    {packages.map(p => (
+                                                        <option key={p._id} value={p._id}>
+                                                            {p.name} ({p.duration}) - ₹{p.price}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className={`block ${LBL} mb-1.5`}>Payment Method</label>
+                                                <select
+                                                    value={assignPaymentMethod}
+                                                    onChange={(e) => setAssignPaymentMethod(e.target.value)}
+                                                    className="w-full px-3 py-2 border border-[#2d3748] rounded-xl text-xs text-gray-300 bg-[#111827] outline-none"
+                                                >
+                                                    <option value="cash_on_bench">Cash (Bench/Reception)</option>
+                                                    <option value="upi">UPI</option>
+                                                    <option value="pay_later">Pay Later</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className={`block ${LBL} mb-1.5`}>Custom Start Date (Optional)</label>
+                                                <input
+                                                    type="date"
+                                                    value={assignStartDate}
+                                                    onChange={(e) => setAssignStartDate(e.target.value)}
+                                                    className="w-full px-3 py-2 border border-[#2d3748] rounded-xl text-xs text-gray-300 bg-[#111827] outline-none"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2 justify-end pt-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setShowAssignForm(false);
+                                                    setAssignPkgId('');
+                                                    setAssignStartDate('');
+                                                }}
+                                                className="px-3 py-1.5 text-xs font-semibold text-gray-400 hover:text-gray-200"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                type="submit"
+                                                disabled={assigning}
+                                                className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50"
+                                            >
+                                                {assigning ? 'Assigning...' : 'Assign Plan'}
+                                            </button>
+                                        </div>
+                                    </form>
+                                )}
+                            </div>
                         </div>
                     </div>
 
