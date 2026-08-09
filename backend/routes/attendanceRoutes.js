@@ -103,4 +103,84 @@ router.get('/today', verifyAdmin, async (req, res) => {
     }
 });
 
+// ── BIOMETRIC PUNCH ROUTE (ZKTeco K40 Pro Local Bridge Agent) ───────────────
+// POST /api/attendance/biometric-punch
+// Body: { deviceUserId, timestamp, secret }
+router.post('/biometric-punch', async (req, res) => {
+    const Attendance = require('../models/Attendance');
+    const User = require('../models/User');
+    const { todayIST } = require('../controllers/attendanceController');
+    
+    try {
+        const { deviceUserId, secret, timestamp } = req.body;
+        const expectedSecret = process.env.BIOMETRIC_BRIDGE_SECRET || 'gym_biometric_secret_2026';
+        
+        if (secret !== expectedSecret) {
+            return res.status(401).json({ message: 'Unauthorized biometric bridge request' });
+        }
+
+        if (!deviceUserId) {
+            return res.status(400).json({ message: 'deviceUserId is required' });
+        }
+
+        // Find user by biometricCardId (string matching)
+        const user = await User.findOne({ biometricCardId: String(deviceUserId) }).select('name email phone batchTime');
+        if (!user) {
+            return res.status(404).json({ message: `No member linked to Biometric ID ${deviceUserId}` });
+        }
+
+        const date = todayIST();
+        const checkInTime = timestamp ? new Date(timestamp) : new Date();
+
+        let record = await Attendance.findOne({ userId: user._id, date });
+        let alreadyCheckedIn = false;
+
+        if (record && record.status === 'present') {
+            alreadyCheckedIn = true;
+        } else {
+            record = await Attendance.findOneAndUpdate(
+                { userId: user._id, date },
+                {
+                    $set: {
+                        userName: user.name,
+                        userEmail: user.email,
+                        batchTime: user.batchTime || 'Not Assigned',
+                        status: 'present',
+                        markedBy: 'biometric',
+                        checkInTime
+                    }
+                },
+                { upsert: true, new: true, setDefaultsOnInsert: true }
+            );
+        }
+
+        // Broadcast socket events for real-time zero-lag dashboard updates
+        try {
+            const socket = require('../socket');
+            socket.getIO().emit('db_changed', { type: 'biometric_punch' });
+            socket.getIO().emit('attendance_update', {
+                type: 'BIOMETRIC_PUNCH',
+                date,
+                action: 'mark',
+                alreadyCheckedIn,
+                record,
+                user: { _id: user._id, name: user.name, email: user.email, phone: user.phone }
+            });
+        } catch (_) {}
+
+        return res.status(200).json({
+            success: true,
+            alreadyCheckedIn,
+            message: alreadyCheckedIn 
+                ? `${user.name} already checked in today.` 
+                : `Biometric attendance marked for ${user.name}!`,
+            user: { _id: user._id, name: user.name, email: user.email, phone: user.phone },
+            record
+        });
+    } catch (err) {
+        console.error('Biometric punch error:', err.message);
+        return res.status(500).json({ message: 'Server error: ' + err.message });
+    }
+});
+
 module.exports = router;

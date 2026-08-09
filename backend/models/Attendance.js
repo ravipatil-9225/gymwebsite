@@ -19,7 +19,7 @@ const attendanceSchema = new mongoose.Schema({
     checkInTime: { type: Date, default: null }, // exact timestamp
     markedBy: {
         type: String,
-        enum: ['admin', 'self'],
+        enum: ['admin', 'self', 'biometric'],
         required: true
     },
     note: { type: String, default: '' }

@@ -1,0 +1,14 @@
+{
+  "name": "gym-biometric-agent",
+  "version": "1.0.0",
+  "description": "Local Bridge Agent for ZKTeco K40 Pro Biometric Attendance System",
+  "main": "agent.js",
+  "scripts": {
+    "start": "node agent.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "zklib-js": "^1.0.4"
+  }
+}

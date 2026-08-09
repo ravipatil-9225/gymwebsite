@@ -254,6 +254,7 @@ const UserProfile = () => {
                             {[
                                 { icon: Phone,    label: 'Phone',         value: user.phone || 'Not provided' },
                                 { icon: Mail,     label: 'Email',         value: user.email },
+                                { icon: User,     label: 'Biometric ID',  value: user.biometricCardId ? `#${user.biometricCardId}` : 'Not assigned' },
                                 { icon: Calendar, label: 'Date of Birth', value: fmt(user.dob) },
                                 { icon: Calendar, label: 'Joined',        value: fmt(user.registrationDate || user.createdAt) },
                                 { icon: Clock,    label: 'Batch Time',    value: (user.batchTime && user.batchTime !== 'Not Assigned') ? user.batchTime : 'Not Assigned' },
@@ -630,6 +631,7 @@ const UserProfile = () => {
                                 { label: 'Email',         key: 'email', type: 'email', required: true },
                                 { label: 'Phone',         key: 'phone', type: 'text' },
                                 { label: 'Date of Birth', key: 'dob',   type: 'date' },
+                                { label: 'Biometric / Machine User ID (K40 Pro)', key: 'biometricCardId', type: 'text' },
                             ].map(({ label: l, key, type, required }) => (
                                 <div key={key}>
                                     <label className={`block ${LBL} mb-1.5`}>{l}</label>

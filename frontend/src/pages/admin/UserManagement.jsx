@@ -147,6 +147,7 @@ const UserManagement = () => {
             u.name?.toLowerCase().includes(q) ||
             u.email?.toLowerCase().includes(q) ||
             u.phone?.toLowerCase().includes(q) ||
+            u.biometricCardId?.toLowerCase().includes(q) ||
             u.latestMembership?.packageName?.toLowerCase().includes(q)
         ));
     }, [search, users]);
@@ -236,7 +237,7 @@ const UserManagement = () => {
                         />
                     </div>
                     <button
-                        onClick={() => setAddingUser({ name: '', email: '', phone: '', dob: '', password: '', role: 'user', batchTime: '', registrationDate: new Date().toISOString().split('T')[0] })}
+                        onClick={() => setAddingUser({ name: '', email: '', phone: '', dob: '', password: '', role: 'user', batchTime: '', biometricCardId: '', registrationDate: new Date().toISOString().split('T')[0] })}
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2 whitespace-nowrap"
                     >
                         <User className="w-4 h-4" /> Add User
@@ -271,6 +272,7 @@ const UserManagement = () => {
                                 <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider whitespace-nowrap">
                                     <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" />Phone</span>
                                 </th>
+                                <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider whitespace-nowrap">Bio ID</th>
                                 <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider whitespace-nowrap">
                                     <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" />Email</span>
                                 </th>
@@ -339,6 +341,17 @@ const UserManagement = () => {
                                         {/* Phone */}
                                         <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
                                             {user.phone || <span className="text-gray-300">—</span>}
+                                        </td>
+
+                                        {/* Bio ID */}
+                                        <td className="px-4 py-3 whitespace-nowrap">
+                                            {user.biometricCardId ? (
+                                                <span className="bg-cyan-50 text-cyan-700 border border-cyan-200 px-2 py-0.5 rounded-md text-xs font-mono font-bold">
+                                                    #{user.biometricCardId}
+                                                </span>
+                                            ) : (
+                                                <span className="text-gray-300 text-xs">—</span>
+                                            )}
                                         </td>
 
                                         {/* Email */}
@@ -703,6 +716,7 @@ const UserManagement = () => {
                                 { label: 'Email', key: 'email', type: 'email', required: true },
                                 { label: 'Phone', key: 'phone', type: 'text', required: false },
                                 { label: 'Date of Birth', key: 'dob', type: 'date', required: false },
+                                { label: 'Biometric / Machine User ID (K40 Pro)', key: 'biometricCardId', type: 'text', required: false },
                             ].map(({ label, key, type, required }) => (
                                 <div key={key}>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
@@ -872,6 +886,7 @@ const UserManagement = () => {
                                 { label: 'Phone', key: 'phone', type: 'text', required: true },
                                 { label: 'Date of Birth', key: 'dob', type: 'date', required: true },
                                 { label: 'Password', key: 'password', type: 'password', required: true },
+                                { label: 'Biometric / Machine User ID (K40 Pro)', key: 'biometricCardId', type: 'text', required: false },
                             ].map(({ label, key, type, required }) => (
                                 <div key={key}>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
