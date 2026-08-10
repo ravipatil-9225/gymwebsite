@@ -149,9 +149,10 @@ const AttendanceManager = () => {
 
             if (payload.action === 'mark' && payload.record) {
                 const rec = payload.record;
+                const recUserIdStr = rec.userId?.toString() || String(rec.userId || '');
                 setAttendance(prev => {
                     const next = prev.map(row => {
-                        if (row.userId.toString() !== rec.userId) return row;
+                        if (row.userId.toString() !== recUserIdStr) return row;
                         return {
                             ...row,
                             record: {

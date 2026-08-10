@@ -69,8 +69,9 @@ const CheckInCard = () => {
             }
 
             const rec = payload.record;
+            const recUserIdStr = rec.userId?.toString() || String(rec.userId || '');
             // Only react if this record belongs to the current user
-            if (rec.userId !== currentUserId?.toString()) return;
+            if (recUserIdStr !== currentUserId?.toString()) return;
 
             if (payload.action === 'delete') {
                 setTodayRecord(null);
