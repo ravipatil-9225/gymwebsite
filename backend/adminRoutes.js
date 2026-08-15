@@ -437,29 +437,12 @@ router.post('/users/:id/assign-membership', async (req, res) => {
             try {
                 const startStr = new Date(calculatedStartDate).toLocaleDateString('en-IN');
                 const endStr   = new Date(calculatedEndDate).toLocaleDateString('en-IN');
-                let secureUrl = null;
-                try {
-                    const { generateAndUploadReceipt } = require('./services/generateReceiptPDF');
-                    secureUrl = await generateAndUploadReceipt({
-                        userId: user._id.toString(),
-                        paymentId: newPayment._id.toString(),
-                        userName: user.name,
-                        planName: packageName,
-                        amount: Number(amountPaid),
-                        startDate: calculatedStartDate,
-                        endDate: calculatedEndDate,
-                        paymentDate: new Date(),
-                        paymentMethod: paymentMethod || 'cash_on_bench'
-                    }, 'confirmed');
-                } catch (pdfErr) {
-                    console.error('[BG] PDF generation failed:', pdfErr.message);
-                }
                 emailService.sendPaymentConfirmation({ name: user.name, email: user.email, packageName, amountPaid: Number(amountPaid), startDate: calculatedStartDate, endDate: calculatedEndDate }).catch(console.error);
                 emailService.sendPaymentApprovedOwner({ userName: user.name, email: user.email, planName: packageName, planPrice: Number(amountPaid), paymentMethod: paymentMethod || 'cash_on_bench', startDate: calculatedStartDate, endDate: calculatedEndDate }).catch(console.error);
                 notificationEmitter.emit('payment_confirmed', {
                     user,
                     paymentData: { planName: packageName, amount: Number(amountPaid), startDate: startStr, endDate: endStr },
-                    documentUrl: secureUrl
+                    documentUrl: null
                 });
             } catch (bgErr) {
                 console.error('[BG] Admin assign membership tasks failed:', bgErr.message);
@@ -1116,29 +1099,12 @@ router.put('/payments/:id', async (req, res) => {
                     try {
                         const startStr = new Date(bgStartDate).toLocaleDateString('en-IN');
                         const endStr   = new Date(bgEndDate).toLocaleDateString('en-IN');
-                        let secureUrl = null;
-                        try {
-                            const { generateAndUploadReceipt } = require('./services/generateReceiptPDF');
-                            secureUrl = await generateAndUploadReceipt({
-                                userId: bgUser._id.toString(),
-                                paymentId: bgUpdated._id.toString(),
-                                userName: bgUser.name,
-                                planName: bgPayment.planName,
-                                amount: bgPayment.planPrice,
-                                startDate: bgStartDate,
-                                endDate: bgEndDate,
-                                paymentDate: new Date(),
-                                paymentMethod: bgPayment.paymentMethod || 'cash'
-                            }, 'confirmed');
-                        } catch (pdfErr) {
-                            console.error('[BG] PDF generation failed:', pdfErr.message);
-                        }
                         emailService.sendPaymentConfirmation({ name: bgUser.name, email: bgUser.email, packageName: bgPayment.planName, amountPaid: bgPayment.planPrice, startDate: bgStartDate, endDate: bgEndDate }).catch(console.error);
                         emailService.sendPaymentApprovedOwner({ userName: bgUser.name, email: bgUser.email, planName: bgPayment.planName, planPrice: bgPayment.planPrice, paymentMethod: bgPayment.paymentMethod || 'cash', startDate: bgStartDate, endDate: bgEndDate }).catch(console.error);
                         notificationEmitter.emit('payment_confirmed', {
                             user: bgUser,
                             paymentData: { planName: bgPayment.planName, amount: bgPayment.planPrice, startDate: startStr, endDate: endStr },
-                            documentUrl: secureUrl
+                            documentUrl: null
                         });
                         console.log(`[BG] Payment approval tasks done for ${bgUser.email}`);
                     } catch (bgErr) {

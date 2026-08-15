@@ -57,9 +57,8 @@ async function run() {
     ], '1. welcome_message_template');
     r1 ? pass++ : fail++;
 
-    // 2. cash_payment_request_template — DOCUMENT + 3 body
+    // 2. cash_payment_request_template — NO HEADER, body only: {{1}}=name, {{2}}=plan, {{3}}=amount
     const r2 = await testTemplate(phone, 'cash_payment_request_template', [
-        docHeader,
         { type: 'body', parameters: [
             { type: 'text', text: 'Final Test' },
             { type: 'text', text: '3 Months Elite' },
@@ -78,17 +77,16 @@ async function run() {
     ], '3. upi_payment_pending_template');
     r3 ? pass++ : fail++;
 
-    // 4. payment_receipt_template — DOCUMENT + 5 body
-    const r4 = await testTemplate(phone, 'payment_receipt_template', [
-        docHeader,
+    // 4. payment_receipt_template_fallback — NO HEADER, body only: {{1}}=name, {{2}}=amount, {{3}}=plan, {{4}}=startDate, {{5}}=endDate
+    const r4 = await testTemplate(phone, 'payment_receipt_template_fallback', [
         { type: 'body', parameters: [
             { type: 'text', text: 'Final Test' },
-            { type: 'text', text: '3 Months Elite' },
             { type: 'text', text: '4500' },
+            { type: 'text', text: '3 Months Elite' },
             { type: 'text', text: '4/6/2026' },
             { type: 'text', text: '4/9/2026' }
         ]}
-    ], '4. payment_receipt_template');
+    ], '4. payment_receipt_template_fallback');
     r4 ? pass++ : fail++;
 
     // 5. membership_expiry_reminder_template — LOCATION + 3 body
@@ -124,7 +122,7 @@ async function run() {
 
     console.log(`\n════════════════════════════════════════`);
     console.log(`  Results: ${pass}/7 passed, ${fail}/7 failed`);
-    if (fail === 1) console.log(`  Note: membership_expired_template is PENDING Meta approval — will work once approved.`);
+    if (fail === 0) console.log(`  All templates working correctly!`);
     console.log(`════════════════════════════════════════\n`);
 }
 

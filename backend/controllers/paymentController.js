@@ -178,26 +178,10 @@ exports.verifyAndUpload = async (req, res) => {
                 try {
                     const user = await User.findOne({ email });
                     if (user && user.phone) {
-                        let secureUrl = null;
-                        try {
-                            const { generateAndUploadReceipt } = require('../services/generateReceiptPDF');
-                            secureUrl = await generateAndUploadReceipt({
-                                userId: user._id.toString(),
-                                paymentId: newPayment._id.toString(),
-                                userName: user.name,
-                                planName: actualPlanName,
-                                amount: numericPrice,
-                                paymentDate: new Date(),
-                                paymentMethod: 'Cash'
-                            }, 'pending');
-                        } catch (pdfErr) {
-                            console.error('[BG] Failed to generate pending PDF:', pdfErr.message);
-                            // secureUrl stays null — WhatsApp will use text-only fallback
-                        }
                         notificationEmitter.emit('cash_payment_request', {
                             user,
                             paymentData: { planName: actualPlanName, amount: numericPrice },
-                            documentUrl: secureUrl
+                            documentUrl: null
                         });
                     }
                 } catch (bgErr) {
@@ -338,28 +322,6 @@ exports.verifyAndUpload = async (req, res) => {
 
             try { socket.getIO().emit('db_changed', { type: 'membership_created', userId: user._id }); } catch (_) {}
 
-            // Generate PDF Receipt
-            let secureUrl = null;
-            try {
-                const { generateAndUploadReceipt } = require('../services/generateReceiptPDF');
-                secureUrl = await generateAndUploadReceipt({
-                    userId: user._id.toString(),
-                    paymentId: newPayment._id.toString(),
-                    userName: user.name,
-                    planName: actualPlanName,
-                    amount: numericPrice,
-                    startDate,
-                    endDate,
-                    paymentDate: new Date(),
-                    paymentMethod: 'UPI'
-                }, 'confirmed');
-                
-                console.log(`[DATE CHECK] Membership: ${startDate.toISOString()} to ${endDate.toISOString()} | PDF: ${startDate.toISOString()} to ${endDate.toISOString()} | Match: ${true}`);
-
-            } catch (pdfErr) {
-                console.error('Failed to generate PDF in paymentController, continuing...', pdfErr.message);
-            }
-
             emailService.sendPaymentConfirmation({ name: user.name, email: user.email, packageName: actualPlanName, amountPaid: numericPrice, startDate, endDate }).catch(console.error);
             
             const startStr = startDate ? new Date(startDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
@@ -373,7 +335,7 @@ exports.verifyAndUpload = async (req, res) => {
                     startDate: startStr,
                     endDate: endStr
                 },
-                documentUrl: secureUrl
+                documentUrl: null
             });
             
             emailService.sendPaymentApprovedOwner({ userName: user.name, email: user.email, planName: actualPlanName, planPrice: numericPrice, paymentMethod: 'upi', startDate, endDate }).catch(console.error);
