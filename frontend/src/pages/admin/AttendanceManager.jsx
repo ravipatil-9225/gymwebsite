@@ -123,7 +123,11 @@ const AttendanceManager = () => {
     // ── Real-time socket: instant row patch (no API call for single marks) ────
     useEffect(() => {
         const handleUpdate = (payload) => {
-            if (!payload || payload.date !== date) return;
+            console.log('🔌 Socket attendance_update received:', payload);
+            if (!payload || payload.date !== date) {
+                console.log('⚠️ Payload ignored due to null or date mismatch:', { payloadDate: payload?.date, currentDate: date });
+                return;
+            }
 
             if (payload.isBulk) {
                 // Bulk: full refetch needed
@@ -150,9 +154,14 @@ const AttendanceManager = () => {
             if (payload.action === 'mark' && payload.record) {
                 const rec = payload.record;
                 const recUserIdStr = rec.userId?.toString() || String(rec.userId || '');
+                console.log('Updating user record for:', recUserIdStr, rec);
+
                 setAttendance(prev => {
+                    let matched = false;
                     const next = prev.map(row => {
-                        if (row.userId.toString() !== recUserIdStr) return row;
+                        const rowIdStr = row.userId?.toString() || String(row.userId || '');
+                        if (rowIdStr !== recUserIdStr) return row;
+                        matched = true;
                         return {
                             ...row,
                             record: {
@@ -164,18 +173,21 @@ const AttendanceManager = () => {
                             }
                         };
                     });
+                    if (!matched) {
+                        console.warn('⚠️ No user found in the current page table matching:', recUserIdStr);
+                    }
                     setStats(recomputeStats(next, stats.total));
                     return next;
                 });
 
                 // Flash the row green/yellow/red for 2s
                 const flashColor = rec.status === 'present' ? 'present' : rec.status === 'late' ? 'late' : 'absent';
-                setFlashedRows(f => ({ ...f, [rec.userId]: flashColor }));
-                setTimeout(() => setFlashedRows(f => { const n = { ...f }; delete n[rec.userId]; return n; }), 2000);
+                setFlashedRows(f => ({ ...f, [recUserIdStr]: flashColor }));
+                setTimeout(() => setFlashedRows(f => { const n = { ...f }; delete n[recUserIdStr]; return n; }), 2000);
 
                 // Show live badge in header
                 setLiveUpdate({
-                    name:     rec.userName,
+                    name:     rec.userName || payload.user?.name || 'Member',
                     status:   rec.status,
                     markedBy: rec.markedBy,
                     time:     rec.checkInTime ? new Date(rec.checkInTime) : new Date()
@@ -241,7 +253,7 @@ const AttendanceManager = () => {
                 row.userEmail,
                 row.batchTime,
                 row.record?.status === 'present' ? 'P' : row.record?.status === 'absent' ? 'A' : row.record?.status === 'late' ? 'L' : 'Not Marked',
-                row.record?.markedBy === 'self' ? 'Self Check-in' : row.record?.markedBy === 'admin' ? 'Admin' : '',
+                row.record?.markedBy === 'self' ? 'Self Check-in' : row.record?.markedBy === 'biometric' ? 'Biometric' : row.record?.markedBy === 'admin' ? 'Admin' : '',
                 row.record?.checkInTime ? formatTime(row.record.checkInTime) : ''
             ]);
         });
@@ -281,7 +293,7 @@ const AttendanceManager = () => {
             rows.push([
                 formatDate(rec.date),
                 rec.status === 'present' ? 'P' : rec.status === 'absent' ? 'A' : rec.status === 'late' ? 'L' : '-',
-                rec.markedBy === 'self' ? 'Self Check-in' : rec.markedBy === 'admin' ? 'Admin' : '-',
+                rec.markedBy === 'self' ? 'Self Check-in' : rec.markedBy === 'biometric' ? 'Biometric' : rec.markedBy === 'admin' ? 'Admin' : '-',
                 rec.checkInTime ? formatTime(rec.checkInTime) : '-'
             ]);
         });
@@ -414,7 +426,7 @@ const AttendanceManager = () => {
                                         {liveUpdate.status}
                                     </span>
                                     <span className="text-gray-400 ml-1">
-                                        by {liveUpdate.markedBy === 'self' ? 'Self' : 'Admin'} · {formatTime(liveUpdate.time)}
+                                        by {liveUpdate.markedBy === 'self' ? 'Self' : liveUpdate.markedBy === 'biometric' ? 'Biometric' : 'Admin'} · {formatTime(liveUpdate.time)}
                                     </span>
                                 </div>
                             </motion.div>
@@ -658,11 +670,12 @@ const AttendanceManager = () => {
                                                         animate={{ opacity: 1 }}
                                                         className={`text-xs font-medium ${
                                                             rec?.markedBy === 'self'  ? 'text-blue-500' :
+                                                            rec?.markedBy === 'biometric' ? 'text-cyan-500' :
                                                             rec?.markedBy === 'admin' ? 'text-purple-500' :
                                                             'text-gray-400'
                                                         }`}
                                                     >
-                                                        {rec?.markedBy === 'self' ? 'Self Check-in' : rec?.markedBy === 'admin' ? 'Admin' : '—'}
+                                                        {rec?.markedBy === 'self' ? 'Self Check-in' : rec?.markedBy === 'biometric' ? 'Biometric' : rec?.markedBy === 'admin' ? 'Admin' : '—'}
                                                     </motion.span>
                                                 </AnimatePresence>
                                             </td>
@@ -1073,7 +1086,7 @@ const AttendanceManager = () => {
                                                         {rec.status ? rec.status.charAt(0).toUpperCase() + rec.status.slice(1) : 'Unknown'}
                                                     </span>
                                                 </td>
-                                                <td className="px-4 py-3 text-gray-500">{rec.markedBy === 'self' ? 'Self Check-in' : rec.markedBy === 'admin' ? 'Admin' : '—'}</td>
+                                                <td className="px-4 py-3 text-gray-500">{rec.markedBy === 'self' ? 'Self Check-in' : rec.markedBy === 'biometric' ? 'Biometric' : rec.markedBy === 'admin' ? 'Admin' : '—'}</td>
                                                 <td className="px-4 py-3 text-gray-500 font-mono">{rec.checkInTime ? formatTime(rec.checkInTime) : '—'}</td>
                                             </tr>
                                         )) : (

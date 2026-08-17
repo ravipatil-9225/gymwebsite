@@ -166,7 +166,9 @@ router.post('/biometric-punch', async (req, res) => {
                 record,
                 user: { _id: user._id, name: user.name, email: user.email, phone: user.phone }
             });
-        } catch (_) {}
+        } catch (err) {
+            console.error('⚠️ [SOCKET ERROR] Failed to emit biometric punch update:', err.message);
+        }
 
         return res.status(200).json({
             success: true,

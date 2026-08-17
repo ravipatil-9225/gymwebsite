@@ -215,9 +215,11 @@ const CheckInCard = () => {
                             <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold
                                 ${todayRecord.markedBy === 'self'
                                     ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                                    : todayRecord.markedBy === 'biometric'
+                                    ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20'
                                     : 'bg-purple-500/10 text-purple-400 border-purple-500/20'}`}
                             >
-                                {todayRecord.markedBy === 'self' ? 'Self Check-in' : 'Marked by Admin'}
+                                {todayRecord.markedBy === 'self' ? 'Self Check-in' : todayRecord.markedBy === 'biometric' ? 'Biometric Punch' : 'Marked by Admin'}
                             </span>
                         </div>
                     </motion.div>
