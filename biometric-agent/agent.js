@@ -47,7 +47,7 @@ async function startAgent() {
 
     try {
         console.log(`\n⏳ Connecting to ZKTeco K40 Pro machine at ${DEVICE_IP}:${DEVICE_PORT}...`);
-        await zkInstance.connect();
+        await zkInstance.createSocket();
         console.log('✅ Connected to ZKTeco K40 Pro device successfully!');
 
         // Subscribe to real-time events from device
