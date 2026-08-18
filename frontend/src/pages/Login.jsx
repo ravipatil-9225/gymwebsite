@@ -23,7 +23,7 @@ const Login = () => {
         
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!formData.email || !emailRegex.test(formData.email)) {
-            return setError('Please enter a valid email address.');
+            return setError('Please enter a valid Email or Apple ID.');
         }
 
         if (!formData.password) {
@@ -96,7 +96,7 @@ const Login = () => {
                             required
                             className="w-full pl-11 pr-4 py-4 bg-white/5 border border-white/8 focus:border-primary/60 rounded-xl text-white placeholder-gray-600 focus:outline-none transition-all duration-300 text-sm"
                             style={{ boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.3)' }}
-                            placeholder="Email Address"
+                            placeholder="Email or Apple ID"
                             value={formData.email}
                             onChange={handleChange}
                         />

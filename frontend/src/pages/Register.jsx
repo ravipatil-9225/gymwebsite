@@ -32,7 +32,7 @@ const Register = () => {
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!formData.email || !emailRegex.test(formData.email)) {
-            return setError('Please enter a valid email address.');
+            return setError('Please enter a valid Email or Apple ID.');
         }
 
         if (formData.password.length < 6) {
@@ -151,10 +151,7 @@ const Register = () => {
                         <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-600 group-focus-within:text-primary transition-colors" />
                         <input
                             name="dob"
-                            type={formData.dob ? 'date' : 'text'}
-                            onFocus={(e) => (e.target.type = 'date')}
-                            onBlur={(e) => (!e.target.value ? (e.target.type = 'text') : null)}
-                            placeholder="Enter birth day or select *"
+                            type="date"
                             required
                             title="Date of Birth"
                             className="w-full pl-11 pr-4 py-4 bg-white/5 border border-white/8 focus:border-primary/60 rounded-xl text-white placeholder-gray-600 focus:outline-none transition-all duration-300 text-sm [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert-[0.6] cursor-pointer"
@@ -163,6 +160,11 @@ const Register = () => {
                             onChange={handleChange}
                             max={new Date().toISOString().split('T')[0]}
                         />
+                        {!formData.dob && (
+                            <span className="absolute left-11 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none text-sm">
+                                Date of Birth *
+                            </span>
+                        )}
                     </div>
 
                     {/* Email */}
@@ -174,7 +176,7 @@ const Register = () => {
                             required
                             className="w-full pl-11 pr-4 py-4 bg-white/5 border border-white/8 focus:border-primary/60 rounded-xl text-white placeholder-gray-600 focus:outline-none transition-all duration-300 text-sm"
                             style={{ boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.3)' }}
-                            placeholder="Email Address *"
+                            placeholder="Email or Apple ID *"
                             value={formData.email}
                             onChange={handleChange}
                         />

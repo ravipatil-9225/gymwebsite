@@ -30,6 +30,7 @@ export default function SettingsScreen({ navigation }) {
   const [goalModalVisible, setGoalModalVisible] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [tempDate, setTempDate] = useState(new Date());
 
   // Subscription state
   const [subscription, setSubscription] = useState(null);
@@ -414,7 +415,15 @@ export default function SettingsScreen({ navigation }) {
           <Text style={styles.label}>DATE OF BIRTH</Text>
           <TouchableOpacity 
             style={[styles.inputContainer, !editing && styles.inputDisabled]}
-            onPress={() => editing && setShowDatePicker(true)}
+            onPress={() => {
+              if (!editing) return;
+              if (formData.dob) {
+                setTempDate(new Date(formData.dob));
+              } else {
+                setTempDate(new Date());
+              }
+              setShowDatePicker(true);
+            }}
             activeOpacity={editing ? 0.7 : 1}
           >
             <Calendar color="#666" size={18} style={styles.icon} />
@@ -429,19 +438,22 @@ export default function SettingsScreen({ navigation }) {
                 <View style={styles.modalOverlayPicker}>
                   <View style={styles.modalContentPicker}>
                     <View style={styles.modalHeaderPicker}>
-                      <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                      <TouchableOpacity onPress={() => {
+                        handleChange('dob', tempDate.toISOString().split('T')[0]);
+                        setShowDatePicker(false);
+                      }}>
                         <Text style={styles.modalDoneText}>Done</Text>
                       </TouchableOpacity>
                     </View>
                     <DateTimePicker
-                      value={formData.dob ? new Date(formData.dob) : new Date()}
+                      value={tempDate}
                       mode="date"
                       display="spinner"
                       textColor="white"
                       maximumDate={new Date()}
                       onChange={(event, date) => {
                         if (date) {
-                          handleChange('dob', date.toISOString().split('T')[0]);
+                          setTempDate(date);
                         }
                       }}
                     />

@@ -17,7 +17,7 @@ export default function LoginScreen({ navigation }) {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please enter both your email and password.');
+      Alert.alert('Error', 'Please enter both your Email or Apple ID and password.');
       return;
     }
 
@@ -55,7 +55,7 @@ export default function LoginScreen({ navigation }) {
           <Mail color="#666" size={20} style={styles.icon} />
           <TextInput
             style={styles.input}
-            placeholder="Email Address"
+            placeholder="Email or Apple ID"
             placeholderTextColor="#666"
             value={email}
             onChangeText={setEmail}

@@ -46,7 +46,7 @@ const registerUser = async (req, res) => {
             token,
             user: { id: user._id, name: user.name, email: user.email, role: user.role, phone: user.phone, dob: user.dob, goal: user.goal, profileImage: user.profileImage }
         });
-        socket.getIO().emit('db_changed');
+        try { socket.getIO().emit('db_changed'); } catch (_) {}
     } catch (err) {
         console.error('Register error:', err);
         res.status(500).json({ message: 'Server error during registration.' });

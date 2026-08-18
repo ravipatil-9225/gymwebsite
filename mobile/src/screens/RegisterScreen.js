@@ -23,6 +23,7 @@ export default function RegisterScreen({ navigation }) {
   });
   const [loading, setLoading] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [tempDate, setTempDate] = useState(new Date());
 
   const handleChange = (name, value) => {
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -32,7 +33,7 @@ export default function RegisterScreen({ navigation }) {
     const { name, phone, email, password, confirmPassword, dob } = formData;
 
     if (!name || name.trim().length < 2) return Alert.alert('Error', 'Full name must be at least 2 characters.');
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return Alert.alert('Error', 'Invalid email address.');
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return Alert.alert('Error', 'Invalid Email or Apple ID.');
     if (!phone || !/^[6-9]\d{9}$/.test(phone)) return Alert.alert('Error', 'Enter a valid 10-digit Indian phone number.');
     if (password.length < 6) return Alert.alert('Error', 'Password must be at least 6 characters.');
     if (password !== confirmPassword) return Alert.alert('Error', 'Passwords do not match.');
@@ -95,7 +96,14 @@ export default function RegisterScreen({ navigation }) {
 
           <TouchableOpacity 
             style={styles.inputContainer}
-            onPress={() => setShowDatePicker(true)}
+            onPress={() => {
+              if (formData.dob) {
+                setTempDate(new Date(formData.dob));
+              } else {
+                setTempDate(new Date());
+              }
+              setShowDatePicker(true);
+            }}
           >
             <Calendar color="#666" size={20} style={styles.icon} />
             <Text style={[styles.input, { color: formData.dob ? '#FFF' : '#666', paddingTop: 16, paddingBottom: 16 }]}>
@@ -109,19 +117,22 @@ export default function RegisterScreen({ navigation }) {
                 <View style={styles.modalOverlayPicker}>
                   <View style={styles.modalContentPicker}>
                     <View style={styles.modalHeaderPicker}>
-                      <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                      <TouchableOpacity onPress={() => {
+                        handleChange('dob', tempDate.toISOString().split('T')[0]);
+                        setShowDatePicker(false);
+                      }}>
                         <Text style={styles.modalDoneText}>Done</Text>
                       </TouchableOpacity>
                     </View>
                     <DateTimePicker
-                      value={formData.dob ? new Date(formData.dob) : new Date()}
+                      value={tempDate}
                       mode="date"
                       display="spinner"
                       textColor="white"
                       maximumDate={new Date()}
                       onChange={(event, date) => {
                         if (date) {
-                          handleChange('dob', date.toISOString().split('T')[0]);
+                          setTempDate(date);
                         }
                       }}
                     />
@@ -148,7 +159,7 @@ export default function RegisterScreen({ navigation }) {
             <Mail color="#666" size={20} style={styles.icon} />
             <TextInput
               style={styles.input}
-              placeholder="Email Address *"
+              placeholder="Email or Apple ID *"
               placeholderTextColor="#666"
               keyboardType="email-address"
               autoCapitalize="none"

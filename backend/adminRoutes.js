@@ -303,8 +303,9 @@ router.post('/users', async (req, res) => {
         notificationEmitter.emit('user_registered', { user: newUser });
 
         res.status(201).json({ message: "User created successfully", user: { _id: newUser._id, name, email, role } });
-        socket.getIO().emit('db_changed');
+        try { socket.getIO().emit('db_changed'); } catch (_) {}
     } catch (err) {
+        console.error('Admin create user error:', err);
         res.status(500).json({ message: err.message || 'Error creating user' });
     }
 });
