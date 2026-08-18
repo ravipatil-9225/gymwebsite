@@ -128,7 +128,10 @@ const UserProfile = () => {
             const { data: updated } = await axios.put(`/api/admin/users/${userId}`, editData, { headers });
             setUser({ ...updated, latestMembership: editData.latestMembership, allMemberships: editData.allMemberships });
             setEditing(false); fetchUser(true);
-        } catch { alert('Error updating user'); } finally { setSaving(false); }
+        } catch (err) {
+            const msg = err.response?.data?.message || 'Error updating user';
+            alert(msg);
+        } finally { setSaving(false); }
     };
 
     const handleDelete = async () => {

@@ -319,9 +319,23 @@ router.put('/users/:id', async (req, res) => {
         if (userData.registrationDate) {
             userData.registrationDate = new Date(userData.registrationDate);
         }
-        
+
+        // ── FIX: biometricCardId is a unique+sparse field.
+        //   - If sent as empty string (""), treat it as "no value" so MongoDB's
+        //     sparse index ignores it. Store undefined so Mongoose $unsets it.
+        //   - This prevents E11000 duplicate-key errors when multiple users have
+        //     no biometric ID assigned (old users whose machine records were deleted).
+        if ('biometricCardId' in userData) {
+            if (userData.biometricCardId === '' || userData.biometricCardId === null) {
+                // Remove the field entirely from the document so sparse index skips it
+                delete userData.biometricCardId;
+                // Explicitly unset in DB to clear any leftover empty string
+                await User.findByIdAndUpdate(req.params.id, { $unset: { biometricCardId: '' } });
+            }
+        }
+
         // 1. Update User basic info
-        const updated = await User.findByIdAndUpdate(req.params.id, userData, { new: true }).select('-password');
+        const updated = await User.findByIdAndUpdate(req.params.id, userData, { new: true, runValidators: true }).select('-password');
 
         // 2. Update Membership if provided
         if (latestMembership && latestMembership._id) {
@@ -336,7 +350,13 @@ router.put('/users/:id', async (req, res) => {
         socket.getIO().emit('db_changed');
     } catch (err) {
         console.error('Update user error:', err);
-        res.status(500).json({ message: 'Error updating user' });
+        // Surface duplicate-key errors with a friendly message
+        if (err.code === 11000 && err.keyPattern?.biometricCardId) {
+            return res.status(409).json({
+                message: `Biometric ID "${err.keyValue?.biometricCardId}" is already assigned to another member. Please use a unique ID.`
+            });
+        }
+        res.status(500).json({ message: err.message || 'Error updating user' });
     }
 });
 

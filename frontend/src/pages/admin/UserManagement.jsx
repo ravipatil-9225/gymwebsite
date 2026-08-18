@@ -178,7 +178,8 @@ const UserManagement = () => {
             setFiltered(prev => prev.map(u => u._id === editingUser._id ? merged : u));
             setEditingUser(null);
         } catch (err) {
-            alert('Error updating user');
+            const msg = err.response?.data?.message || 'Error updating user';
+            alert(msg);
             console.error(err);
         }
     };
