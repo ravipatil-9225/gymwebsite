@@ -162,34 +162,37 @@ app.use((req, res, next) => {
 
 // ── RATE LIMITERS ──
 
-// Auth routes (Login/Register): Max 200 attempts per 15 minutes per IP
+// Auth routes (Login/Register): Max attempts per 15 minutes per IP (set to 5000 for high overhead safety)
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 300,
+    max: 5000,
     message: { message: 'High traffic right now. Please try again in 1 to 2 mins.' },
     standardHeaders: true,
     legacyHeaders: false,
 });
 
-// General API routes: Max 1000 requests per 15 minutes per IP (administrative/heavy usage)
+// General API routes: Max requests per 15 minutes per IP (set to 100,000 for administrative/heavy usage)
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 1000,
+    max: 100000,
     message: { message: 'Too many requests. Please slow down.' },
     standardHeaders: true,
     legacyHeaders: false,
 });
 
-// AI/Nutrition route: Max 200 requests per 15 minutes
+// AI/Nutrition route: Max requests per 15 minutes
 const nutritionLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 300,
+    max: 5000,
     message: { message: 'Too many nutrition plan requests. Please wait before generating another.' },
     standardHeaders: true,
     legacyHeaders: false,
 });
 
-// Apply general limiter to all /api/* routes
+// WhatsApp webhook MUST be mounted before applying the general rate limiter to prevent Meta webhook blocks
+app.use('/api/webhook/whatsapp', whatsappWebhook);
+
+// Apply general limiter to all other /api/* routes
 app.use('/api/', generalLimiter);
 
 // Health Check
@@ -206,7 +209,6 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/nutrition', nutritionLimiter, nutritionRoutes); // AI route limited to 20 req/15min
 app.use('/api/subscription', subscriptionRoutes);
-app.use('/api/webhook/whatsapp', whatsappWebhook);  // WhatsApp Cloud API webhook (no rate limit)
 app.use('/api/attendance', attendanceRoutes);        // Attendance tracking (member + admin)
 app.use('/api/products', productRoutes);             // Gym store products (public read, admin write)
 app.use('/api/invoices', invoiceRoutes);             // Invoice management (admin only)
