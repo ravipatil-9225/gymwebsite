@@ -102,15 +102,18 @@ async function executeWithRetry(logId, fn) {
 
 function setupListeners() {
 
-    // ── Payment receipt after admin verifies (cash OR upi) ──────────────
+    // ── Payment receipt: sent for any confirmed payment (UPI auto-verified OR admin-confirmed) ─
+    // sendPaymentReceiptMessage tries payment_receipt_template (in review) first.
+    // If Meta returns code 132001/132000 it auto-falls back to payment_receipt_template_fallback.
+    // Once Meta approves payment_receipt_template, the better bullet-format is used automatically.
     notificationEmitter.on('payment_confirmed', async ({ user, paymentData, documentUrl }) => {
-        console.log(`[ENGINE] payment_confirmed → sending receipt to ${user.email}`);
+        console.log(`[ENGINE] payment_confirmed → sending receipt to ${user.email} | plan=${paymentData.planName} amount=${paymentData.amount}`);
         await logAndSendNotification({
             user,
             eventType: 'payment_confirmed',
-            templateName: 'payment_receipt_template_fallback',
+            templateName: 'payment_receipt_template',  // will fall back to _fallback if still in review
             payload: { ...paymentData, documentUrl },
-            sendFn: async () => await whatsappService.sendPaymentConfirmedMessage(user, paymentData, documentUrl)
+            sendFn: async () => await whatsappService.sendPaymentReceiptMessage(user, paymentData)
         });
     });
 
@@ -126,11 +129,23 @@ function setupListeners() {
         });
     });
 
-    // ── UPI payment pending ──────────────────────────────────────────────
+    // ── UPI payment pending (transaction submitted, awaiting admin verify) ─
+    // NOTE: paymentData here is { userName, email, planName, planPrice, transactionId }
+    //       whatsappService.sendUpiPaymentPendingUser() resolves user by email internally.
+    //       We must pre-resolve the user so logAndSendNotification has a phone for logging.
     notificationEmitter.on('upi_payment_pending', async ({ user, paymentData }) => {
-        console.log(`[ENGINE] upi_payment_pending → sending UPI instructions to ${user.email}`);
+        console.log(`[ENGINE] upi_payment_pending → sending UPI instructions to ${paymentData.email || user?.email}`);
+
+        // Resolve the real user document so we have phone for logging
+        let resolvedUser = user;
+        if ((!resolvedUser || !resolvedUser.phone) && paymentData.email) {
+            const User = require('../models/User');
+            const found = await User.findOne({ email: new RegExp(`^${paymentData.email}$`, 'i') });
+            if (found) resolvedUser = found;
+        }
+
         await logAndSendNotification({
-            user,
+            user: resolvedUser,
             eventType: 'upi_payment_pending',
             templateName: 'upi_payment_pending_template',
             payload: paymentData,

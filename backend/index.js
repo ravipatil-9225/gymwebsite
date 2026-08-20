@@ -161,29 +161,33 @@ app.use((req, res, next) => {
 });
 
 // ── RATE LIMITERS ──
+// All limits are set to maximum (effectively unlimited) so no WhatsApp-triggering
+// endpoint is ever blocked on the server side. Meta's own API enforces its limits.
 
-// Auth routes (Login/Register): Max attempts per 15 minutes per IP (set to 5000 for high overhead safety)
+// Auth routes — maximized
 const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5000,
+    windowMs: 15 * 60 * 1000,
+    max: 100000,      // Effectively unlimited for this gym's scale
     message: { message: 'High traffic right now. Please try again in 1 to 2 mins.' },
     standardHeaders: true,
     legacyHeaders: false,
+    skip: () => true,  // ← Skip rate limiting entirely for all auth routes
 });
 
-// General API routes: Max requests per 15 minutes per IP (set to 100,000 for administrative/heavy usage)
+// General API routes — maximized
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100000,
     message: { message: 'Too many requests. Please slow down.' },
     standardHeaders: true,
     legacyHeaders: false,
+    skip: () => true,  // ← Skip rate limiting entirely — WhatsApp events must never be blocked
 });
 
-// AI/Nutrition route: Max requests per 15 minutes
+// AI/Nutrition route — maximized (AI costs money so keep a soft guard)
 const nutritionLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 5000,
+    max: 10000,
     message: { message: 'Too many nutrition plan requests. Please wait before generating another.' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -192,7 +196,7 @@ const nutritionLimiter = rateLimit({
 // WhatsApp webhook MUST be mounted before applying the general rate limiter to prevent Meta webhook blocks
 app.use('/api/webhook/whatsapp', whatsappWebhook);
 
-// Apply general limiter to all other /api/* routes
+// Apply general limiter to all other /api/* routes (currently a no-op due to skip)
 app.use('/api/', generalLimiter);
 
 // Health Check

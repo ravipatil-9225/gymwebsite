@@ -1244,7 +1244,8 @@ router.post('/notifications/:id/retry', async (req, res) => {
 
         switch(log.eventType) {
             case 'payment_confirmed':
-                fn = async () => await whatsappService.sendPaymentConfirmedMessage(user, data, data.documentUrl);
+                // Use smart fallback sender (will automatically try new template and fallback to active)
+                fn = async () => await whatsappService.sendPaymentReceiptMessage(user, data);
                 break;
             case 'cash_payment_request':
                 fn = async () => await whatsappService.sendPaymentPendingMessage(user, data, data.documentUrl);

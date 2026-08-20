@@ -67,9 +67,21 @@ const runMembershipReminderLogic = async () => {
                 // 7-day reminder
                 else if (daysLeft <= 7 && !membership.reminder7Sent) {
                     await sendExpiryReminder(membership, daysLeft);
+                    const userDoc7 = await User.findById(membership.userId);
+                    if (userDoc7) {
+                        notificationEmitter.emit('membership_expiry_reminder', {
+                            user: userDoc7,
+                            reminderData: {
+                                name: membership.userName,
+                                email: membership.userEmail,
+                                planName: membership.packageName,
+                                daysLeft: daysLeft
+                            }
+                        });
+                    }
                     membership.reminder7Sent = true;
                     await membership.save();
-                    console.log(`📅 7-day reminder email sent to ${membership.userEmail}`);
+                    console.log(`📅 7-day reminder email & WhatsApp sent to ${membership.userEmail}`);
                     processed++;
                 }
             }

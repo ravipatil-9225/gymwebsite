@@ -333,7 +333,8 @@ exports.verifyAndUpload = async (req, res) => {
                     planName: actualPlanName,
                     amount: numericPrice,
                     startDate: startStr,
-                    endDate: endStr
+                    endDate: endStr,
+                    source: 'upi_auto_verified'  // tells notification engine to use payment_receipt_template (bullet style)
                 },
                 documentUrl: null
             });
