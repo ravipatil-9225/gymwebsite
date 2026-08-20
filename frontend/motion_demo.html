@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motion Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { background-color: #0f1117; color: white; font-family: sans-serif; overflow-x: hidden; }
+        .grid-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2rem; padding: 2rem; }
+        .card { background-color: #161b27; border: 1px solid #1e2535; border-radius: 1rem; padding: 1.5rem; text-align: center; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const { motion } = window.FramerMotion;
+
+        function Demo() {
+            return (
+                <div className="min-h-screen p-8">
+                    <motion.h1 
+                        initial={{ opacity: 0, y: -50 }} 
+                        animate={{ opacity: 1, y: 0 }} 
+                        transition={{ duration: 0.8, ease: "easeOut" }}
+                        className="text-4xl font-bold text-center mb-12 text-indigo-400"
+                    >
+                        Motion Effects Showcase
+                    </motion.h1>
+
+                    <div className="grid-container">
+                        {/* 1. Fade & Slide Up */}
+                        <motion.div 
+                            className="card"
+                            initial={{ opacity: 0, y: 50 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: false, margin: "-50px" }}
+                            transition={{ duration: 0.6 }}
+                        >
+                            <h2 className="text-xl font-bold mb-4">1. Scroll Reveal (Slide Up)</h2>
+                            <p className="text-gray-400">Elements gracefully slide into view as you scroll down the page.</p>
+                        </motion.div>
+
+                        {/* 2. Hover Interactions */}
+                        <motion.div 
+                            className="card"
+                            whileHover={{ scale: 1.05, y: -10, boxShadow: "0px 10px 30px rgba(99, 102, 241, 0.2)" }}
+                            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                        >
+                            <h2 className="text-xl font-bold mb-4">2. Micro-Interactions (Hover)</h2>
+                            <p className="text-gray-400">Cards bounce and elevate when hovered, feeling physical and responsive.</p>
+                        </motion.div>
+
+                        {/* 3. Staggered List */}
+                        <div className="card">
+                            <h2 className="text-xl font-bold mb-4">3. Staggered Children</h2>
+                            <motion.ul 
+                                initial="hidden"
+                                whileInView="visible"
+                                viewport={{ once: false }}
+                                variants={{
+                                    visible: { transition: { staggerChildren: 0.2 } },
+                                    hidden: {}
+                                }}
+                                className="space-y-2 text-left"
+                            >
+                                {[1, 2, 3].map(i => (
+                                    <motion.li 
+                                        key={i}
+                                        variants={{
+                                            hidden: { opacity: 0, x: -50 },
+                                            visible: { opacity: 1, x: 0 }
+                                        }}
+                                        className="bg-[#1f2937] p-2 rounded"
+                                    >
+                                        List Item {i}
+                                    </motion.li>
+                                ))}
+                            </motion.ul>
+                        </div>
+
+                        {/* 4. Pulse / Attention Seeker */}
+                        <motion.div 
+                            className="card flex flex-col items-center justify-center"
+                        >
+                            <h2 className="text-xl font-bold mb-4">4. Attention Seeker</h2>
+                            <motion.button 
+                                animate={{ scale: [1, 1.1, 1] }}
+                                transition={{ repeat: Infinity, duration: 1.5 }}
+                                className="bg-indigo-600 px-6 py-2 rounded-full font-bold shadow-[0_0_15px_rgba(79,70,229,0.5)]"
+                            >
+                                Call To Action
+                            </motion.button>
+                        </motion.div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<Demo />);
+    </script>
+</body>
+</html>

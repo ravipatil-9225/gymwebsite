@@ -120,17 +120,39 @@ const AttendanceManager = () => {
     // Initial load + date change
     useEffect(() => { fetchData(date); }, [date, fetchData]);
 
-    // ── Real-time socket: instant row patch (no API call for single marks) ────
+    // ── Real-time socket: instant row patch + guaranteed fallback ────────────
     useEffect(() => {
-        const handleUpdate = (payload) => {
-            console.log('🔌 Socket attendance_update received:', payload);
-            if (!payload || payload.date !== date) {
-                console.log('⚠️ Payload ignored due to null or date mismatch:', { payloadDate: payload?.date, currentDate: date });
-                return;
+        // Helper: compute today's IST date string client-side (matches backend)
+        function todayISTStr() {
+            const now = new Date();
+            return new Date(now.getTime() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        }
+
+        // ── attendance_update: patch a single row instantly ───────────────────
+        const handleAttendanceUpdate = (payload) => {
+            console.log('🔌 [SOCKET] attendance_update received:', payload);
+            if (!payload) return;
+
+            // Accept the update if:
+            //   (a) the payload date exactly matches the currently viewed date, OR
+            //   (b) the payload is for today and the user is viewing today
+            //       (guards against tiny timezone rendering differences)
+            const todayIST = todayISTStr();
+            const isViewingToday = date === todayIST;
+            const payloadIsToday = payload.date === todayIST;
+
+            if (payload.date !== date) {
+                // If the update is for today but admin is not on today's tab, ignore
+                // silently — db_changed will handle re-fetching when they switch.
+                if (!isViewingToday || !payloadIsToday) {
+                    console.log('⚠️ [SOCKET] Skipping update — date mismatch:', {
+                        payloadDate: payload.date, currentDate: date
+                    });
+                    return;
+                }
             }
 
             if (payload.isBulk) {
-                // Bulk: full refetch needed
                 fetchData(date, true);
                 setLiveUpdate({ name: 'All members', status: payload.status, markedBy: 'admin', time: new Date() });
                 setTimeout(() => setLiveUpdate(null), 3500);
@@ -138,7 +160,6 @@ const AttendanceManager = () => {
             }
 
             if (payload.action === 'delete') {
-                // Remove the record for that user
                 setAttendance(prev => {
                     const next = prev.map(row =>
                         row.userId.toString() === payload.record?.userId
@@ -154,7 +175,7 @@ const AttendanceManager = () => {
             if (payload.action === 'mark' && payload.record) {
                 const rec = payload.record;
                 const recUserIdStr = rec.userId?.toString() || String(rec.userId || '');
-                console.log('Updating user record for:', recUserIdStr, rec);
+                console.log('✅ [SOCKET] Patching row for userId:', recUserIdStr, '| markedBy:', rec.markedBy);
 
                 setAttendance(prev => {
                     let matched = false;
@@ -174,7 +195,9 @@ const AttendanceManager = () => {
                         };
                     });
                     if (!matched) {
-                        console.warn('⚠️ No user found in the current page table matching:', recUserIdStr);
+                        // User not in current list — do a silent refetch to pull them in
+                        console.warn('⚠️ [SOCKET] Row not found for userId:', recUserIdStr, '— triggering silent refetch.');
+                        fetchData(date, true);
                     }
                     setStats(recomputeStats(next, stats.total));
                     return next;
@@ -192,13 +215,44 @@ const AttendanceManager = () => {
                     markedBy: rec.markedBy,
                     time:     rec.checkInTime ? new Date(rec.checkInTime) : new Date()
                 });
-                setTimeout(() => setLiveUpdate(null), 3500);
+                setTimeout(() => setLiveUpdate(null), 4000);
             }
         };
 
-        socket.on('attendance_update', handleUpdate);
-        return () => socket.off('attendance_update', handleUpdate);
-    }, [date, fetchData, stats.total]);
+        // ── db_changed: guaranteed fallback refetch for the daily tab ─────────
+        // This fires alongside attendance_update. If attendance_update fails for
+        // any reason (race condition, date mismatch, cold start), this ensures
+        // the admin panel still syncs within one round-trip.
+        const handleDbChanged = (payload) => {
+            console.log('🔄 [SOCKET] db_changed received:', payload);
+            if (activeTab === 'daily') {
+                fetchData(date, true); // silent = true (no loading spinner)
+            }
+        };
+
+        // ── biometric_denied: show red toast when expired member scans ────────
+        const handleBiometricDenied = (payload) => {
+            console.warn('🚫 [SOCKET] Biometric denied — plan expired:', payload);
+            setLiveUpdate({
+                name:      payload.userName || 'A member',
+                status:    'denied',
+                markedBy:  'biometric',
+                denied:    true,
+                time:      new Date()
+            });
+            setTimeout(() => setLiveUpdate(null), 5000);
+        };
+
+        socket.on('attendance_update',  handleAttendanceUpdate);
+        socket.on('db_changed',         handleDbChanged);
+        socket.on('biometric_denied',   handleBiometricDenied);
+
+        return () => {
+            socket.off('attendance_update',  handleAttendanceUpdate);
+            socket.off('db_changed',         handleDbChanged);
+            socket.off('biometric_denied',   handleBiometricDenied);
+        };
+    }, [date, activeTab, fetchData, stats.total]);
 
     // ── Admin mark one user (optimistic + server confirm via socket) ──────────
     const markOne = async (userId, status) => {
@@ -411,27 +465,49 @@ const AttendanceManager = () => {
                     {/* Live update toast */}
                     <AnimatePresence>
                         {liveUpdate && activeTab === 'daily' && (
-                            <motion.div
-                                key="live-toast"
-                                initial={{ opacity: 0, x: 30, scale: 0.9 }}
-                                animate={{ opacity: 1, x: 0, scale: 1 }}
-                                exit={{ opacity: 0, x: 30, scale: 0.9 }}
-                                className="flex items-center gap-2 bg-white border border-green-200 shadow-lg rounded-xl px-3 py-2"
-                            >
-                                <Wifi size={13} className="text-green-500 animate-pulse flex-shrink-0" />
-                                <div className="text-xs leading-tight">
-                                    <span className="font-bold text-gray-900">{liveUpdate.name}</span>
-                                    <span className="text-gray-500"> marked </span>
-                                    <span className={`font-bold capitalize ${liveUpdate.status === 'present' ? 'text-green-600' : liveUpdate.status === 'late' ? 'text-yellow-600' : 'text-red-600'}`}>
-                                        {liveUpdate.status}
-                                    </span>
-                                    <span className="text-gray-400 ml-1">
-                                        by {liveUpdate.markedBy === 'self' ? 'Self' : liveUpdate.markedBy === 'biometric' ? 'Biometric' : 'Admin'} · {formatTime(liveUpdate.time)}
-                                    </span>
-                                </div>
-                            </motion.div>
+                            liveUpdate.denied ? (
+                                /* ── Plan Expired Denial Toast ── */
+                                <motion.div
+                                    key="live-toast-denied"
+                                    initial={{ opacity: 0, x: 30, scale: 0.9 }}
+                                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                                    exit={{ opacity: 0, x: 30, scale: 0.9 }}
+                                    className="flex items-center gap-2 bg-red-50 border border-red-300 shadow-lg rounded-xl px-3 py-2"
+                                >
+                                    <XCircle size={13} className="text-red-500 flex-shrink-0" />
+                                    <div className="text-xs leading-tight">
+                                        <span className="font-bold text-red-700">⛔ Access Denied</span>
+                                        <span className="text-gray-600 ml-1">—</span>
+                                        <span className="font-bold text-gray-900 ml-1">{liveUpdate.name}</span>
+                                        <span className="text-red-600 ml-1 font-semibold">Plan Expired</span>
+                                        <span className="text-gray-400 ml-1">· {formatTime(liveUpdate.time)}</span>
+                                    </div>
+                                </motion.div>
+                            ) : (
+                                /* ── Normal Attendance Update Toast ── */
+                                <motion.div
+                                    key="live-toast"
+                                    initial={{ opacity: 0, x: 30, scale: 0.9 }}
+                                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                                    exit={{ opacity: 0, x: 30, scale: 0.9 }}
+                                    className="flex items-center gap-2 bg-white border border-green-200 shadow-lg rounded-xl px-3 py-2"
+                                >
+                                    <Wifi size={13} className="text-green-500 animate-pulse flex-shrink-0" />
+                                    <div className="text-xs leading-tight">
+                                        <span className="font-bold text-gray-900">{liveUpdate.name}</span>
+                                        <span className="text-gray-500"> marked </span>
+                                        <span className={`font-bold capitalize ${liveUpdate.status === 'present' ? 'text-green-600' : liveUpdate.status === 'late' ? 'text-yellow-600' : 'text-red-600'}`}>
+                                            {liveUpdate.status}
+                                        </span>
+                                        <span className="text-gray-400 ml-1">
+                                            by {liveUpdate.markedBy === 'self' ? 'Self' : liveUpdate.markedBy === 'biometric' ? 'Biometric' : 'Admin'} · {formatTime(liveUpdate.time)}
+                                        </span>
+                                    </div>
+                                </motion.div>
+                            )
                         )}
                     </AnimatePresence>
+
                     {activeTab === 'daily' && (
                         <>
                             <button

@@ -106,15 +106,20 @@ router.get('/today', verifyAdmin, async (req, res) => {
 // ── BIOMETRIC PUNCH ROUTE (ZKTeco K40 Pro Local Bridge Agent) ───────────────
 // POST /api/attendance/biometric-punch
 // Body: { deviceUserId, timestamp, secret }
+//
+// ✅ PLAN EXPIRY ENFORCEMENT: Every punch checks today's date against the
+//    member's active Membership record. Plans can expire on ANY day of the
+//    month — not just month-end — so we run this check on every single scan.
 router.post('/biometric-punch', async (req, res) => {
     const Attendance = require('../models/Attendance');
+    const Membership = require('../models/Membership');
     const User = require('../models/User');
     const { todayIST } = require('../controllers/attendanceController');
-    
+
     try {
         const { deviceUserId, secret, timestamp } = req.body;
         const expectedSecret = process.env.BIOMETRIC_BRIDGE_SECRET || 'gym_biometric_secret_2026';
-        
+
         if (secret !== expectedSecret) {
             return res.status(401).json({ message: 'Unauthorized biometric bridge request' });
         }
@@ -123,48 +128,107 @@ router.post('/biometric-punch', async (req, res) => {
             return res.status(400).json({ message: 'deviceUserId is required' });
         }
 
-        // Find user by biometricCardId (string matching)
-        const user = await User.findOne({ biometricCardId: String(deviceUserId) }).select('name email phone batchTime');
+        // ── Step 1: Find the member linked to this biometric ID ──────────────
+        const user = await User.findOne({ biometricCardId: String(deviceUserId) })
+            .select('name email phone batchTime');
         if (!user) {
-            return res.status(404).json({ message: `No member linked to Biometric ID ${deviceUserId}` });
+            console.warn(`⛔ [BIOMETRIC] Unknown Biometric ID: ${deviceUserId} — not linked to any member.`);
+            return res.status(404).json({
+                success: false,
+                message: `No member linked to Biometric ID ${deviceUserId}`
+            });
         }
 
-        const date = todayIST();
+        // ── Step 2: Daily plan expiry check ──────────────────────────────────
+        // Build today's start-of-day in IST so we can compare against endDate.
+        // This runs on EVERY punch — plan expiry is per-day, not just month-end.
+        const todayDateStr = todayIST(); // "YYYY-MM-DD"
+        const todayMidnightIST = new Date(`${todayDateStr}T00:00:00+05:30`);
+
+        const activeMembership = await Membership.findOne({
+            userId: user._id,
+            status: 'active',
+            endDate: { $gte: todayMidnightIST }   // plan must still be valid today
+        }).sort({ endDate: -1 });                  // pick the latest one if multiple
+
+        if (!activeMembership) {
+            console.warn(`⛔ [BIOMETRIC] Plan EXPIRED for ${user.name} (${user.email}) — punch rejected on ${todayDateStr}.`);
+            // Emit a dedicated socket event so the admin dashboard can show a
+            // real-time "Plan Expired" alert if needed in the future.
+            try {
+                const socket = require('../socket');
+                socket.getIO().emit('biometric_denied', {
+                    reason: 'plan_expired',
+                    userId: user._id,
+                    userName: user.name,
+                    userEmail: user.email,
+                    date: todayDateStr
+                });
+            } catch (_) {}
+
+            return res.status(403).json({
+                success: false,
+                planExpired: true,
+                message: `❌ Access Denied: ${user.name}'s membership plan has expired. Please renew to continue using the gym.`,
+                user: { _id: user._id, name: user.name, email: user.email }
+            });
+        }
+
+        // ── Step 3: Mark attendance ───────────────────────────────────────────
         const checkInTime = timestamp ? new Date(timestamp) : new Date();
 
-        let record = await Attendance.findOne({ userId: user._id, date });
+        let record = await Attendance.findOne({ userId: user._id, date: todayDateStr });
         let alreadyCheckedIn = false;
 
         if (record && record.status === 'present') {
             alreadyCheckedIn = true;
+            console.log(`ℹ️  [BIOMETRIC] ${user.name} already checked in today (${todayDateStr}).`);
         } else {
             record = await Attendance.findOneAndUpdate(
-                { userId: user._id, date },
+                { userId: user._id, date: todayDateStr },
                 {
                     $set: {
-                        userName: user.name,
-                        userEmail: user.email,
-                        batchTime: user.batchTime || 'Not Assigned',
-                        status: 'present',
-                        markedBy: 'biometric',
+                        userName:    user.name,
+                        userEmail:   user.email,
+                        batchTime:   user.batchTime || 'Not Assigned',
+                        status:      'present',
+                        markedBy:    'biometric',
                         checkInTime
                     }
                 },
                 { upsert: true, new: true, setDefaultsOnInsert: true }
             );
+            console.log(`✅ [BIOMETRIC] Attendance marked for ${user.name} on ${todayDateStr}.`);
         }
 
-        // Broadcast socket events for real-time zero-lag dashboard updates
+        // ── Step 4: Broadcast real-time socket events ─────────────────────────
+        // Emit BOTH events so the admin panel gets the update regardless of
+        // which socket listener fires first.
         try {
             const socket = require('../socket');
             socket.getIO().emit('db_changed', { type: 'biometric_punch' });
             socket.getIO().emit('attendance_update', {
-                type: 'BIOMETRIC_PUNCH',
-                date,
-                action: 'mark',
+                type:             'BIOMETRIC_PUNCH',
+                date:             todayDateStr,
+                action:           'mark',
                 alreadyCheckedIn,
-                record,
-                user: { _id: user._id, name: user.name, email: user.email, phone: user.phone }
+                record: {
+                    _id:          record._id.toString(),
+                    userId:       record.userId.toString(),
+                    userName:     record.userName,
+                    userEmail:    record.userEmail,
+                    batchTime:    record.batchTime,
+                    status:       record.status,
+                    markedBy:     record.markedBy,
+                    checkInTime:  record.checkInTime,
+                    date:         record.date
+                },
+                user: {
+                    _id:   user._id,
+                    name:  user.name,
+                    email: user.email,
+                    phone: user.phone
+                }
             });
         } catch (err) {
             console.error('⚠️ [SOCKET ERROR] Failed to emit biometric punch update:', err.message);
@@ -173,10 +237,15 @@ router.post('/biometric-punch', async (req, res) => {
         return res.status(200).json({
             success: true,
             alreadyCheckedIn,
-            message: alreadyCheckedIn 
-                ? `${user.name} already checked in today.` 
-                : `Biometric attendance marked for ${user.name}!`,
-            user: { _id: user._id, name: user.name, email: user.email, phone: user.phone },
+            planExpired: false,
+            message: alreadyCheckedIn
+                ? `${user.name} already checked in today.`
+                : `✅ Biometric attendance marked for ${user.name}!`,
+            membership: {
+                packageName: activeMembership.packageName,
+                endDate:     activeMembership.endDate
+            },
+            user:   { _id: user._id, name: user.name, email: user.email, phone: user.phone },
             record
         });
     } catch (err) {
