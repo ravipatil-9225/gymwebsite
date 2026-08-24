@@ -433,6 +433,7 @@ const AttendanceManager = () => {
         const matchSearch = search === '' ||
             row.userName.toLowerCase().includes(search.toLowerCase()) ||
             row.userEmail.toLowerCase().includes(search.toLowerCase()) ||
+            (row.biometricCardId || '').toLowerCase().includes(search.toLowerCase()) ||
             (row.batchTime || '').toLowerCase().includes(search.toLowerCase());
         const status = row.record?.status;
         const matchFilter =
@@ -698,7 +699,14 @@ const AttendanceManager = () => {
                                                         {row.userName.charAt(0).toUpperCase()}
                                                     </div>
                                                     <div>
-                                                        <p className="font-medium text-gray-900">{row.userName}</p>
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="font-medium text-gray-900">{row.userName}</p>
+                                                            {row.biometricCardId && (
+                                                                <span className="text-[10px] font-semibold text-blue-600 bg-blue-50/80 px-1.5 py-0.5 rounded border border-blue-100 flex-shrink-0">
+                                                                    #{row.biometricCardId}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         <p className="text-xs text-gray-400">{row.userEmail}</p>
                                                     </div>
                                                 </div>

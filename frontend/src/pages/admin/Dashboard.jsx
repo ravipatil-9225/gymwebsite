@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { Users, PhoneCall, HandCoins, Activity } from 'lucide-react';
+import { Users, PhoneCall, HandCoins, Activity, Cake, Gift, MessageSquare } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import socket from '../../utils/socket';
 
@@ -14,16 +14,23 @@ const Dashboard = () => {
         recentActivities: [],
         chartData: []
     });
+    const [birthdays, setBirthdays] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchAnalytics = async () => {
             try {
                 const token = localStorage.getItem('adminToken');
-                const { data } = await axios.get(`/api/admin/analytics?t=${Date.now()}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                setStats(data);
+                const [analyticsRes, birthdaysRes] = await Promise.all([
+                    axios.get(`/api/admin/analytics?t=${Date.now()}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    }),
+                    axios.get(`/api/admin/birthdays/today?t=${Date.now()}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    })
+                ]);
+                setStats(analyticsRes.data);
+                setBirthdays(birthdaysRes.data.users || []);
             } catch (err) {
                 console.error('Failed to fetch analytics', err);
             } finally {
@@ -34,10 +41,16 @@ const Dashboard = () => {
         const fetchAnalyticsSilent = async () => {
             try {
                 const token = localStorage.getItem('adminToken');
-                const { data } = await axios.get(`/api/admin/analytics?t=${Date.now()}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                setStats(data);
+                const [analyticsRes, birthdaysRes] = await Promise.all([
+                    axios.get(`/api/admin/analytics?t=${Date.now()}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    }),
+                    axios.get(`/api/admin/birthdays/today?t=${Date.now()}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    })
+                ]);
+                setStats(analyticsRes.data);
+                setBirthdays(birthdaysRes.data.users || []);
             } catch (err) {}
         };
 
@@ -142,42 +155,103 @@ const Dashboard = () => {
                 </div>
             </div>
 
-            {/* Recent Activity */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 mt-8">
-                <div className="p-6 border-b border-gray-100">
-                    <h2 className="text-lg font-bold text-gray-900">Recent Form Submissions</h2>
-                </div>
-                <div className="p-0">
-                    {stats.recentActivities.length > 0 ? (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="bg-gray-50 text-gray-500 text-sm">
-                                        <th className="px-6 py-4 font-medium">Name</th>
-                                        <th className="px-6 py-4 font-medium">Type</th>
-                                        <th className="px-6 py-4 font-medium">Date</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100 text-sm">
-                                    {stats.recentActivities.map((act) => (
-                                        <tr key={act._id} className="hover:bg-gray-50 transition-colors">
-                                            <td className="px-6 py-4 font-medium text-gray-900">{act.name}</td>
-                                            <td className="px-6 py-4">
-                                                <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs uppercase tracking-wider">
-                                                    {act.type}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 text-gray-500">
-                                                {new Date(act.createdAt).toLocaleDateString()}
-                                            </td>
+            {/* Recent Activity and Birthdays Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+                {/* Recent Form Submissions */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 lg:col-span-2 flex flex-col">
+                    <div className="p-6 border-b border-gray-100">
+                        <h2 className="text-lg font-bold text-gray-900">Recent Form Submissions</h2>
+                    </div>
+                    <div className="p-0 flex-1">
+                        {stats.recentActivities.length > 0 ? (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-gray-50 text-gray-500 text-sm">
+                                            <th className="px-6 py-4 font-medium">Name</th>
+                                            <th className="px-6 py-4 font-medium">Type</th>
+                                            <th className="px-6 py-4 font-medium">Date</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    ) : (
-                        <div className="p-6 text-gray-500">No recent activity.</div>
-                    )}
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100 text-sm">
+                                        {stats.recentActivities.map((act) => (
+                                            <tr key={act._id} className="hover:bg-gray-50 transition-colors">
+                                                <td className="px-6 py-4 font-medium text-gray-900">{act.name}</td>
+                                                <td className="px-6 py-4">
+                                                    <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs uppercase tracking-wider">
+                                                        {act.type}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 text-gray-500">
+                                                    {new Date(act.createdAt).toLocaleDateString()}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <div className="p-6 text-gray-500">No recent activity.</div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Today's Birthdays Widget */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col">
+                    <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+                        <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            <Cake className="w-5 h-5 text-pink-500" /> Today's Birthdays
+                        </h2>
+                        <span className="bg-pink-100 text-pink-700 font-bold text-xs px-2.5 py-0.5 rounded-full">
+                            {birthdays.length} Live
+                        </span>
+                    </div>
+                    <div className="p-6 flex-1 overflow-y-auto max-h-[350px] space-y-4">
+                        {birthdays.length > 0 ? (
+                            birthdays.map((user) => {
+                                const wa = user.phone ? `https://wa.me/${user.phone.replace(/[^0-9]/g, '').replace(/^(?!91)/, '91')}?text=${encodeURIComponent(`🎂 Happy Birthday ${user.name}! 🎉\n\nWishing you a fantastic birthday from all of us at Tara Fitness! Stay strong and keep crushing your goals! 💪🏋️`)}` : null;
+
+                                return (
+                                    <div key={user._id} className="flex items-center justify-between p-3.5 bg-pink-50/50 rounded-xl border border-pink-100/50 hover:bg-pink-50 transition-colors">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center text-white font-bold text-sm shadow-sm overflow-hidden flex-shrink-0">
+                                                {user.profileImage?.url ? (
+                                                    <img src={user.profileImage.url} alt={user.name} className="w-full h-full object-cover rounded-full" />
+                                                ) : (
+                                                    user.name?.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?'
+                                                )}
+                                            </div>
+                                            <div>
+                                                <Link to={`/admin/users/${user._id}`} className="text-sm font-bold text-gray-800 hover:text-pink-600 transition-colors hover:underline">
+                                                    {user.name}
+                                                </Link>
+                                                <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                                                    {user.age ? `Turns ${user.age}` : 'Birthday today'} 🎉
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {wa && (
+                                            <a href={wa} target="_blank" rel="noopener noreferrer" className="p-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-all shadow-sm active:scale-95 flex items-center justify-center" title="Send wishes on WhatsApp">
+                                                <MessageSquare className="w-4 h-4" />
+                                            </a>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-full text-center text-gray-400 py-8">
+                                <Gift className="w-10 h-10 text-gray-200 mb-2" />
+                                <p className="text-sm font-medium">No Birthdays Today</p>
+                                <p className="text-xs text-gray-400 mt-1 max-w-[200px]">We'll display dynamic updates here as they sync live.</p>
+                            </div>
+                        )}
+                    </div>
+                    <div className="p-4 bg-gray-50 border-t border-gray-100 text-center rounded-b-xl">
+                        <Link to="/admin/birthdays" className="text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:underline">
+                            View All & Send Wishes →
+                        </Link>
+                    </div>
                 </div>
             </div>
         </div>

@@ -249,6 +249,75 @@ router.get('/summary', async (req, res) => {
 });
 
 // ==========================================
+// BIRTHDAYS TODAY
+// ==========================================
+// GET /api/admin/birthdays/today
+// Returns all users whose DOB month+day matches today's date in IST.
+// DOB is stored as a string (YYYY-MM-DD or similar). We extract MM-DD and compare.
+router.get('/birthdays/today', async (req, res) => {
+    try {
+        // Get today's MM-DD in IST
+        const now = new Date();
+        const ist = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+        const todayISO = ist.toISOString().slice(0, 10); // "YYYY-MM-DD"
+        const todayMMDD = todayISO.slice(5); // "MM-DD"
+
+        // Fetch all non-admin users who have a dob set
+        const users = await User.find({ role: 'user', dob: { $exists: true, $ne: '' } })
+            .select('name email phone dob profileImage batchTime biometricCardId');
+
+        // Filter: dob string must contain the same MM-DD as today.
+        // DOB can be stored as "YYYY-MM-DD" or "DD-MM-YYYY" or similar.
+        // We extract the last 5 chars for YYYY-MM-DD format → MM-DD,
+        // and also check MM-DD pattern anywhere in the string for robustness.
+        const birthdayUsers = users.filter(u => {
+            if (!u.dob) return false;
+            const dob = u.dob.trim();
+            // Format: YYYY-MM-DD → slice(5) = "MM-DD"
+            if (dob.length >= 10 && dob[4] === '-') {
+                return dob.slice(5) === todayMMDD;
+            }
+            // Format: DD-MM-YYYY → dob[3..4]+'-'+dob[0..1] = "MM-DD"
+            if (dob.length >= 10 && dob[2] === '-') {
+                const mm = dob.slice(3, 5);
+                const dd = dob.slice(0, 2);
+                return `${mm}-${dd}` === todayMMDD;
+            }
+            return false;
+        });
+
+        // Compute age for each
+        const currentYear = ist.getFullYear();
+        const result = birthdayUsers.map(u => {
+            let age = null;
+            try {
+                const dob = u.dob.trim();
+                let dobYear;
+                if (dob[4] === '-') dobYear = parseInt(dob.slice(0, 4));
+                else if (dob[2] === '-') dobYear = parseInt(dob.slice(6));
+                if (dobYear && dobYear > 1900) age = currentYear - dobYear;
+            } catch (_) {}
+            return {
+                _id:             u._id,
+                name:            u.name,
+                email:           u.email,
+                phone:           u.phone,
+                dob:             u.dob,
+                age,
+                profileImage:    u.profileImage,
+                batchTime:       u.batchTime,
+                biometricCardId: u.biometricCardId,
+            };
+        });
+
+        res.json({ date: todayISO, count: result.length, users: result });
+    } catch (err) {
+        console.error('Birthday fetch error:', err.message);
+        res.status(500).json({ message: 'Error fetching birthdays' });
+    }
+});
+
+// ==========================================
 // USERS MANAGEMENT
 // ==========================================
 router.get('/users', async (req, res) => {
@@ -282,7 +351,7 @@ router.get('/users', async (req, res) => {
 
 router.post('/users', async (req, res) => {
     try {
-        const { name, email, phone, dob, password, role, batchTime, registrationDate } = req.body;
+        const { name, email, phone, dob, password, role, batchTime, registrationDate, biometricCardId } = req.body;
         if(!name || !email || !phone || !dob || !password) {
             return res.status(400).json({ message: "All required fields must be filled" });
         }
@@ -292,11 +361,19 @@ router.post('/users', async (req, res) => {
             return res.status(400).json({ message: "User already exists with this email" });
         }
 
+        // Clean biometricCardId: empty strings or nulls should be stored as undefined
+        // to prevent unique-index collisions.
+        let cleanedBiometricCardId = biometricCardId;
+        if (cleanedBiometricCardId === '' || cleanedBiometricCardId === null) {
+            cleanedBiometricCardId = undefined;
+        }
+
         const newUser = new User({
             name, email, phone, dob, password,
             role: role || 'user',
             batchTime: batchTime || 'Not Assigned',
-            registrationDate: registrationDate ? new Date(registrationDate) : new Date()
+            registrationDate: registrationDate ? new Date(registrationDate) : new Date(),
+            biometricCardId: cleanedBiometricCardId
         });
         await newUser.save();
 
@@ -306,6 +383,12 @@ router.post('/users', async (req, res) => {
         try { socket.getIO().emit('db_changed'); } catch (_) {}
     } catch (err) {
         console.error('Admin create user error:', err);
+        // Surface duplicate-key errors with a friendly message
+        if (err.code === 11000 && err.keyPattern?.biometricCardId) {
+            return res.status(409).json({
+                message: `Biometric ID "${err.keyValue?.biometricCardId}" is already assigned to another member. Please use a unique ID.`
+            });
+        }
         res.status(500).json({ message: err.message || 'Error creating user' });
     }
 });

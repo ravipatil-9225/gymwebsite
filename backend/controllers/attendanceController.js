@@ -130,8 +130,8 @@ const getAttendanceByDate = async (req, res) => {
     try {
         const date = req.query.date || todayIST();
 
-        // Get all non-admin users
-        const users = await User.find({ role: 'user' }).select('name email batchTime');
+        // Get all non-admin users, including biometricCardId
+        const users = await User.find({ role: 'user' }).select('name email batchTime biometricCardId');
 
         // Get all attendance records for that date
         const records = await Attendance.find({ date });
@@ -140,11 +140,12 @@ const getAttendanceByDate = async (req, res) => {
 
         // Merge: for each user, attach their record or null
         const result = users.map(u => ({
-            userId:    u._id,
-            userName:  u.name,
-            userEmail: u.email,
-            batchTime: u.batchTime || 'Not Assigned',
-            record:    recordMap[u._id.toString()] || null
+            userId:          u._id,
+            userName:        u.name,
+            userEmail:       u.email,
+            batchTime:       u.batchTime || 'Not Assigned',
+            biometricCardId: u.biometricCardId || '',
+            record:          recordMap[u._id.toString()] || null
         }));
 
         // Sort: checked-in first, then by name

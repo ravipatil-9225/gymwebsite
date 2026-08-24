@@ -67,6 +67,7 @@ const UserManagement = () => {
     const [addingUser, setAddingUser] = useState(null);
     const [historyUser, setHistoryUser] = useState(null);
     const [search, setSearch] = useState('');
+    const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'alpha-asc' | 'alpha-desc'
 
     // ── Renew / Assign Membership ────────────────────────────────────────────
     const [renewalUser, setRenewalUser] = useState(null);
@@ -139,18 +140,31 @@ const UserManagement = () => {
         };
     }, [editingUser, addingUser, renewalUser]);
 
-    // Live search
+    // Live search and sorting
     useEffect(() => {
-        if (!search.trim()) { setFiltered(users); return; }
-        const q = search.toLowerCase();
-        setFiltered(users.filter(u =>
-            u.name?.toLowerCase().includes(q) ||
-            u.email?.toLowerCase().includes(q) ||
-            u.phone?.toLowerCase().includes(q) ||
-            u.biometricCardId?.toLowerCase().includes(q) ||
-            u.latestMembership?.packageName?.toLowerCase().includes(q)
-        ));
-    }, [search, users]);
+        let result = [...users];
+        if (search.trim()) {
+            const q = search.toLowerCase();
+            result = result.filter(u =>
+                u.name?.toLowerCase().includes(q) ||
+                u.email?.toLowerCase().includes(q) ||
+                u.phone?.toLowerCase().includes(q) ||
+                u.biometricCardId?.toLowerCase().includes(q) ||
+                u.latestMembership?.packageName?.toLowerCase().includes(q)
+            );
+        }
+
+        // Apply sorting
+        if (sortBy === 'alpha-asc') {
+            result.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        } else if (sortBy === 'alpha-desc') {
+            result.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
+        } else if (sortBy === 'newest') {
+            result.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        }
+
+        setFiltered(result);
+    }, [search, users, sortBy]);
 
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to delete this user?')) return;
@@ -234,8 +248,20 @@ const UserManagement = () => {
                             placeholder="Search name, email, phone, plan…"
                             value={search}
                             onChange={e => setSearch(e.target.value)}
-                            className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                         />
+                    </div>
+                    <div className="flex items-center gap-1.5 border border-gray-200 rounded-lg px-2.5 py-2 bg-white text-sm text-gray-600 focus-within:ring-2 focus-within:ring-blue-500">
+                        <span className="text-xs font-medium text-gray-400">Sort:</span>
+                        <select
+                            value={sortBy}
+                            onChange={e => setSortBy(e.target.value)}
+                            className="focus:outline-none bg-transparent cursor-pointer font-semibold text-gray-700 text-xs pr-1"
+                        >
+                            <option value="newest">Newest Joined</option>
+                            <option value="alpha-asc">Name (A to Z)</option>
+                            <option value="alpha-desc">Name (Z to A)</option>
+                        </select>
                     </div>
                     <button
                         onClick={() => setAddingUser({ name: '', email: '', phone: '', dob: '', password: '', role: 'user', batchTime: '', biometricCardId: '', registrationDate: new Date().toISOString().split('T')[0] })}

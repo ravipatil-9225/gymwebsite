@@ -22,6 +22,41 @@ let pollTimer = null;
 let zkInstance = null;
 let isConnected = false;
 
+// Play voice alerts and warning beeps on the physical machine when access is denied
+async function triggerMachineDenial() {
+    if (!zkInstance || !isConnected) return;
+    try {
+        console.log('🔊 Playing voice alerts and warning beeps on machine for expired plan...');
+        
+        // 1. Play "Access Denied" (index 2)
+        const voiceBuf = Buffer.alloc(4);
+        voiceBuf.writeUInt32LE(2, 0); 
+        await zkInstance.executeCmd(1017, voiceBuf);
+
+        // 2. Play three short warning beeps to draw attention
+        for (let i = 0; i < 3; i++) {
+            setTimeout(async () => {
+                try {
+                    const beepBuf = Buffer.alloc(4);
+                    beepBuf.writeUInt32LE(24, 0); // 24 = standard beep
+                    await zkInstance.executeCmd(1017, beepBuf);
+                } catch (_) {}
+            }, 500 + i * 200);
+        }
+
+        // 3. Play "Invalid time period" (index 31) after 1.5s to indicate expired plan validity
+        setTimeout(async () => {
+            try {
+                const voiceBuf2 = Buffer.alloc(4);
+                voiceBuf2.writeUInt32LE(31, 0); 
+                await zkInstance.executeCmd(1017, voiceBuf2);
+            } catch (_) {}
+        }, 1500);
+    } catch (e) {
+        console.error('⚠️ Failed to trigger machine voice alert:', e.message);
+    }
+}
+
 // Send punch to backend API
 async function sendPunchToCloud(deviceUserId, recordTime) {
     try {
@@ -42,6 +77,11 @@ async function sendPunchToCloud(deviceUserId, recordTime) {
     } catch (err) {
         if (err.response) {
             console.error(`❌ [SERVER ERROR] ${err.response.status} - ${err.response.data?.message || err.message}`);
+            // Check if plan is expired (403 Forbidden with planExpired: true flag)
+            if (err.response.status === 403 && err.response.data?.planExpired) {
+                console.log(`⛔ [DENIED] Plan Expired for User #${deviceUserId}. Triggering machine voice/beep denial...`);
+                await triggerMachineDenial();
+            }
         } else {
             console.error(`⚠️ [NETWORK ERROR] Cloud API unreachable: ${err.message}`);
         }

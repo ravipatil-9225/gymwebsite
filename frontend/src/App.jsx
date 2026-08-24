@@ -55,6 +55,7 @@ import UserProfile from './pages/admin/UserProfile';
 import ProductsManager from './pages/admin/ProductsManager';
 import ProductsPage from './pages/ProductsPage';
 import InvoicesManager from './pages/admin/InvoicesManager';
+import BirthdayManager from './pages/admin/BirthdayManager';
 
 function App() {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '677200111519-ckd14p5oojhpfv0fn3sq4cf0sb98j3m4.apps.googleusercontent.com';
@@ -132,6 +133,7 @@ function App() {
                       <Route path="feedback" element={<FeedbackManager />} />
                       <Route path="documents" element={<DocumentsManager />} />
                       <Route path="cms" element={<CMSManager />} />
+                      <Route path="birthdays" element={<BirthdayManager />} />
                     </Route>
                   </Route>
 

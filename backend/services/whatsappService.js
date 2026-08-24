@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const { sendWithMsg91Fallback } = require('./msg91WhatsappService');
 
 const WHATSAPP_API_URL = 'https://graph.facebook.com/v19.0';
 
@@ -49,28 +50,35 @@ async function sendWhatsAppTemplate(to, templateName, components = []) {
 
     console.log(`[WHATSAPP] Sending "${templateName}" to ${formattedNumber}...`);
 
-    const response = await fetch(`${WHATSAPP_API_URL}/${phoneId}/messages`, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(body)
-    });
-
-    const data = await response.json();
-
-    if (data.error) {
-        console.error(`[WHATSAPP] ❌ Meta API error for "${templateName}": ${data.error.message} (code: ${data.error.code}, fbtrace: ${data.error.fbtrace_id})`);
-        const err = new Error(`WhatsApp API Error: ${data.error.message}`);
-        err.metaError = data.error;
-        err.metaErrorCode = data.error.code;
-        throw err;
-    }
-
-    const messageId = data.messages && data.messages[0] ? data.messages[0].id : null;
-    console.log(`[WHATSAPP] ✅ "${templateName}" sent to ${formattedNumber} — wamid: ${messageId}`);
-    return { success: true, messageId, formattedNumber, templateUsed: templateName };
+    // ── Try MSG91 first, fall back to direct Meta Cloud API ──
+    return await sendWithMsg91Fallback(
+        formattedNumber,
+        templateName,
+        components,
+        async () => {
+            // Meta Cloud API fallback
+            console.log(`[WHATSAPP] 🔄 Using Meta Cloud API fallback for "${templateName}"`);
+            const response = await fetch(`${WHATSAPP_API_URL}/${phoneId}/messages`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(body)
+            });
+            const data = await response.json();
+            if (data.error) {
+                console.error(`[WHATSAPP] ❌ Meta API error for "${templateName}": ${data.error.message} (code: ${data.error.code})`);
+                const err = new Error(`WhatsApp API Error: ${data.error.message}`);
+                err.metaError = data.error;
+                err.metaErrorCode = data.error.code;
+                throw err;
+            }
+            const messageId = data.messages && data.messages[0] ? data.messages[0].id : null;
+            console.log(`[WHATSAPP] ✅ Meta fallback sent "${templateName}" to ${formattedNumber} — wamid: ${messageId}`);
+            return { success: true, messageId, formattedNumber, templateUsed: templateName, provider: 'meta' };
+        }
+    );
 }
 
 /**
