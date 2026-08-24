@@ -29,7 +29,11 @@ const paymentSchema = new mongoose.Schema({
     discountType: { type: String, enum: ['percentage', 'flat'] },
     finalAmount: { type: Number },
     startDate: { type: Date },
-    expiryDate: { type: Date }
+    expiryDate: { type: Date },
+    // Dedup guards for the pay_later reminder cron (paymentMonitor.js) so a reminder
+    // is sent at most once even if the cron runs twice, and is not lost if a day is skipped.
+    expiryReminder2Sent: { type: Boolean, default: false },
+    overdueReminderSent: { type: Boolean, default: false }
 });
 
 module.exports = mongoose.model('Payment', paymentSchema);

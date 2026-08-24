@@ -1,7 +1,10 @@
 const User = require('../models/User');
-const { sendWithMsg91Fallback } = require('./msg91WhatsappService');
 
 const WHATSAPP_API_URL = 'https://graph.facebook.com/v19.0';
+
+// ── Tunables (override via env if ever needed) ──
+const SEND_TIMEOUT_MS = Number(process.env.WHATSAPP_SEND_TIMEOUT_MS) || 15000; // per HTTP attempt
+const MAX_SEND_ATTEMPTS = Number(process.env.WHATSAPP_MAX_ATTEMPTS) || 3;       // in-call attempts for transient errors
 
 // Meta error codes that mean the template is not yet usable
 const TEMPLATE_NOT_READY_CODES = [
@@ -10,9 +13,70 @@ const TEMPLATE_NOT_READY_CODES = [
     132005, // Template rejected
 ];
 
+// Meta/auth error codes that will NEVER succeed on an immediate retry — fail fast,
+// do NOT waste attempts, and let the caller mark them for human attention.
+const PERMANENT_ERROR_CODES = [
+    190,    // Access token expired / invalid (needs a new token — cannot self-heal)
+    131026, // Message undeliverable (recipient not on WhatsApp / cannot receive)
+    131047, // Re-engagement message outside allowed window
+    131051, // Unsupported message type
+    131052, // Media download error
+    100,    // Invalid parameter (bad payload — retrying won't help)
+    ...TEMPLATE_NOT_READY_CODES, // handled by fallback; if fallback also fails it's permanent
+];
+
+// Transient codes — safe and worth retrying with backoff.
+const TRANSIENT_ERROR_CODES = [
+    130429, // Rate limit hit
+    131056, // Pair rate limit (too many messages to this number in a short time)
+    368,    // Temporarily blocked for policy (often clears)
+    80007,  // Rate limit issues
+    132015, // Template paused (temporary)
+    1,      // Unknown / temporary API error
+    2,      // Service temporarily unavailable
+    4,      // Application request limit reached
+];
+
+const isAuthError = (code) => Number(code) === 190 || Number(code) === 0;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Validate that the WhatsApp credentials exist. Called once at startup so a
+ * misconfigured deploy fails LOUD instead of silently dropping every message.
+ * Returns true if config looks usable.
+ */
+function validateWhatsAppConfig() {
+    const token = process.env.WHATSAPP_TOKEN;
+    const phoneId = process.env.WHATSAPP_PHONE_ID;
+    if (!token || !phoneId) {
+        console.error('══════════════════════════════════════════════════════════════');
+        console.error('[WHATSAPP] ❌ CRITICAL: WHATSAPP_TOKEN or WHATSAPP_PHONE_ID is MISSING.');
+        console.error('[WHATSAPP]    Every automated/scheduled/reminder message WILL be dropped.');
+        console.error('[WHATSAPP]    Set both in the environment and redeploy.');
+        console.error('══════════════════════════════════════════════════════════════');
+        return false;
+    }
+    console.log(`[WHATSAPP] ✅ Config OK — phoneId set, token length ${token.length}.`);
+    return true;
+}
+
+/** POST to Meta with a hard timeout so a hung connection can never stall a cron loop. */
+async function postToMeta(url, options, timeoutMs = SEND_TIMEOUT_MS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { ...options, signal: controller.signal });
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 /**
  * Core helper — sends a WhatsApp template and returns the result.
- * Throws on error so callers can handle it.
+ * Retries TRANSIENT failures (network/abort/HTTP 429·5xx/Meta rate-limit) with
+ * exponential backoff; fails fast on PERMANENT errors. Throws on final failure so
+ * callers can handle/log it. Thrown errors carry:
+ *   err.metaError, err.metaErrorCode, err.isRetryable, err.isAuthError
  */
 async function sendWhatsAppTemplate(to, templateName, components = []) {
     const token = process.env.WHATSAPP_TOKEN;
@@ -48,17 +112,17 @@ async function sendWhatsAppTemplate(to, templateName, components = []) {
         }
     };
 
-    console.log(`[WHATSAPP] Sending "${templateName}" to ${formattedNumber}...`);
+    const url = `${WHATSAPP_API_URL}/${phoneId}/messages`;
+    let lastError = null;
 
-    // ── Try MSG91 first, fall back to direct Meta Cloud API ──
-    return await sendWithMsg91Fallback(
-        formattedNumber,
-        templateName,
-        components,
-        async () => {
-            // Meta Cloud API fallback
-            console.log(`[WHATSAPP] 🔄 Using Meta Cloud API fallback for "${templateName}"`);
-            const response = await fetch(`${WHATSAPP_API_URL}/${phoneId}/messages`, {
+    // ── Send directly via Meta Cloud API — the single, proven delivery path ──
+    // (This is the exact path that manual/test messages use, so automated,
+    //  scheduled, reminder and event-triggered messages now behave identically.)
+    for (let attempt = 1; attempt <= MAX_SEND_ATTEMPTS; attempt++) {
+        try {
+            console.log(`[WHATSAPP] Sending "${templateName}" to ${formattedNumber}... (attempt ${attempt}/${MAX_SEND_ATTEMPTS})`);
+
+            const response = await postToMeta(url, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -66,19 +130,88 @@ async function sendWhatsAppTemplate(to, templateName, components = []) {
                 },
                 body: JSON.stringify(body)
             });
+
+            // HTTP-level transient failure (rate limit / server error) → retry
+            if (response.status === 429 || response.status >= 500) {
+                lastError = Object.assign(new Error(`Meta HTTP ${response.status}`), {
+                    metaErrorCode: response.status, isRetryable: true
+                });
+                if (attempt < MAX_SEND_ATTEMPTS) {
+                    const wait = backoffMs(attempt);
+                    console.warn(`[WHATSAPP] ⚠️ HTTP ${response.status} from Meta — retrying in ${wait}ms`);
+                    await sleep(wait);
+                    continue;
+                }
+                throw lastError;
+            }
+
             const data = await response.json();
+
             if (data.error) {
-                console.error(`[WHATSAPP] ❌ Meta API error for "${templateName}": ${data.error.message} (code: ${data.error.code})`);
+                const code = Number(data.error.code);
                 const err = new Error(`WhatsApp API Error: ${data.error.message}`);
                 err.metaError = data.error;
-                err.metaErrorCode = data.error.code;
+                err.metaErrorCode = code;
+                err.isAuthError = isAuthError(code);
+                err.isRetryable = TRANSIENT_ERROR_CODES.includes(code) && !PERMANENT_ERROR_CODES.includes(code);
+
+                if (err.isAuthError) {
+                    console.error('══════════════════════════════════════════════════════════════');
+                    console.error(`[WHATSAPP] 🔑 AUTH FAILURE (code ${code}): ${data.error.message}`);
+                    console.error('[WHATSAPP]    The WHATSAPP_TOKEN is expired or invalid. ALL sends will fail');
+                    console.error('[WHATSAPP]    until a fresh Meta token is deployed. Generate a permanent');
+                    console.error('[WHATSAPP]    System User token and update WHATSAPP_TOKEN, then redeploy.');
+                    console.error('══════════════════════════════════════════════════════════════');
+                    throw err; // never retry an auth failure
+                }
+
+                if (err.isRetryable && attempt < MAX_SEND_ATTEMPTS) {
+                    const wait = backoffMs(attempt);
+                    console.warn(`[WHATSAPP] ⚠️ Transient Meta error ${code} ("${data.error.message}") — retrying in ${wait}ms`);
+                    lastError = err;
+                    await sleep(wait);
+                    continue;
+                }
+
+                console.error(`[WHATSAPP] ❌ Meta API error for "${templateName}": ${data.error.message} (code: ${code}, fbtrace: ${data.error.fbtrace_id || 'n/a'})`);
                 throw err;
             }
+
             const messageId = data.messages && data.messages[0] ? data.messages[0].id : null;
-            console.log(`[WHATSAPP] ✅ Meta fallback sent "${templateName}" to ${formattedNumber} — wamid: ${messageId}`);
+            console.log(`[WHATSAPP] ✅ Sent "${templateName}" to ${formattedNumber} — wamid: ${messageId}`);
             return { success: true, messageId, formattedNumber, templateUsed: templateName, provider: 'meta' };
+
+        } catch (err) {
+            // Network error, DNS, or AbortController timeout → transient, retry
+            const networkish = err.name === 'AbortError' || err.name === 'FetchError' ||
+                err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT' || err.code === 'ENOTFOUND' ||
+                err.code === 'ECONNREFUSED' || err.code === 'EAI_AGAIN' || /fetch failed|network|timeout/i.test(err.message || '');
+
+            // A classified Meta error (has metaErrorCode) that we decided to throw = final
+            if (err.metaErrorCode !== undefined && !networkish) {
+                throw err;
+            }
+
+            lastError = Object.assign(err, { isRetryable: true });
+            if (attempt < MAX_SEND_ATTEMPTS) {
+                const wait = backoffMs(attempt);
+                console.warn(`[WHATSAPP] ⚠️ Network/timeout error ("${err.message}") — retrying in ${wait}ms`);
+                await sleep(wait);
+                continue;
+            }
+            console.error(`[WHATSAPP] ❌ Network error sending "${templateName}" after ${MAX_SEND_ATTEMPTS} attempts: ${err.message}`);
+            throw lastError;
         }
-    );
+    }
+
+    // Exhausted attempts on HTTP/transient path
+    throw lastError || new Error('WhatsApp send failed after retries');
+}
+
+/** Exponential backoff with jitter: ~1s, ~3s, ~7s ... */
+function backoffMs(attempt) {
+    const base = Math.min(1000 * (2 ** attempt - 1), 30000);
+    return base + Math.floor(Math.random() * 400);
 }
 
 /**
@@ -377,3 +510,6 @@ exports.sendExpiredAlert = async ({ name, email, planName }) => {
         }
     ]);
 };
+
+// Startup config validator (see index.js) — fail loud if credentials are missing.
+exports.validateWhatsAppConfig = validateWhatsAppConfig;

@@ -24,8 +24,9 @@ const rateLimit = require('express-rate-limit');
 
 const connectDB = require('./config/db');
 const socket = require('./socket');
-const { startMembershipReminderCron } = require('./cron/membershipReminder');
-const { startPaymentMonitorCron } = require('./cron/paymentMonitor');
+const cron = require('node-cron');
+const { startMembershipReminderCron, runMembershipReminderLogic } = require('./cron/membershipReminder');
+const { startPaymentMonitorCron, runPaymentMonitorLogic } = require('./cron/paymentMonitor');
 const whatsappService = require('./services/whatsappService');
 const notificationEmitter = require('./events/notificationEmitter');
 // Models (for public routes and admin triggers)
@@ -414,8 +415,59 @@ httpServer.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`🛡️  Security: Helmet + Rate Limiting + NoSQL Sanitizer active`);
     console.log(`🔧 Error Handler: Global crash protection active`);
-    // Initialize notification engine AFTER server starts (DB is connected)
-    require('./services/notificationEngine');
+
+    // ── WhatsApp pipeline bootstrap ──
+    // 1. Fail LOUD at boot if credentials are missing (otherwise every send silently drops).
+    whatsappService.validateWhatsAppConfig();
+
+    // 2. Initialize notification engine AFTER server starts (DB is connected).
+    const { retryFailedNotifications } = require('./services/notificationEngine');
+
+    // 3. Register the daily reminder crons (9:00 AM IST).
     startMembershipReminderCron();
     startPaymentMonitorCron();
+
+    // 4. Retry sweeper — re-sends transient/network/rate-limit failures on a backoff.
+    //    Runs every 15 minutes so no genuinely-deliverable message is lost.
+    cron.schedule('*/15 * * * *', () => {
+        retryFailedNotifications().catch((e) => console.error('[CRON] Retry sweeper error:', e.message));
+    });
+    console.log('📅 Failed-notification retry sweeper registered (every 15 min).');
+
+    // 5. Startup catch-up — on Render free tier the instance sleeps and node-cron cannot
+    //    fire while asleep, so a scheduled 9 AM run can be missed entirely. Running the
+    //    reminder logic once shortly after boot recovers those missed sends. This is SAFE
+    //    to run anytime because every reminder is guarded by a dedup flag (reminder7Sent,
+    //    reminder3Sent, reminderExpirySent, expiryReminder2Sent, overdueReminderSent).
+    if (process.env.DISABLE_STARTUP_CATCHUP !== 'true') {
+        setTimeout(async () => {
+            try {
+                console.log('[STARTUP] Running reminder catch-up (recovers runs missed while asleep)...');
+                await runMembershipReminderLogic();
+                await runPaymentMonitorLogic();
+                await retryFailedNotifications();
+                console.log('[STARTUP] ✅ Catch-up complete.');
+            } catch (e) {
+                console.error('[STARTUP] Catch-up error:', e.message);
+            }
+        }, 20000); // wait 20s so DB + listeners are fully warm
+    }
+
+    // 6. Optional keepalive — if KEEPALIVE_URL is set (e.g. the service's own /api/health),
+    //    self-ping every ~14 min to keep a free-tier instance awake so the 9 AM cron fires.
+    //    NOTE: the most reliable option is still an EXTERNAL uptime pinger (e.g. cron-job.org
+    //    or UptimeRobot) hitting /api/health every 5–10 min; the self-ping only helps while
+    //    the instance is already awake and is a best-effort fallback.
+    if (process.env.KEEPALIVE_URL) {
+        const keepAliveUrl = process.env.KEEPALIVE_URL;
+        setInterval(async () => {
+            try {
+                const r = await fetch(keepAliveUrl);
+                console.log(`[KEEPALIVE] Pinged ${keepAliveUrl} → ${r.status}`);
+            } catch (e) {
+                console.warn('[KEEPALIVE] Ping failed:', e.message);
+            }
+        }, 14 * 60 * 1000);
+        console.log(`📡 Keepalive self-ping enabled → ${keepAliveUrl} (every 14 min).`);
+    }
 });

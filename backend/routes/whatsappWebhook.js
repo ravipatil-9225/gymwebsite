@@ -134,16 +134,35 @@ router.post('/', (req, res) => {
                     });
                 }
 
-                // ── Message Status Updates (sent, delivered, read) ──
+                // ── Message Status Updates (sent, delivered, read, failed) ──
                 if (value.statuses) {
                     value.statuses.forEach(async (status) => {
                         console.log(`📊 WhatsApp status: Message to ${status.recipient_id} → ${status.status} (ID: ${status.id})`);
                         try {
-                            if (status.id) {
-                                await NotificationLog.findOneAndUpdate(
-                                    { messageId: status.id },
-                                    { status: status.status }
-                                );
+                            if (!status.id) return;
+                            const doc = await NotificationLog.findOne({ messageId: status.id });
+                            if (!doc) return;
+
+                            if (status.status === 'failed') {
+                                // Delivery failed at Meta AFTER the API accepted it. Record the reason,
+                                // but tag source:'webhook' so the retry sweeper does NOT re-send it
+                                // (resending to a number that can't receive would only spam).
+                                doc.status = 'failed';
+                                doc.metaError = { source: 'webhook', errors: status.errors || [] };
+                                if (status.errors && status.errors[0]) {
+                                    console.warn(`[WEBHOOK] ❌ Delivery failed for ${status.recipient_id}: ${status.errors[0].title || status.errors[0].message || 'unknown'}`);
+                                }
+                                await doc.save();
+                            } else {
+                                // Only advance forward (sent → delivered → read). Meta can deliver
+                                // status events out of order; never downgrade a terminal 'read'.
+                                const RANK = { pending: 0, sent: 1, delivered: 2, read: 3 };
+                                const nextRank = RANK[status.status];
+                                const curRank = RANK[doc.status];
+                                if (nextRank !== undefined && (curRank === undefined || nextRank > curRank)) {
+                                    doc.status = status.status;
+                                    await doc.save();
+                                }
                             }
                         } catch (err) {
                             console.error('Error updating notification log:', err);

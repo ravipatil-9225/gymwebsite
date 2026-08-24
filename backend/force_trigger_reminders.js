@@ -35,7 +35,7 @@ async function forceTriggerReminders() {
             const overduePayments = await Payment.find({
                 email: user.email,
                 verificationStatus: 'pending', // standard pending is pay-later
-                paymentMethod: 'pay-later'
+                paymentMethod: 'pay_later'
             });
 
             for (const payment of overduePayments) {

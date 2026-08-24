@@ -8,6 +8,7 @@ const Membership = require('../models/Membership');
 const { sendExpiryReminder } = require('../services/emailService');
 const notificationEmitter = require('../events/notificationEmitter');
 const User = require('../models/User');
+const { daysUntilIST, sleep } = require('../utils/dateUtils');
 
 const runMembershipReminderLogic = async () => {
     console.log('🕒 Running membership expiry reminder cron job...');
@@ -19,8 +20,10 @@ const runMembershipReminderLogic = async () => {
             let processed = 0;
 
             for (const membership of memberships) {
-                const msLeft = new Date(membership.endDate) - now;
-                const daysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
+              // Per-record isolation: a single bad membership must not abort the whole batch.
+              try {
+                // Whole days left on IST calendar boundaries (server clock is UTC on Render).
+                const daysLeft = daysUntilIST(membership.endDate, now);
 
                 // Mark expired
                 if (daysLeft <= 0) {
@@ -84,6 +87,12 @@ const runMembershipReminderLogic = async () => {
                     console.log(`📅 7-day reminder email & WhatsApp sent to ${membership.userEmail}`);
                     processed++;
                 }
+              } catch (recErr) {
+                    console.error(`❌ Skipping membership ${membership?._id} (${membership?.userEmail}) due to error:`, recErr.message);
+              }
+
+              // Gentle spacing so a big same-day batch never bursts past Meta's rate limit.
+              await sleep(300);
             }
 
             console.log(`✅ Cron job complete. Processed ${processed} membership reminder(s).`);
@@ -93,7 +102,7 @@ const runMembershipReminderLogic = async () => {
     };
 
 const startMembershipReminderCron = () => {
-    cron.schedule('30 3 * * *', runMembershipReminderLogic, {
+    cron.schedule('0 9 * * *', runMembershipReminderLogic, {
         timezone: 'Asia/Kolkata'
     });
 
