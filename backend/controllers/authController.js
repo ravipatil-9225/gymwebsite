@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const emailService = require('../services/emailService');
-const whatsappService = require('../services/whatsappService');
+const notificationEmitter = require('../events/notificationEmitter');
 const socket = require('../socket');
 const { compressProfileImage, uploadToCloudinary, deleteFromCloudinary } = require('../utils/imageHandler');
 
@@ -40,7 +40,10 @@ const registerUser = async (req, res) => {
 
         emailService.sendWelcomeEmail(user).catch(console.error);
         emailService.sendAdminNewUserAlert(user).catch(console.error);
-        whatsappService.sendWelcomeMessage(user).catch(console.error);
+        // Route the welcome through the event pipeline (like admin-created users) so it is
+        // logged in NotificationLog and retried by the sweeper if Meta hiccups. The user's
+        // phone was regex-validated above, so this message is deliverable.
+        notificationEmitter.emit('user_registered', { user });
 
         res.status(201).json({
             token,
@@ -132,7 +135,10 @@ const googleAuth = async (req, res) => {
 
             emailService.sendGoogleWelcomeEmail(user).catch(console.error);
             emailService.sendAdminGoogleUserAlert(user).catch(console.error);
-            whatsappService.sendWelcomeMessage(user).catch(console.error);
+            // Route through the event pipeline for logging + retry parity. Google sign-ups
+            // start with a placeholder phone (0000000000), so this will be classified as a
+            // permanent_failure until they add a real number — recorded rather than swallowed.
+            notificationEmitter.emit('user_registered', { user });
 
         } else {
             if (isAdminEmail(email) && user.role !== 'admin') {
