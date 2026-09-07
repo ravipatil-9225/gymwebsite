@@ -129,7 +129,7 @@ router.post('/biometric-punch', async (req, res) => {
         }
 
         // ── Step 1: Find the member linked to this biometric ID ──────────────
-        const user = await User.findOne({ biometricCardId: String(deviceUserId) })
+        const user = await User.findOne({ biometricCardId: String(deviceUserId).trim() })
             .select('name email phone batchTime');
         if (!user) {
             console.warn(`⛔ [BIOMETRIC] Unknown Biometric ID: ${deviceUserId} — not linked to any member.`);
