@@ -140,15 +140,16 @@ router.post('/biometric-punch', async (req, res) => {
         }
 
         // ── Step 2: Daily plan expiry check ──────────────────────────────────
-        // Build today's start-of-day in IST so we can compare against endDate.
-        // This runs on EVERY punch — plan expiry is per-day, not just month-end.
-        const todayDateStr = todayIST(); // "YYYY-MM-DD"
+        // Determine the actual date of the punch in IST (uses punch timestamp if available)
+        const checkInTime = timestamp ? new Date(timestamp) : new Date();
+        const istPunch = new Date(checkInTime.getTime() + (5.5 * 60 * 60 * 1000));
+        const todayDateStr = istPunch.toISOString().slice(0, 10); // "YYYY-MM-DD"
         const todayMidnightIST = new Date(`${todayDateStr}T00:00:00+05:30`);
 
         const activeMembership = await Membership.findOne({
             userId: user._id,
             status: 'active',
-            endDate: { $gte: todayMidnightIST }   // plan must still be valid today
+            endDate: { $gte: todayMidnightIST }   // plan must still be valid on the punch date
         }).sort({ endDate: -1 });                  // pick the latest one if multiple
 
         if (!activeMembership) {
@@ -175,8 +176,6 @@ router.post('/biometric-punch', async (req, res) => {
         }
 
         // ── Step 3: Mark attendance ───────────────────────────────────────────
-        const checkInTime = timestamp ? new Date(timestamp) : new Date();
-
         let record = await Attendance.findOne({ userId: user._id, date: todayDateStr });
         let alreadyCheckedIn = false;
 
