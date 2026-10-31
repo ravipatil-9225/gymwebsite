@@ -1,8 +1,19 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import socket from '../../utils/socket';
 import { Link } from 'react-router-dom';
-import { Trash2, Edit, X, User, Phone, Mail, Calendar, Package, Clock, CheckCircle, XCircle, Search, History, RefreshCw } from 'lucide-react';
+import {
+    Trash2, Edit, X, User, Phone, Mail, Calendar, Package, Clock, CheckCircle,
+    XCircle, Search, History, RefreshCw, Download, FileText, ChevronDown, Filter, Check, Loader2
+} from 'lucide-react';
+import {
+    filterUsersByCategoryAndTime,
+    getCategoryReportCounts,
+    downloadUserReportDOC,
+    downloadUserReportPDF,
+    CATEGORY_CONFIG,
+    TIMEFRAME_CONFIG
+} from '../../utils/userReportExport';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 const fmt = (dateStr) => {
@@ -69,6 +80,12 @@ const UserManagement = () => {
     const [search, setSearch] = useState('');
     const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'alpha-asc' | 'alpha-desc'
 
+    // ── Interactive Category & Timeframe Filters ──────────────────────────────
+    const [categoryFilter, setCategoryFilter] = useState('all'); // 'all' | 'active' | 'expired' | 'no-plan'
+    const [timeFilter, setTimeFilter] = useState('all'); // 'all' | 'weekly' | 'monthly'
+    const [openDownloadMenu, setOpenDownloadMenu] = useState(null); // category id or 'table' or null
+    const [downloading, setDownloading] = useState(false);
+
     // ── Renew / Assign Membership ────────────────────────────────────────────
     const [renewalUser, setRenewalUser] = useState(null);
     const [packages, setPackages] = useState([]);
@@ -84,11 +101,27 @@ const UserManagement = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setUsers(data);
-            setFiltered(data);
             if (!silent) setLoading(false);
         } catch (err) {
             console.error('Failed to fetch users', err);
             if (!silent) setLoading(false);
+        }
+    };
+
+    const handleDownloadReport = async (category, timeRange, format) => {
+        setDownloading(`${format.toUpperCase()} (${timeRange})`);
+        try {
+            if (format === 'doc') {
+                downloadUserReportDOC({ users, category, timeRange });
+            } else if (format === 'pdf') {
+                await downloadUserReportPDF({ users, category, timeRange });
+            }
+        } catch (err) {
+            console.error('Download report error:', err);
+            alert(`Failed to download ${format.toUpperCase()} report: ${err.message || 'Unknown error'}`);
+        } finally {
+            setDownloading(false);
+            setOpenDownloadMenu(null);
         }
     };
 
@@ -140,9 +173,12 @@ const UserManagement = () => {
         };
     }, [editingUser, addingUser, renewalUser]);
 
-    // Live search and sorting
+    // Live search, category, timeframe, and sorting
     useEffect(() => {
-        let result = [...users];
+        // 1. Filter by Category & Timeframe
+        let result = filterUsersByCategoryAndTime(users, categoryFilter, timeFilter);
+
+        // 2. Filter by live search query
         if (search.trim()) {
             const q = search.toLowerCase();
             result = result.filter(u =>
@@ -154,7 +190,7 @@ const UserManagement = () => {
             );
         }
 
-        // Apply sorting
+        // 3. Apply sorting
         if (sortBy === 'alpha-asc') {
             result.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         } else if (sortBy === 'alpha-desc') {
@@ -164,7 +200,7 @@ const UserManagement = () => {
         }
 
         setFiltered(result);
-    }, [search, users, sortBy]);
+    }, [search, users, sortBy, categoryFilter, timeFilter]);
 
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to delete this user?')) return;
@@ -272,19 +308,403 @@ const UserManagement = () => {
                 </div>
             </div>
 
-            {/* Stats bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {[
-                    { label: 'Total Users', value: users.length, color: 'blue' },
-                    { label: 'Active Plans', value: users.filter(u => u.latestMembership && getRemainingDays(u.latestMembership.endDate) > 0).length, color: 'green' },
-                    { label: 'Expired Plans', value: users.filter(u => u.latestMembership && getRemainingDays(u.latestMembership.endDate) <= 0).length, color: 'red' },
-                    { label: 'No Plan', value: users.filter(u => !u.latestMembership).length, color: 'gray' },
-                ].map(({ label, value, color }) => (
-                    <div key={label} className={`bg-${color}-50 border border-${color}-100 rounded-xl p-3`}>
-                        <p className={`text-2xl font-bold text-${color}-700`}>{value}</p>
-                        <p className={`text-xs text-${color}-600 mt-0.5`}>{label}</p>
+            {/* Background overlay for open export dropdowns */}
+            {openDownloadMenu && (
+                <div
+                    className="fixed inset-0 z-40 bg-black/10 transition-opacity"
+                    onClick={() => setOpenDownloadMenu(null)}
+                />
+            )}
+
+            {/* Downloading feedback toast */}
+            {downloading && (
+                <div className="fixed bottom-6 right-6 z-50 bg-gray-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-gray-700 animate-pulse">
+                    <Loader2 className="w-5 h-5 animate-spin text-blue-400 shrink-0" />
+                    <div>
+                        <p className="text-xs font-bold">Generating {downloading} Report...</p>
+                        <p className="text-[10px] text-gray-400">Formatting real-time member records</p>
                     </div>
-                ))}
+                </div>
+            )}
+
+            {/* Stats bar with Interactive Filters & Separately Downloadable Reports */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {[
+                    {
+                        id: 'all',
+                        label: 'Total Users',
+                        value: users.length,
+                        color: 'blue',
+                        bg: 'bg-blue-50/80',
+                        border: 'border-blue-100',
+                        text: 'text-blue-700',
+                        subtext: 'text-blue-600',
+                        activeStyle: 'ring-2 ring-blue-500 border-blue-400 bg-blue-100/70 shadow-md',
+                        counts: getCategoryReportCounts(users, 'all')
+                    },
+                    {
+                        id: 'active',
+                        label: 'Active Plans',
+                        value: users.filter(u => u.latestMembership && getRemainingDays(u.latestMembership.endDate) > 0).length,
+                        color: 'green',
+                        bg: 'bg-green-50/80',
+                        border: 'border-green-100',
+                        text: 'text-green-700',
+                        subtext: 'text-green-600',
+                        activeStyle: 'ring-2 ring-green-500 border-green-400 bg-green-100/70 shadow-md',
+                        counts: getCategoryReportCounts(users, 'active')
+                    },
+                    {
+                        id: 'expired',
+                        label: 'Expired Plans',
+                        value: users.filter(u => u.latestMembership && getRemainingDays(u.latestMembership.endDate) <= 0).length,
+                        color: 'red',
+                        bg: 'bg-red-50/80',
+                        border: 'border-red-100',
+                        text: 'text-red-700',
+                        subtext: 'text-red-600',
+                        activeStyle: 'ring-2 ring-red-500 border-red-400 bg-red-100/70 shadow-md',
+                        counts: getCategoryReportCounts(users, 'expired')
+                    },
+                    {
+                        id: 'no-plan',
+                        label: 'No Plan',
+                        value: users.filter(u => !u.latestMembership).length,
+                        color: 'gray',
+                        bg: 'bg-gray-50/90',
+                        border: 'border-gray-200',
+                        text: 'text-gray-700',
+                        subtext: 'text-gray-600',
+                        activeStyle: 'ring-2 ring-gray-600 border-gray-400 bg-gray-200/80 shadow-md',
+                        counts: getCategoryReportCounts(users, 'no-plan')
+                    },
+                ].map((card) => {
+                    const isSelected = categoryFilter === card.id;
+
+                    return (
+                        <div
+                            key={card.id}
+                            onClick={() => {
+                                if (categoryFilter === card.id && card.id !== 'all') {
+                                    setCategoryFilter('all');
+                                } else {
+                                    setCategoryFilter(card.id);
+                                }
+                            }}
+                            className={`relative rounded-xl p-3.5 transition-all cursor-pointer border ${card.bg} ${card.border} ${
+                                isSelected ? card.activeStyle : 'hover:shadow-md hover:border-gray-300'
+                            }`}
+                        >
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <p className={`text-2xl sm:text-3xl font-extrabold ${card.text}`}>{card.value}</p>
+                                    <p className={`text-xs font-semibold ${card.subtext} mt-0.5 flex items-center gap-1.5`}>
+                                        {card.label}
+                                        {isSelected && (
+                                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 bg-white text-gray-800 rounded-full shadow-xs border border-gray-200">
+                                                <Check className="w-2.5 h-2.5 text-blue-600" /> Active Filter
+                                            </span>
+                                        )}
+                                    </p>
+                                </div>
+
+                                {/* Download Popover Trigger */}
+                                <div className="relative">
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setOpenDownloadMenu(openDownloadMenu === card.id ? null : card.id);
+                                        }}
+                                        title={`Download ${card.label} details in PDF or DOC`}
+                                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-white/95 hover:bg-white text-gray-700 border border-gray-200 shadow-xs hover:shadow transition-all"
+                                    >
+                                        <Download className="w-3.5 h-3.5 text-gray-600" />
+                                        <span className="text-[11px]">Download</span>
+                                        <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${openDownloadMenu === card.id ? 'rotate-180' : ''}`} />
+                                    </button>
+
+                                    {/* Download Menu */}
+                                    {openDownloadMenu === card.id && (
+                                        <div
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="absolute right-0 top-full mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 p-3.5 z-50 text-left animate-in fade-in zoom-in-95 duration-150"
+                                        >
+                                            <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-gray-100">
+                                                <div>
+                                                    <p className="text-xs font-bold text-gray-900">{card.label} Reports</p>
+                                                    <p className="text-[10px] text-gray-500">Download formatted table (.pdf / .doc)</p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setOpenDownloadMenu(null)}
+                                                    className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100"
+                                                >
+                                                    <X className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                {/* Weekly */}
+                                                <div className="bg-gray-50 rounded-lg p-2 border border-gray-100">
+                                                    <div className="flex items-center justify-between mb-1.5">
+                                                        <span className="text-xs font-semibold text-gray-800">
+                                                            📅 Weekly Details
+                                                        </span>
+                                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                                                            {card.counts.weekly} records
+                                                        </span>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-1.5">
+                                                        <button
+                                                            type="button"
+                                                            disabled={downloading}
+                                                            onClick={() => handleDownloadReport(card.id, 'weekly', 'pdf')}
+                                                            className="px-2 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-[11px] font-bold flex items-center justify-center gap-1 transition shadow-xs disabled:opacity-50"
+                                                        >
+                                                            <FileText className="w-3 h-3" /> PDF
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            disabled={downloading}
+                                                            onClick={() => handleDownloadReport(card.id, 'weekly', 'doc')}
+                                                            className="px-2 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-[11px] font-bold flex items-center justify-center gap-1 transition shadow-xs disabled:opacity-50"
+                                                        >
+                                                            <FileText className="w-3 h-3" /> DOC
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {/* Monthly */}
+                                                <div className="bg-gray-50 rounded-lg p-2 border border-gray-100">
+                                                    <div className="flex items-center justify-between mb-1.5">
+                                                        <span className="text-xs font-semibold text-gray-800">
+                                                            📆 Monthly Details
+                                                        </span>
+                                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                                                            {card.counts.monthly} records
+                                                        </span>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-1.5">
+                                                        <button
+                                                            type="button"
+                                                            disabled={downloading}
+                                                            onClick={() => handleDownloadReport(card.id, 'monthly', 'pdf')}
+                                                            className="px-2 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-[11px] font-bold flex items-center justify-center gap-1 transition shadow-xs disabled:opacity-50"
+                                                        >
+                                                            <FileText className="w-3 h-3" /> PDF
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            disabled={downloading}
+                                                            onClick={() => handleDownloadReport(card.id, 'monthly', 'doc')}
+                                                            className="px-2 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-[11px] font-bold flex items-center justify-center gap-1 transition shadow-xs disabled:opacity-50"
+                                                        >
+                                                            <FileText className="w-3 h-3" /> DOC
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {/* All Records */}
+                                                <div className="bg-gray-50 rounded-lg p-2 border border-gray-100">
+                                                    <div className="flex items-center justify-between mb-1.5">
+                                                        <span className="text-xs font-semibold text-gray-800">
+                                                            📋 All Records
+                                                        </span>
+                                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-700">
+                                                            {card.counts.all} records
+                                                        </span>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-1.5">
+                                                        <button
+                                                            type="button"
+                                                            disabled={downloading}
+                                                            onClick={() => handleDownloadReport(card.id, 'all', 'pdf')}
+                                                            className="px-2 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-[11px] font-bold flex items-center justify-center gap-1 transition shadow-xs disabled:opacity-50"
+                                                        >
+                                                            <FileText className="w-3 h-3" /> PDF
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            disabled={downloading}
+                                                            onClick={() => handleDownloadReport(card.id, 'all', 'doc')}
+                                                            className="px-2 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-[11px] font-bold flex items-center justify-center gap-1 transition shadow-xs disabled:opacity-50"
+                                                        >
+                                                            <FileText className="w-3 h-3" /> DOC
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Filter Status Bar with Timeframe Toggle & Quick Export */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-xs">
+                {/* Active filter pill & reset */}
+                <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-semibold text-gray-500">Filter View:</span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                        <Filter className="w-3 h-3" />
+                        {CATEGORY_CONFIG[categoryFilter]?.label || 'Total Users'}
+                        {timeFilter !== 'all' && (
+                            <span className="text-blue-500 font-normal">
+                                • {TIMEFRAME_CONFIG[timeFilter]?.label}
+                            </span>
+                        )}
+                        <span className="ml-1 px-1.5 py-0.2 bg-blue-200/60 rounded text-[10px]">
+                            {filtered.length} {filtered.length === 1 ? 'user' : 'users'}
+                        </span>
+                    </span>
+
+                    {(categoryFilter !== 'all' || timeFilter !== 'all' || search.trim()) && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setCategoryFilter('all');
+                                setTimeFilter('all');
+                                setSearch('');
+                            }}
+                            className="text-xs text-gray-500 hover:text-red-600 font-medium flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50 transition"
+                        >
+                            <X className="w-3 h-3" /> Clear Filters
+                        </button>
+                    )}
+                </div>
+
+                {/* Timeframe switch tabs & Table Export Button */}
+                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                    {/* Timeframe selector tabs */}
+                    <div className="inline-flex rounded-lg p-0.5 bg-gray-100 border border-gray-200 text-xs">
+                        {[
+                            { id: 'all', label: 'All Time' },
+                            { id: 'weekly', label: 'Weekly (7d)' },
+                            { id: 'monthly', label: 'Monthly (30d)' }
+                        ].map(tab => (
+                            <button
+                                key={tab.id}
+                                type="button"
+                                onClick={() => setTimeFilter(tab.id)}
+                                className={`px-2.5 py-1 rounded-md text-xs font-medium transition ${
+                                    timeFilter === tab.id
+                                        ? 'bg-white text-gray-900 font-bold shadow-xs'
+                                        : 'text-gray-600 hover:text-gray-900'
+                                }`}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Quick Export for Current View */}
+                    <div className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setOpenDownloadMenu(openDownloadMenu === 'table' ? null : 'table')}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-900 text-white hover:bg-gray-800 transition shadow-xs"
+                        >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>Export Details</span>
+                            <ChevronDown className="w-3 h-3 text-gray-400" />
+                        </button>
+
+                        {openDownloadMenu === 'table' && (
+                            <div
+                                onClick={(e) => e.stopPropagation()}
+                                className="absolute right-0 top-full mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 p-3.5 z-50 text-left animate-in fade-in zoom-in-95"
+                            >
+                                <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-100">
+                                    <div>
+                                        <p className="text-xs font-bold text-gray-900">
+                                            Export {CATEGORY_CONFIG[categoryFilter]?.label}
+                                        </p>
+                                        <p className="text-[10px] text-gray-500">Download formatted table (.pdf / .doc)</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setOpenDownloadMenu(null)}
+                                        className="text-gray-400 hover:text-gray-600 p-0.5"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <div className="bg-gray-50 rounded-lg p-2 border border-gray-100">
+                                        <p className="text-xs font-semibold text-gray-700 mb-1">📅 Weekly Details (Last 7 Days)</p>
+                                        <div className="grid grid-cols-2 gap-1.5">
+                                            <button
+                                                type="button"
+                                                disabled={downloading}
+                                                onClick={() => handleDownloadReport(categoryFilter, 'weekly', 'pdf')}
+                                                className="px-2 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-bold flex items-center justify-center gap-1 transition shadow-xs disabled:opacity-50"
+                                            >
+                                                <FileText className="w-3 h-3" /> PDF
+                                            </button>
+                                            <button
+                                                type="button"
+                                                disabled={downloading}
+                                                onClick={() => handleDownloadReport(categoryFilter, 'weekly', 'doc')}
+                                                className="px-2 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold flex items-center justify-center gap-1 transition shadow-xs disabled:opacity-50"
+                                            >
+                                                <FileText className="w-3 h-3" /> DOC
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-gray-50 rounded-lg p-2 border border-gray-100">
+                                        <p className="text-xs font-semibold text-gray-700 mb-1">📆 Monthly Details (Last 30 Days)</p>
+                                        <div className="grid grid-cols-2 gap-1.5">
+                                            <button
+                                                type="button"
+                                                disabled={downloading}
+                                                onClick={() => handleDownloadReport(categoryFilter, 'monthly', 'pdf')}
+                                                className="px-2 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-bold flex items-center justify-center gap-1 transition shadow-xs disabled:opacity-50"
+                                            >
+                                                <FileText className="w-3 h-3" /> PDF
+                                            </button>
+                                            <button
+                                                type="button"
+                                                disabled={downloading}
+                                                onClick={() => handleDownloadReport(categoryFilter, 'monthly', 'doc')}
+                                                className="px-2 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold flex items-center justify-center gap-1 transition shadow-xs disabled:opacity-50"
+                                            >
+                                                <FileText className="w-3 h-3" /> DOC
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-gray-50 rounded-lg p-2 border border-gray-100">
+                                        <p className="text-xs font-semibold text-gray-700 mb-1">📋 All Records ({filtered.length})</p>
+                                        <div className="grid grid-cols-2 gap-1.5">
+                                            <button
+                                                type="button"
+                                                disabled={downloading}
+                                                onClick={() => handleDownloadReport(categoryFilter, 'all', 'pdf')}
+                                                className="px-2 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-bold flex items-center justify-center gap-1 transition shadow-xs disabled:opacity-50"
+                                            >
+                                                <FileText className="w-3 h-3" /> PDF
+                                            </button>
+                                            <button
+                                                type="button"
+                                                disabled={downloading}
+                                                onClick={() => handleDownloadReport(categoryFilter, 'all', 'doc')}
+                                                className="px-2 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold flex items-center justify-center gap-1 transition shadow-xs disabled:opacity-50"
+                                            >
+                                                <FileText className="w-3 h-3" /> DOC
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
 
             {/* Table */}
@@ -417,9 +837,18 @@ const UserManagement = () => {
 
                                         {/* Plan name */}
                                         <td className="px-4 py-3 whitespace-nowrap">
-                                            {m
-                                                ? <span className="font-medium text-gray-800">{m.packageName}</span>
-                                                : <span className="text-gray-300 text-xs">No Plan</span>}
+                                            {m ? (
+                                                <div>
+                                                    <span className="font-medium text-gray-800">{m.packageName}</span>
+                                                    {m.amountPaid != null && (
+                                                        <span className="block text-[11px] font-bold text-emerald-600">
+                                                            ₹{Number(m.amountPaid).toLocaleString('en-IN')}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span className="text-gray-300 text-xs">No Plan</span>
+                                            )}
                                         </td>
 
                                         {/* Start date */}
@@ -452,7 +881,7 @@ const UserManagement = () => {
                                                         });
                                                         setUsers(prev => prev.map(u => u._id === user._id ? { ...u, allowPendingPayment: data.user.allowPendingPayment } : u));
                                                         setFiltered(prev => prev.map(u => u._id === user._id ? { ...u, allowPendingPayment: data.user.allowPendingPayment } : u));
-                                                    } catch (err) {
+                                                    } catch {
                                                         alert('Error updating pending payment permission');
                                                     }
                                                 }}
@@ -509,8 +938,19 @@ const UserManagement = () => {
 
                             {filtered.length === 0 && (
                                 <tr>
-                                    <td colSpan="12" className="px-6 py-12 text-center text-gray-400">
-                                        {search ? 'No users match your search.' : 'No users found.'}
+                                    <td colSpan="15" className="px-6 py-12 text-center text-gray-400">
+                                        <Filter className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                                        <p className="font-semibold text-gray-600">No users match the selected filters</p>
+                                        <p className="text-xs text-gray-400 mt-1">
+                                            Category: <strong>{CATEGORY_CONFIG[categoryFilter]?.label}</strong> • Timeframe: <strong>{TIMEFRAME_CONFIG[timeFilter]?.label}</strong>
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setCategoryFilter('all'); setTimeFilter('all'); setSearch(''); }}
+                                            className="mt-3 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-100 transition"
+                                        >
+                                            Reset All Filters
+                                        </button>
                                     </td>
                                 </tr>
                             )}
@@ -801,7 +1241,6 @@ const UserManagement = () => {
 
                             {editingUser.latestMembership && (() => {
                                 const mem = editingUser.latestMembership;
-                                const startDate = mem.startDate ? new Date(mem.startDate) : new Date();
                                 const endDate   = mem.endDate   ? new Date(mem.endDate)   : new Date();
                                 const daysLeft  = Math.ceil((endDate - new Date()) / (1000 * 60 * 60 * 24));
 
