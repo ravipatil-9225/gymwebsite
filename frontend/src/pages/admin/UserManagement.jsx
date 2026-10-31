@@ -112,9 +112,9 @@ const UserManagement = () => {
         setDownloading(`${format.toUpperCase()} (${timeRange})`);
         try {
             if (format === 'doc') {
-                downloadUserReportDOC({ users, category, timeRange });
+                downloadUserReportDOC({ users, category, timeRange, packages });
             } else if (format === 'pdf') {
-                await downloadUserReportPDF({ users, category, timeRange });
+                await downloadUserReportPDF({ users, category, timeRange, packages });
             }
         } catch (err) {
             console.error('Download report error:', err);
