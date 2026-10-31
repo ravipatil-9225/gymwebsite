@@ -129,10 +129,28 @@ router.post('/biometric-punch', async (req, res) => {
         }
 
         // ── Step 1: Find the member linked to this biometric ID ──────────────
-        const user = await User.findOne({ biometricCardId: String(deviceUserId).trim() })
-            .select('name email phone batchTime');
+        const rawId = String(deviceUserId || '').replace(/\0/g, '').trim();
+        const cleanId = rawId.replace(/^#+/, '').trim();
+        const numericId = !isNaN(Number(cleanId)) && Number(cleanId) > 0 ? String(Number(cleanId)) : null;
+
+        // Candidate lookup values to handle any storage variation (#253, 253, 00253)
+        const candidates = new Set();
+        if (rawId) candidates.add(rawId);
+        if (cleanId) {
+            candidates.add(cleanId);
+            candidates.add(`#${cleanId}`);
+        }
+        if (numericId) {
+            candidates.add(numericId);
+            candidates.add(`#${numericId}`);
+        }
+
+        const user = await User.findOne({
+            biometricCardId: { $in: Array.from(candidates) }
+        }).select('name email phone batchTime biometricCardId');
+
         if (!user) {
-            console.warn(`⛔ [BIOMETRIC] Unknown Biometric ID: ${deviceUserId} — not linked to any member.`);
+            console.warn(`⛔ [BIOMETRIC] Unknown Biometric ID: ${deviceUserId} (candidates: ${Array.from(candidates).join(', ')}) — not linked to any member.`);
             return res.status(404).json({
                 success: false,
                 message: `No member linked to Biometric ID ${deviceUserId}`
@@ -148,21 +166,23 @@ router.post('/biometric-punch', async (req, res) => {
 
         const activeMembership = await Membership.findOne({
             userId: user._id,
-            status: 'active',
+            status: { $ne: 'cancelled' },
             endDate: { $gte: todayMidnightIST }   // plan must still be valid on the punch date
         }).sort({ endDate: -1 });                  // pick the latest one if multiple
 
         if (!activeMembership) {
             console.warn(`⛔ [BIOMETRIC] Plan EXPIRED for ${user.name} (${user.email}) — punch rejected on ${todayDateStr}.`);
             // Emit a dedicated socket event so the admin dashboard can show a
-            // real-time "Plan Expired" alert if needed in the future.
+            // real-time "Plan Expired" alert immediately.
             try {
                 const socket = require('../socket');
                 socket.getIO().emit('biometric_denied', {
                     reason: 'plan_expired',
-                    userId: user._id,
+                    userId: user._id.toString(),
                     userName: user.name,
                     userEmail: user.email,
+                    phone: user.phone,
+                    deviceUserId: String(deviceUserId),
                     date: todayDateStr
                 });
             } catch (_) {}
@@ -171,7 +191,7 @@ router.post('/biometric-punch', async (req, res) => {
                 success: false,
                 planExpired: true,
                 message: `❌ Access Denied: ${user.name}'s membership plan has expired. Please renew to continue using the gym.`,
-                user: { _id: user._id, name: user.name, email: user.email }
+                user: { _id: user._id, name: user.name, email: user.email, phone: user.phone }
             });
         }
 
@@ -205,7 +225,7 @@ router.post('/biometric-punch', async (req, res) => {
         // which socket listener fires first.
         try {
             const socket = require('../socket');
-            socket.getIO().emit('db_changed', { type: 'biometric_punch' });
+            socket.getIO().emit('db_changed', { type: 'biometric_punch', userId: user._id.toString() });
             socket.getIO().emit('attendance_update', {
                 type:             'BIOMETRIC_PUNCH',
                 date:             todayDateStr,
@@ -223,7 +243,7 @@ router.post('/biometric-punch', async (req, res) => {
                     date:         record.date
                 },
                 user: {
-                    _id:   user._id,
+                    _id:   user._id.toString(),
                     name:  user.name,
                     email: user.email,
                     phone: user.phone

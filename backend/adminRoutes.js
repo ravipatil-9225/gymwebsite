@@ -364,6 +364,9 @@ router.post('/users', async (req, res) => {
         // Clean biometricCardId: empty strings or nulls should be stored as undefined
         // to prevent unique-index collisions.
         let cleanedBiometricCardId = biometricCardId;
+        if (typeof cleanedBiometricCardId === 'string') {
+            cleanedBiometricCardId = cleanedBiometricCardId.trim().replace(/^#+/, '').trim();
+        }
         if (cleanedBiometricCardId === '' || cleanedBiometricCardId === null) {
             cleanedBiometricCardId = undefined;
         }
@@ -409,6 +412,9 @@ router.put('/users/:id', async (req, res) => {
         //   - This prevents E11000 duplicate-key errors when multiple users have
         //     no biometric ID assigned (old users whose machine records were deleted).
         if ('biometricCardId' in userData) {
+            if (typeof userData.biometricCardId === 'string') {
+                userData.biometricCardId = userData.biometricCardId.trim().replace(/^#+/, '').trim();
+            }
             if (userData.biometricCardId === '' || userData.biometricCardId === null) {
                 // Remove the field entirely from the document so sparse index skips it
                 delete userData.biometricCardId;

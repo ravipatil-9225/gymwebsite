@@ -87,6 +87,12 @@ async function triggerMachineDenial() {
 
 // Send punch to backend API
 async function sendPunchToCloud(deviceUserId, recordTime) {
+    const cleanDeviceUserId = String(deviceUserId || '').replace(/\0/g, '').trim();
+    if (!cleanDeviceUserId) {
+        console.warn('⚠️ Skipping empty biometric deviceUserId');
+        return { success: true };
+    }
+
     let timestamp;
     try {
         const parsed = new Date(recordTime);
@@ -96,10 +102,10 @@ async function sendPunchToCloud(deviceUserId, recordTime) {
     }
 
     try {
-        console.log(`\n👉 Fingerprint Punch Detected -> User #${deviceUserId} at ${timestamp}`);
+        console.log(`\n👉 Fingerprint Punch Detected -> User #${cleanDeviceUserId} at ${timestamp}`);
 
         const response = await axios.post(CLOUD_API_URL, {
-            deviceUserId,
+            deviceUserId: cleanDeviceUserId,
             timestamp,
             secret: BRIDGE_SECRET
         }, { timeout: 8000 });
@@ -139,6 +145,15 @@ async function pollAttendanceLogs() {
     try {
         const attendanceRes = await zkInstance.getAttendances();
         const logs = attendanceRes?.data || [];
+
+        // Guard against machine log clears or serial resets
+        if (logs.length > 0) {
+            const currentMaxSn = Math.max(...logs.map(log => log.userSn || 0));
+            if (currentMaxSn < lastProcessedSn) {
+                console.warn(`🔄 [LOG RESET DETECTED] Machine logs cleared/reset (device max serial #${currentMaxSn} < last #${lastProcessedSn}). Resetting sync cursor.`);
+                lastProcessedSn = 0;
+            }
+        }
         
         // Filter only new logs that have a higher serial number than what we have processed
         const newLogs = logs.filter(log => log.userSn > lastProcessedSn);
