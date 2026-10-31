@@ -1,4 +1,5 @@
-// Format date helper
+// ─── Date / Formatting Helpers ───────────────────────────────────────────────
+
 export const fmtDate = (dateStr) => {
     if (!dateStr) return '—';
     try {
@@ -19,7 +20,7 @@ export const getRemainingDays = (endDate) => {
 
 export const getWeekCycleRange = () => {
     const now = new Date();
-    const dayOfWeek = now.getDay(); // 0 is Sunday
+    const dayOfWeek = now.getDay();
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - dayOfWeek);
     const endOfWeek = new Date(startOfWeek);
@@ -32,84 +33,40 @@ export const getMonthCycleRange = () => {
     return now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 };
 
+// ─── Config Maps ──────────────────────────────────────────────────────────────
+
 export const CATEGORY_CONFIG = {
-    all: {
-        id: 'all',
-        label: 'Total Users',
-        title: 'Total Users Report',
-        badgeColor: 'blue',
-        docHeaderColor: '#2563eb'
-    },
-    active: {
-        id: 'active',
-        label: 'Active Plans',
-        title: 'Active Plans Report',
-        badgeColor: 'green',
-        docHeaderColor: '#16a34a'
-    },
-    expired: {
-        id: 'expired',
-        label: 'Expired Plans',
-        title: 'Expired Plans Report',
-        badgeColor: 'red',
-        docHeaderColor: '#dc2626'
-    },
-    'no-plan': {
-        id: 'no-plan',
-        label: 'No Plan',
-        title: 'No Plan Users Report',
-        badgeColor: 'gray',
-        docHeaderColor: '#4b5563'
-    }
+    all:      { id: 'all',      label: 'Total Users',    title: 'Total Users Report',    docHeaderColor: '#2563eb', pdfColor: [37, 99, 235] },
+    active:   { id: 'active',   label: 'Active Plans',   title: 'Active Plans Report',   docHeaderColor: '#16a34a', pdfColor: [22, 163, 74] },
+    expired:  { id: 'expired',  label: 'Expired Plans',  title: 'Expired Plans Report',  docHeaderColor: '#dc2626', pdfColor: [220, 38, 38] },
+    'no-plan':{ id: 'no-plan',  label: 'No Plan',        title: 'No Plan Users Report',  docHeaderColor: '#4b5563', pdfColor: [75, 85, 99] }
 };
 
 export const TIMEFRAME_CONFIG = {
-    weekly: {
-        id: 'weekly',
-        label: 'Weekly',
-        description: 'Current Week Cycle'
-    },
-    monthly: {
-        id: 'monthly',
-        label: 'Monthly',
-        description: 'Current Month Cycle'
-    },
-    all: {
-        id: 'all',
-        label: 'All Time',
-        description: 'All Records'
-    }
+    weekly:  { id: 'weekly',  label: 'Weekly',   description: 'Current Week Cycle' },
+    monthly: { id: 'monthly', label: 'Monthly',  description: 'Current Month Cycle' },
+    all:     { id: 'all',     label: 'All Time', description: 'All Records' }
 };
 
-/**
- * Filter users by category:
- * - 'all': all users
- * - 'active': users with active plans (remaining days > 0)
- * - 'expired': users with expired plans (remaining days <= 0)
- * - 'no-plan': users with no membership
- */
+// ─── Category Filtering ───────────────────────────────────────────────────────
+
 export const filterUsersByCategory = (users = [], category = 'all') => {
     if (!Array.isArray(users)) return [];
-
     return users.filter(user => {
         const m = user.latestMembership;
         const daysLeft = m ? getRemainingDays(m.endDate) : null;
-        const isActive = daysLeft !== null && daysLeft > 0;
+        const isActive  = daysLeft !== null && daysLeft > 0;
         const isExpired = m && daysLeft !== null && daysLeft <= 0;
         const hasNoPlan = !m;
-
-        if (category === 'active') return isActive;
+        if (category === 'active')  return isActive;
         if (category === 'expired') return isExpired;
         if (category === 'no-plan') return hasNoPlan;
-        return true; // 'all' includes everyone
+        return true;
     });
 };
 
 /**
- * For table filtering:
- * Filters users by category AND optional time range.
- * If time range has 0 matches (e.g. no new members joined in the last 7/30 days),
- * it returns the empty list so the table shows the accurate count for that date filter.
+ * For table display — filters by category AND optional time window.
  */
 export const filterUsersByCategoryAndTime = (users = [], category = 'all', timeRange = 'all') => {
     const categoryUsers = filterUsersByCategory(users, category);
@@ -119,443 +76,348 @@ export const filterUsersByCategoryAndTime = (users = [], category = 'all', timeR
     const thresholdDays = timeRange === 'weekly' ? 7 : 30;
     const thresholdDate = new Date(now.getTime() - thresholdDays * 24 * 60 * 60 * 1000);
 
-    const matches = categoryUsers.filter(user => {
+    return categoryUsers.filter(user => {
         const m = user.latestMembership;
-        const regDate = user.registrationDate ? new Date(user.registrationDate) : (user.createdAt ? new Date(user.createdAt) : null);
+        const regDate   = user.registrationDate ? new Date(user.registrationDate) : (user.createdAt ? new Date(user.createdAt) : null);
         const startDate = m?.startDate ? new Date(m.startDate) : null;
-        const endDate = m?.endDate ? new Date(m.endDate) : null;
+        const endDate   = m?.endDate   ? new Date(m.endDate)   : null;
 
-        if (category === 'expired') {
-            return endDate && endDate >= thresholdDate && endDate <= now;
-        }
-
-        if (category === 'active') {
-            return (startDate && startDate >= thresholdDate) || (regDate && regDate >= thresholdDate);
-        }
-
+        if (category === 'expired') return endDate && endDate >= thresholdDate && endDate <= now;
+        if (category === 'active')  return (startDate && startDate >= thresholdDate) || (regDate && regDate >= thresholdDate);
         return (regDate && regDate >= thresholdDate) || (startDate && startDate >= thresholdDate);
     });
-
-    return matches;
 };
 
 /**
- * For generating downloadable reports:
- * Always ensures the category's members are included.
- * In Weekly report: sorts by Due Date / Expiry Date (primary for weekly operations).
- * In Monthly report: sorts by Registration Date / Start Date (primary for monthly operations).
- * In All-Time: sorts newest joined first.
+ * For report downloads — always returns ALL category members, sorted for the cycle.
  */
 export const getCategoryUsersForReport = (users = [], category = 'all', timeRange = 'weekly') => {
     const categoryUsers = filterUsersByCategory(users, category);
     const sorted = [...categoryUsers];
 
     if (timeRange === 'weekly') {
-        // Sort by Due Date / End Date ascending so upcoming dues & expiries are front and center
         sorted.sort((a, b) => {
             const dueA = new Date(a.latestMembership?.dueDate || a.latestMembership?.endDate || 0);
             const dueB = new Date(b.latestMembership?.dueDate || b.latestMembership?.endDate || 0);
             return dueA - dueB;
         });
     } else if (timeRange === 'monthly') {
-        // Sort by start date / registration date descending
         sorted.sort((a, b) => {
             const dateA = new Date(a.latestMembership?.startDate || a.registrationDate || a.createdAt || 0);
             const dateB = new Date(b.latestMembership?.startDate || b.registrationDate || b.createdAt || 0);
             return dateB - dateA;
         });
     } else {
-        // Sort newest joined
         sorted.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     }
 
     return sorted;
 };
 
-/**
- * Returns record counts for categories
- */
 export const getCategoryReportCounts = (users = [], category = 'all') => {
     const fullCount = filterUsersByCategory(users, category).length;
-    return {
-        weekly: fullCount,
-        monthly: fullCount,
-        all: fullCount
-    };
+    return { weekly: fullCount, monthly: fullCount, all: fullCount };
 };
 
 /**
- * Map user records to report row data
+ * Maps user records to normalized report rows.
  */
 export const formatUserReportData = (users = []) => {
     return users.map((user, idx) => {
-        const m = user.latestMembership;
+        const m        = user.latestMembership;
         const daysLeft = m ? getRemainingDays(m.endDate) : null;
         let status = 'No Plan';
-        if (m) {
-            status = (daysLeft !== null && daysLeft > 0) ? `Active (${daysLeft}d left)` : 'Expired';
-        }
+        if (m) status = (daysLeft !== null && daysLeft > 0) ? `Active (${daysLeft}d left)` : 'Expired';
 
-        const dueDateRaw = m?.dueDate || m?.endDate;
-        const dueDate = dueDateRaw ? fmtDate(dueDateRaw) : '—';
-        const startDate = m?.startDate ? fmtDate(m.startDate) : '—';
-        const endDate = m?.endDate ? fmtDate(m.endDate) : '—';
-        const regDate = user.registrationDate ? fmtDate(user.registrationDate) : (user.createdAt ? fmtDate(user.createdAt) : '—');
-        const amount = m?.amountPaid != null ? Number(m.amountPaid) : null;
-        const amountFormatted = amount != null ? `₹${amount.toLocaleString('en-IN')}` : '—';
+        const dueDateRaw      = m?.dueDate || m?.endDate;
+        const amount          = m?.amountPaid != null ? Number(m.amountPaid) : null;
+        const amountFormatted = amount != null ? `Rs.${amount.toLocaleString('en-IN')}` : '—';
 
         return {
-            sr: idx + 1,
-            id: user._id,
-            name: user.name || 'Unnamed Member',
-            phone: user.phone || '—',
-            packageName: m?.packageName || 'No Plan',
+            sr:               idx + 1,
+            id:               user._id,
+            name:             user.name  || 'Unnamed Member',
+            phone:            user.phone || '—',
+            packageName:      m?.packageName || 'No Plan',
             amount,
             amountFormatted,
-            startDate,
-            endDate,
-            dueDate,
-            registrationDate: regDate,
+            startDate:        m?.startDate    ? fmtDate(m.startDate)    : '—',
+            endDate:          m?.endDate      ? fmtDate(m.endDate)      : '—',
+            dueDate:          dueDateRaw      ? fmtDate(dueDateRaw)     : '—',
+            registrationDate: user.registrationDate ? fmtDate(user.registrationDate) : (user.createdAt ? fmtDate(user.createdAt) : '—'),
             status,
             rawUser: user
         };
     });
 };
 
-/**
- * Download Report as DOC (.doc format with Word XML markup)
- */
+// ─── PDF Download — uses jsPDF + jspdf-autotable (no DOM screenshot) ──────────
+
+export const downloadUserReportPDF = async ({ users, category = 'all', timeRange = 'weekly' }) => {
+    const targetUsers = getCategoryUsersForReport(users, category, timeRange);
+    const rows        = formatUserReportData(targetUsers);
+    const catConfig   = CATEGORY_CONFIG[category] || CATEGORY_CONFIG.all;
+    const timeConfig  = TIMEFRAME_CONFIG[timeRange] || TIMEFRAME_CONFIG.weekly;
+
+    const now         = new Date();
+    const dateStamp   = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    const timeStamp   = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    const cycleLabel  = timeRange === 'weekly' ? getWeekCycleRange() : (timeRange === 'monthly' ? getMonthCycleRange() : 'All Time');
+    const totalAmount = rows.reduce((sum, r) => sum + (r.amount || 0), 0);
+    const [r, g, b]   = catConfig.pdfColor;
+
+    // Dynamic import so the chunk is loaded only when needed
+    const { default: jsPDF } = await import('jspdf');
+    const autoTable = (await import('jspdf-autotable')).default;
+
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+    // ── Header block ──────────────────────────────────────────────────────────
+    const pageW = doc.internal.pageSize.getWidth();
+
+    // Coloured header bar
+    doc.setFillColor(r, g, b);
+    doc.rect(0, 0, pageW, 22, 'F');
+
+    // Gym name
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(255, 255, 255);
+    doc.text('TARA FITNESS & GYM', 14, 10);
+
+    // Report subtitle
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${catConfig.label}  —  ${timeConfig.label} Report  (${cycleLabel})`, 14, 17);
+
+    // Right-side generated date
+    doc.setFontSize(8);
+    doc.text(`Generated: ${dateStamp}  ${timeStamp}`, pageW - 14, 10, { align: 'right' });
+    doc.text('OFFICIAL GYM RECORD', pageW - 14, 17, { align: 'right' });
+
+    // ── Summary cards row ─────────────────────────────────────────────────────
+    const cardY = 26;
+    const cardH = 12;
+    const cardW = (pageW - 28 - 8) / 3;
+
+    const cards = [
+        { label: 'Reporting Cycle', value: `${timeConfig.label} (${cycleLabel})` },
+        { label: 'Total Members',   value: `${rows.length} Members` },
+        { label: 'Total Plan Value',value: `Rs.${totalAmount.toLocaleString('en-IN')}` }
+    ];
+
+    cards.forEach((card, i) => {
+        const cx = 14 + i * (cardW + 4);
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(226, 232, 240);
+        doc.roundedRect(cx, cardY, cardW, cardH, 2, 2, 'FD');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.setTextColor(100, 116, 139);
+        doc.text(card.label.toUpperCase(), cx + 4, cardY + 4.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(15, 23, 42);
+        doc.text(card.value, cx + 4, cardY + 10);
+    });
+
+    // ── Data table ────────────────────────────────────────────────────────────
+    const tableStartY = cardY + cardH + 4;
+
+    const head = [['#', 'Name', 'Phone', 'Package Name', 'Amount', 'Start Date', 'End Date', 'Due Date', 'Reg. Date', 'Status']];
+
+    const body = rows.length > 0
+        ? rows.map(row => [
+            String(row.sr),
+            row.name,
+            row.phone,
+            row.packageName,
+            row.amountFormatted,
+            row.startDate,
+            row.endDate,
+            row.dueDate,
+            row.registrationDate,
+            row.status
+        ])
+        : [['', `No records found for ${catConfig.label}.`, '', '', '', '', '', '', '', '']];
+
+    autoTable(doc, {
+        head,
+        body,
+        startY: tableStartY,
+        margin: { left: 14, right: 14 },
+        styles: {
+            font:      'helvetica',
+            fontSize:  7.5,
+            cellPadding: 3,
+            valign:    'middle',
+            overflow:  'linebreak',
+            lineColor: [203, 213, 225],
+            lineWidth: 0.2
+        },
+        headStyles: {
+            fillColor:  [r, g, b],
+            textColor:  [255, 255, 255],
+            fontStyle:  'bold',
+            fontSize:   8,
+            halign:     'center'
+        },
+        alternateRowStyles: {
+            fillColor: [248, 250, 252]
+        },
+        columnStyles: {
+            0: { halign: 'center', cellWidth: 10 },
+            1: { fontStyle: 'bold',  cellWidth: 38 },
+            2: { cellWidth: 28, font: 'courier' },
+            3: { cellWidth: 35 },
+            4: { halign: 'right',  fontStyle: 'bold', cellWidth: 22 },
+            5: { halign: 'center', cellWidth: 22 },
+            6: { halign: 'center', cellWidth: 22 },
+            7: { halign: 'center', fontStyle: 'bold', cellWidth: 22 },
+            8: { halign: 'center', cellWidth: 22 },
+            9: { halign: 'center', cellWidth: 24 }
+        },
+        didParseCell(data) {
+            // Colour status cell
+            if (data.section === 'body' && data.column.index === 9) {
+                const val = String(data.cell.raw || '');
+                if (val.startsWith('Active')) {
+                    data.cell.styles.textColor  = [21, 128, 61];
+                    data.cell.styles.fillColor  = [220, 252, 231];
+                    data.cell.styles.fontStyle  = 'bold';
+                } else if (val === 'Expired') {
+                    data.cell.styles.textColor  = [185, 28, 28];
+                    data.cell.styles.fillColor  = [254, 226, 226];
+                    data.cell.styles.fontStyle  = 'bold';
+                } else {
+                    data.cell.styles.textColor  = [75, 85, 99];
+                    data.cell.styles.fillColor  = [243, 244, 246];
+                }
+            }
+            // Bold member name
+            if (data.section === 'body' && data.column.index === 1) {
+                data.cell.styles.fontStyle = 'bold';
+            }
+            // Green amount
+            if (data.section === 'body' && data.column.index === 4) {
+                data.cell.styles.textColor = [4, 120, 87];
+                data.cell.styles.fontStyle = 'bold';
+            }
+        },
+        // Page footer
+        didDrawPage(hookData) {
+            const pW = hookData.settings.margin.left + hookData.table.width + hookData.settings.margin.right;
+            const pH = doc.internal.pageSize.getHeight();
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(7);
+            doc.setTextColor(148, 163, 184);
+            doc.text('Tara Fitness Gym Management System  •  Confidential Member Report', 14, pH - 5);
+            doc.text(`Page ${hookData.pageNumber}`, pW - 14, pH - 5, { align: 'right' });
+        }
+    });
+
+    const safeCat  = catConfig.label.replace(/\s+/g, '_');
+    const safeTime = timeConfig.label.replace(/\s+/g, '_');
+    const dateFmt  = now.toISOString().split('T')[0];
+    doc.save(`TaraFitness_${safeCat}_${safeTime}_Report_${dateFmt}.pdf`);
+};
+
+// ─── DOC Download — HTML/Word XML (works in MS Word & LibreOffice) ────────────
+
 export const downloadUserReportDOC = ({ users, category = 'all', timeRange = 'weekly' }) => {
     const targetUsers = getCategoryUsersForReport(users, category, timeRange);
-    const rows = formatUserReportData(targetUsers);
+    const rows        = formatUserReportData(targetUsers);
+    const catConfig   = CATEGORY_CONFIG[category] || CATEGORY_CONFIG.all;
+    const timeConfig  = TIMEFRAME_CONFIG[timeRange] || TIMEFRAME_CONFIG.weekly;
 
-    const catConfig = CATEGORY_CONFIG[category] || CATEGORY_CONFIG.all;
-    const timeConfig = TIMEFRAME_CONFIG[timeRange] || TIMEFRAME_CONFIG.weekly;
-    const now = new Date();
-    const dateStamp = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-    const timeStamp = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-    const cycleLabel = timeRange === 'weekly' ? getWeekCycleRange() : getMonthCycleRange();
-
+    const now         = new Date();
+    const dateStamp   = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    const timeStamp   = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    const cycleLabel  = timeRange === 'weekly' ? getWeekCycleRange() : (timeRange === 'monthly' ? getMonthCycleRange() : 'All Time');
     const totalAmount = rows.reduce((sum, r) => sum + (r.amount || 0), 0);
+    const hdrColor    = catConfig.docHeaderColor || '#2563eb';
 
     const tableRowsHtml = rows.length > 0 ? rows.map(r => {
         const statusStyle = r.status.startsWith('Active')
-            ? 'color: #15803d; background-color: #dcfce7;'
+            ? 'color:#15803d;background-color:#dcfce7;'
             : r.status === 'Expired'
-                ? 'color: #b91c1c; background-color: #fee2e2;'
-                : 'color: #4b5563; background-color: #f3f4f6;';
-
-        return `
-            <tr>
-                <td style="text-align: center; border: 1px solid #cbd5e1; padding: 7px 6px;">${r.sr}</td>
-                <td style="font-weight: bold; border: 1px solid #cbd5e1; padding: 7px 8px; color: #0f172a;">${r.name}</td>
-                <td style="border: 1px solid #cbd5e1; padding: 7px 8px; font-family: monospace;">${r.phone}</td>
-                <td style="border: 1px solid #cbd5e1; padding: 7px 8px; font-weight: 500;">${r.packageName}</td>
-                <td style="text-align: right; font-weight: bold; border: 1px solid #cbd5e1; padding: 7px 8px; color: #047857;">${r.amountFormatted}</td>
-                <td style="text-align: center; border: 1px solid #cbd5e1; padding: 7px 8px;">${r.startDate}</td>
-                <td style="text-align: center; border: 1px solid #cbd5e1; padding: 7px 8px;">${r.endDate}</td>
-                <td style="text-align: center; font-weight: bold; border: 1px solid #cbd5e1; padding: 7px 8px; color: #1e3a8a;">${r.dueDate}</td>
-                <td style="text-align: center; border: 1px solid #cbd5e1; padding: 7px 8px;">${r.registrationDate}</td>
-                <td style="text-align: center; border: 1px solid #cbd5e1; padding: 7px 6px;">
-                    <span style="display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 8.5pt; font-weight: bold; ${statusStyle}">
-                        ${r.status}
-                    </span>
-                </td>
-            </tr>
-        `;
-    }).join('') : `
-        <tr>
-            <td colspan="10" style="text-align: center; padding: 25px; color: #64748b; font-style: italic; border: 1px solid #cbd5e1;">
-                No member records found for ${catConfig.label}.
+                ? 'color:#b91c1c;background-color:#fee2e2;'
+                : 'color:#4b5563;background-color:#f3f4f6;';
+        return `<tr>
+            <td style="text-align:center;border:1px solid #cbd5e1;padding:7px 5px;">${r.sr}</td>
+            <td style="font-weight:bold;border:1px solid #cbd5e1;padding:7px 8px;color:#0f172a;">${r.name}</td>
+            <td style="border:1px solid #cbd5e1;padding:7px 8px;font-family:Courier New,monospace;">${r.phone}</td>
+            <td style="border:1px solid #cbd5e1;padding:7px 8px;font-weight:500;">${r.packageName}</td>
+            <td style="text-align:right;font-weight:bold;border:1px solid #cbd5e1;padding:7px 8px;color:#047857;">${r.amountFormatted}</td>
+            <td style="text-align:center;border:1px solid #cbd5e1;padding:7px 8px;">${r.startDate}</td>
+            <td style="text-align:center;border:1px solid #cbd5e1;padding:7px 8px;">${r.endDate}</td>
+            <td style="text-align:center;font-weight:bold;border:1px solid #cbd5e1;padding:7px 8px;color:#1e3a8a;">${r.dueDate}</td>
+            <td style="text-align:center;border:1px solid #cbd5e1;padding:7px 8px;">${r.registrationDate}</td>
+            <td style="text-align:center;border:1px solid #cbd5e1;padding:7px 5px;">
+                <span style="display:inline-block;padding:3px 8px;border-radius:4px;font-size:8.5pt;font-weight:bold;${statusStyle}">${r.status}</span>
             </td>
-        </tr>
-    `;
+        </tr>`;
+    }).join('') : `<tr><td colspan="10" style="text-align:center;padding:25px;color:#64748b;font-style:italic;border:1px solid #cbd5e1;">No records found for ${catConfig.label}.</td></tr>`;
 
-    const htmlContent = `
-        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-        <head>
-            <meta charset="utf-8">
-            <title>Tara Fitness - ${catConfig.label} ${timeConfig.label} Report</title>
-            <!--[if gte mso 9]>
-            <xml>
-                <w:WordDocument>
-                    <w:View>Print</w:View>
-                    <w:Zoom>100</w:Zoom>
-                    <w:DoNotOptimizeForBrowser/>
-                </w:WordDocument>
-            </xml>
-            <![endif]-->
-            <style>
-                body {
-                    font-family: Calibri, 'Segoe UI', Arial, sans-serif;
-                    font-size: 10pt;
-                    color: #111827;
-                    background-color: #ffffff;
-                    margin: 20px;
-                }
-                .header-title {
-                    color: #0f172a;
-                    font-size: 20pt;
-                    font-weight: bold;
-                    margin: 0;
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
-                }
-                .sub-title {
-                    font-size: 13pt;
-                    font-weight: bold;
-                    color: ${catConfig.docHeaderColor || '#1e40af'};
-                    margin: 4px 0 12px 0;
-                }
-                .meta-table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin-bottom: 16px;
-                    background-color: #f8fafc;
-                    border: 1px solid #e2e8f0;
-                }
-                .meta-table td {
-                    padding: 8px 12px;
-                    font-size: 9.5pt;
-                    border: none;
-                }
-                .data-table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin-top: 10px;
-                }
-                .data-table th {
-                    background-color: ${catConfig.docHeaderColor || '#1e40af'};
-                    color: #ffffff !important;
-                    font-weight: bold;
-                    padding: 8px 6px;
-                    border: 1px solid #0f172a;
-                    font-size: 9pt;
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
-                }
-                .data-table td {
-                    font-size: 9pt;
-                }
-                .footer {
-                    margin-top: 24px;
-                    font-size: 8.5pt;
-                    color: #6b7280;
-                    border-top: 1px solid #e5e7eb;
-                    padding-top: 8px;
-                }
-            </style>
-        </head>
-        <body>
-            <div style="border-bottom: 3px solid ${catConfig.docHeaderColor || '#2563eb'}; padding-bottom: 10px; margin-bottom: 14px;">
-                <p class="header-title">TARA FITNESS & GYM</p>
-                <p class="sub-title">${catConfig.label} — ${timeConfig.label} Report (${cycleLabel})</p>
-            </div>
-
-            <table class="meta-table">
-                <tr>
-                    <td style="width: 33%;"><strong>Generated On:</strong> ${dateStamp} at ${timeStamp}</td>
-                    <td style="width: 33%;"><strong>Total Members:</strong> ${rows.length}</td>
-                    <td style="width: 34%; text-align: right;"><strong>Total Plan Value:</strong> ₹${totalAmount.toLocaleString('en-IN')}</td>
-                </tr>
-            </table>
-
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th style="width: 35px; text-align: center;">#</th>
-                        <th style="text-align: left;">Name</th>
-                        <th style="text-align: left;">Phone Number</th>
-                        <th style="text-align: left;">Package Name</th>
-                        <th style="text-align: right;">Amount</th>
-                        <th style="text-align: center;">Start Date</th>
-                        <th style="text-align: center;">End Date</th>
-                        <th style="text-align: center;">Due Date</th>
-                        <th style="text-align: center;">Registration Date</th>
-                        <th style="text-align: center;">Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${tableRowsHtml}
-                </tbody>
-            </table>
-
-            <div class="footer">
-                <p>Tara Fitness Gym Management System • Official Member Details Report • Confidential Document</p>
-            </div>
-        </body>
-        </html>
-    `;
+    const htmlContent = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="utf-8">
+<title>Tara Fitness - ${catConfig.label} ${timeConfig.label} Report</title>
+<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->
+<style>
+body{font-family:Calibri,'Segoe UI',Arial,sans-serif;font-size:10pt;color:#111827;background:#fff;margin:20px;}
+h1{font-size:20pt;font-weight:bold;color:#0f172a;margin:0;text-transform:uppercase;letter-spacing:.5px;}
+.sub{font-size:13pt;font-weight:bold;color:${hdrColor};margin:4px 0 12px 0;}
+.meta{width:100%;border-collapse:collapse;margin-bottom:16px;background:#f8fafc;border:1px solid #e2e8f0;}
+.meta td{padding:8px 12px;font-size:9.5pt;}
+table.data{width:100%;border-collapse:collapse;margin-top:10px;}
+table.data th{background-color:${hdrColor};color:#fff;font-weight:bold;padding:8px 6px;border:1px solid #0f172a;font-size:9pt;text-transform:uppercase;letter-spacing:.5px;}
+table.data td{font-size:9pt;}
+.footer{margin-top:24px;font-size:8.5pt;color:#6b7280;border-top:1px solid #e5e7eb;padding-top:8px;}
+</style>
+</head>
+<body>
+<div style="border-bottom:3px solid ${hdrColor};padding-bottom:10px;margin-bottom:14px;">
+<h1>TARA FITNESS &amp; GYM</h1>
+<p class="sub">${catConfig.label} — ${timeConfig.label} Report (${cycleLabel})</p>
+</div>
+<table class="meta">
+<tr>
+<td style="width:33%;"><strong>Generated On:</strong> ${dateStamp} at ${timeStamp}</td>
+<td style="width:33%;"><strong>Total Members:</strong> ${rows.length}</td>
+<td style="width:34%;text-align:right;"><strong>Total Plan Value:</strong> Rs.${totalAmount.toLocaleString('en-IN')}</td>
+</tr>
+</table>
+<table class="data">
+<thead>
+<tr>
+<th style="width:35px;text-align:center;">#</th>
+<th style="text-align:left;">Name</th>
+<th style="text-align:left;">Phone Number</th>
+<th style="text-align:left;">Package Name</th>
+<th style="text-align:right;">Amount</th>
+<th style="text-align:center;">Start Date</th>
+<th style="text-align:center;">End Date</th>
+<th style="text-align:center;">Due Date</th>
+<th style="text-align:center;">Registration Date</th>
+<th style="text-align:center;">Status</th>
+</tr>
+</thead>
+<tbody>
+${tableRowsHtml}
+</tbody>
+</table>
+<div class="footer"><p>Tara Fitness Gym Management System • Official Member Details Report • Confidential Document</p></div>
+</body>
+</html>`;
 
     const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
+    const url  = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    const safeCat = catConfig.label.replace(/\s+/g, '_');
-    const safeTime = timeConfig.label.replace(/\s+/g, '_');
-    const dateFormatted = now.toISOString().split('T')[0];
-    link.href = url;
-    link.download = `TaraFitness_${safeCat}_${safeTime}_Report_${dateFormatted}.doc`;
+    link.href  = url;
+    link.download = `TaraFitness_${catConfig.label.replace(/\s+/g,'_')}_${timeConfig.label.replace(/\s+/g,'_')}_Report_${now.toISOString().split('T')[0]}.doc`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-};
-
-/**
- * Download Report as PDF (using html2pdf.js in landscape A4)
- * Guaranteed non-blank by rendering into active DOM coordinates during conversion
- */
-export const downloadUserReportPDF = async ({ users, category = 'all', timeRange = 'weekly' }) => {
-    const targetUsers = getCategoryUsersForReport(users, category, timeRange);
-    const rows = formatUserReportData(targetUsers);
-
-    const catConfig = CATEGORY_CONFIG[category] || CATEGORY_CONFIG.all;
-    const timeConfig = TIMEFRAME_CONFIG[timeRange] || TIMEFRAME_CONFIG.weekly;
-    const now = new Date();
-    const dateStamp = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-    const timeStamp = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-    const cycleLabel = timeRange === 'weekly' ? getWeekCycleRange() : getMonthCycleRange();
-
-    const totalAmount = rows.reduce((sum, r) => sum + (r.amount || 0), 0);
-
-    // Create container directly at top:0, left:0 on screen so html2canvas renders with 100% visibility
-    const printEl = document.createElement('div');
-    printEl.id = 'temp-pdf-report-container';
-    printEl.style.position = 'fixed';
-    printEl.style.top = '0';
-    printEl.style.left = '0';
-    printEl.style.width = '1120px';
-    printEl.style.minHeight = '100vh';
-    printEl.style.backgroundColor = '#ffffff';
-    printEl.style.color = '#111827';
-    printEl.style.fontFamily = 'Segoe UI, Helvetica, Arial, sans-serif';
-    printEl.style.padding = '24px 30px';
-    printEl.style.zIndex = '999999'; // on top while rendering
-    printEl.style.boxSizing = 'border-box';
-    printEl.style.overflow = 'visible';
-
-    const tableRowsHtml = rows.length > 0 ? rows.map(r => {
-        const isAct = r.status.startsWith('Active');
-        const isExp = r.status.startsWith('Expired');
-        const statusBadge = isAct
-            ? '<span style="background-color: #dcfce7; color: #15803d; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 8pt;">' + r.status + '</span>'
-            : isExp
-                ? '<span style="background-color: #fee2e2; color: #b91c1c; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 8pt;">Expired</span>'
-                : '<span style="background-color: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 8pt;">No Plan</span>';
-
-        return `
-            <tr style="border-bottom: 1px solid #e2e8f0; font-size: 8.5pt; page-break-inside: avoid; break-inside: avoid;">
-                <td style="padding: 7px 6px; text-align: center; color: #64748b; border: 1px solid #cbd5e1;">${r.sr}</td>
-                <td style="padding: 7px 8px; font-weight: 700; color: #0f172a; border: 1px solid #cbd5e1;">${r.name}</td>
-                <td style="padding: 7px 8px; color: #334155; font-family: monospace; font-size: 8pt; border: 1px solid #cbd5e1;">${r.phone}</td>
-                <td style="padding: 7px 8px; color: #1e293b; font-weight: 600; border: 1px solid #cbd5e1;">${r.packageName}</td>
-                <td style="padding: 7px 8px; text-align: right; font-weight: 700; color: #047857; border: 1px solid #cbd5e1;">${r.amountFormatted}</td>
-                <td style="padding: 7px 8px; text-align: center; color: #475569; border: 1px solid #cbd5e1;">${r.startDate}</td>
-                <td style="padding: 7px 8px; text-align: center; color: #475569; border: 1px solid #cbd5e1;">${r.endDate}</td>
-                <td style="padding: 7px 8px; text-align: center; font-weight: 700; color: #1e3a8a; border: 1px solid #cbd5e1;">${r.dueDate}</td>
-                <td style="padding: 7px 8px; text-align: center; color: #475569; border: 1px solid #cbd5e1;">${r.registrationDate}</td>
-                <td style="padding: 7px 6px; text-align: center; border: 1px solid #cbd5e1;">${statusBadge}</td>
-            </tr>
-        `;
-    }).join('') : `
-        <tr>
-            <td colspan="10" style="text-align: center; padding: 28px; color: #64748b; font-style: italic; border: 1px solid #cbd5e1;">
-                No member records found for ${catConfig.label}.
-            </td>
-        </tr>
-    `;
-
-    printEl.innerHTML = `
-        <div style="margin-bottom: 16px; border-bottom: 3px solid ${catConfig.docHeaderColor || '#2563eb'}; padding-bottom: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                <div>
-                    <h1 style="font-size: 20pt; font-weight: 900; color: #0f172a; margin: 0; letter-spacing: -0.5px; text-transform: uppercase;">
-                        TARA <span style="color: #ea580c;">FITNESS</span> & GYM
-                    </h1>
-                    <p style="font-size: 12pt; font-weight: 700; color: ${catConfig.docHeaderColor || '#1e40af'}; margin: 4px 0 0 0;">
-                        ${catConfig.label} — ${timeConfig.label} Report (${cycleLabel})
-                    </p>
-                </div>
-                <div style="text-align: right;">
-                    <span style="display: inline-block; background-color: #f1f5f9; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 6px; font-size: 8pt; font-weight: 600; color: #475569;">
-                        OFFICIAL GYM RECORD
-                    </span>
-                    <p style="margin: 4px 0 0 0; font-size: 8pt; color: #64748b;">
-                        Generated: ${dateStamp} ${timeStamp}
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div style="display: flex; gap: 12px; margin-bottom: 14px;">
-            <div style="flex: 1; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px;">
-                <p style="font-size: 7.5pt; text-transform: uppercase; color: #64748b; margin: 0; font-weight: 600;">Reporting Cycle</p>
-                <p style="font-size: 11pt; font-weight: 700; color: #0f172a; margin: 2px 0 0 0;">${timeConfig.label} (${cycleLabel})</p>
-            </div>
-            <div style="flex: 1; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px;">
-                <p style="font-size: 7.5pt; text-transform: uppercase; color: #64748b; margin: 0; font-weight: 600;">Total Members</p>
-                <p style="font-size: 11pt; font-weight: 700; color: #0f172a; margin: 2px 0 0 0;">${rows.length} Members</p>
-            </div>
-            <div style="flex: 1; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px;">
-                <p style="font-size: 7.5pt; text-transform: uppercase; color: #64748b; margin: 0; font-weight: 600;">Total Plan Value</p>
-                <p style="font-size: 11pt; font-weight: 700; color: #047857; margin: 2px 0 0 0;">₹${totalAmount.toLocaleString('en-IN')}</p>
-            </div>
-        </div>
-
-        <table style="width: 100%; border-collapse: collapse; margin-top: 6px; background-color: #ffffff;">
-            <thead>
-                <tr style="background-color: ${catConfig.docHeaderColor || '#1e293b'}; color: #ffffff;">
-                    <th style="padding: 8px 6px; border: 1px solid #0f172a; font-size: 8pt; width: 30px; text-align: center; text-transform: uppercase;">#</th>
-                    <th style="padding: 8px 8px; border: 1px solid #0f172a; font-size: 8pt; text-align: left; text-transform: uppercase;">Name</th>
-                    <th style="padding: 8px 8px; border: 1px solid #0f172a; font-size: 8pt; text-align: left; text-transform: uppercase;">Phone Number</th>
-                    <th style="padding: 8px 8px; border: 1px solid #0f172a; font-size: 8pt; text-align: left; text-transform: uppercase;">Package Name</th>
-                    <th style="padding: 8px 8px; border: 1px solid #0f172a; font-size: 8pt; text-align: right; text-transform: uppercase;">Amount</th>
-                    <th style="padding: 8px 8px; border: 1px solid #0f172a; font-size: 8pt; text-align: center; text-transform: uppercase;">Start Date</th>
-                    <th style="padding: 8px 8px; border: 1px solid #0f172a; font-size: 8pt; text-align: center; text-transform: uppercase;">End Date</th>
-                    <th style="padding: 8px 8px; border: 1px solid #0f172a; font-size: 8pt; text-align: center; text-transform: uppercase;">Due Date</th>
-                    <th style="padding: 8px 8px; border: 1px solid #0f172a; font-size: 8pt; text-align: center; text-transform: uppercase;">Reg. Date</th>
-                    <th style="padding: 8px 6px; border: 1px solid #0f172a; font-size: 8pt; text-align: center; text-transform: uppercase; width: 85px;">Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${tableRowsHtml}
-            </tbody>
-        </table>
-
-        <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center; font-size: 8pt; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 8px;">
-            <span>Tara Fitness Gym Management System</span>
-            <span>Report Generated: ${dateStamp} at ${timeStamp}</span>
-        </div>
-    `;
-
-    document.body.appendChild(printEl);
-
-    const safeCat = catConfig.label.replace(/\s+/g, '_');
-    const safeTime = timeConfig.label.replace(/\s+/g, '_');
-    const dateFormatted = now.toISOString().split('T')[0];
-
-    const opt = {
-        margin: [6, 6, 6, 6],
-        filename: `TaraFitness_${safeCat}_${safeTime}_Report_${dateFormatted}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            scrollX: 0,
-            scrollY: 0,
-            windowWidth: 1200
-        },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-    };
-
-    try {
-        const html2pdf = (await import('html2pdf.js')).default;
-        await html2pdf().set(opt).from(printEl).save();
-    } finally {
-        if (printEl.parentNode) {
-            printEl.parentNode.removeChild(printEl);
-        }
-    }
 };
