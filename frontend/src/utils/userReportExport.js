@@ -17,6 +17,21 @@ export const getRemainingDays = (endDate) => {
     return Math.ceil((end - now) / (1000 * 60 * 60 * 24));
 };
 
+export const getWeekCycleRange = () => {
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0 is Sunday
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - dayOfWeek);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    return `${fmtDate(startOfWeek)} – ${fmtDate(endOfWeek)}`;
+};
+
+export const getMonthCycleRange = () => {
+    const now = new Date();
+    return now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+};
+
 export const CATEGORY_CONFIG = {
     all: {
         id: 'all',
@@ -52,34 +67,29 @@ export const TIMEFRAME_CONFIG = {
     weekly: {
         id: 'weekly',
         label: 'Weekly',
-        description: 'Last 7 Days',
-        days: 7
+        description: 'Current Week Cycle'
     },
     monthly: {
         id: 'monthly',
         label: 'Monthly',
-        description: 'Last 30 Days',
-        days: 30
+        description: 'Current Month Cycle'
     },
     all: {
         id: 'all',
         label: 'All Time',
-        description: 'All Records',
-        days: null
+        description: 'All Records'
     }
 };
 
 /**
- * Filter users by category (all, active, expired, no-plan)
- * and timeframe (all, weekly, monthly)
+ * Filter users by category:
+ * - 'all': all users
+ * - 'active': users with active plans (remaining days > 0)
+ * - 'expired': users with expired plans (remaining days <= 0)
+ * - 'no-plan': users with no membership
  */
-export const filterUsersByCategoryAndTime = (users = [], category = 'all', timeRange = 'all') => {
+export const filterUsersByCategory = (users = [], category = 'all') => {
     if (!Array.isArray(users)) return [];
-
-    const now = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const thresholdDate = timeRange === 'weekly' ? sevenDaysAgo : timeRange === 'monthly' ? thirtyDaysAgo : null;
 
     return users.filter(user => {
         const m = user.latestMembership;
@@ -88,49 +98,89 @@ export const filterUsersByCategoryAndTime = (users = [], category = 'all', timeR
         const isExpired = m && daysLeft !== null && daysLeft <= 0;
         const hasNoPlan = !m;
 
-        // 1. Category check
-        if (category === 'active' && !isActive) return false;
-        if (category === 'expired' && !isExpired) return false;
-        if (category === 'no-plan' && !hasNoPlan) return false;
-        // 'all' includes everyone
-
-        // 2. Timeframe check (if timeRange is 'all', all matching category pass)
-        if (!thresholdDate) return true;
-
-        if (category === 'active') {
-            // Plan started or activated in the period, or joined in period
-            const startDate = m?.startDate ? new Date(m.startDate) : null;
-            const regDate = user.registrationDate ? new Date(user.registrationDate) : (user.createdAt ? new Date(user.createdAt) : null);
-            return (startDate && startDate >= thresholdDate) || (regDate && regDate >= thresholdDate);
-        }
-
-        if (category === 'expired') {
-            // Plan expired in this timeframe
-            const endDate = m?.endDate ? new Date(m.endDate) : null;
-            return endDate && endDate >= thresholdDate && endDate <= now;
-        }
-
-        if (category === 'no-plan') {
-            // User registered in this timeframe
-            const regDate = user.registrationDate ? new Date(user.registrationDate) : (user.createdAt ? new Date(user.createdAt) : null);
-            return regDate && regDate >= thresholdDate;
-        }
-
-        // For Total Users ('all')
-        const regDate = user.registrationDate ? new Date(user.registrationDate) : (user.createdAt ? new Date(user.createdAt) : null);
-        const startDate = m?.startDate ? new Date(m.startDate) : null;
-        return (regDate && regDate >= thresholdDate) || (startDate && startDate >= thresholdDate);
+        if (category === 'active') return isActive;
+        if (category === 'expired') return isExpired;
+        if (category === 'no-plan') return hasNoPlan;
+        return true; // 'all' includes everyone
     });
 };
 
 /**
- * Returns record counts for weekly, monthly, and all-time for a category
+ * For table filtering:
+ * Filters users by category AND optional time range.
+ * If time range has 0 matches (e.g. no new members joined in the last 7/30 days),
+ * it returns the empty list so the table shows the accurate count for that date filter.
+ */
+export const filterUsersByCategoryAndTime = (users = [], category = 'all', timeRange = 'all') => {
+    const categoryUsers = filterUsersByCategory(users, category);
+    if (!timeRange || timeRange === 'all') return categoryUsers;
+
+    const now = new Date();
+    const thresholdDays = timeRange === 'weekly' ? 7 : 30;
+    const thresholdDate = new Date(now.getTime() - thresholdDays * 24 * 60 * 60 * 1000);
+
+    const matches = categoryUsers.filter(user => {
+        const m = user.latestMembership;
+        const regDate = user.registrationDate ? new Date(user.registrationDate) : (user.createdAt ? new Date(user.createdAt) : null);
+        const startDate = m?.startDate ? new Date(m.startDate) : null;
+        const endDate = m?.endDate ? new Date(m.endDate) : null;
+
+        if (category === 'expired') {
+            return endDate && endDate >= thresholdDate && endDate <= now;
+        }
+
+        if (category === 'active') {
+            return (startDate && startDate >= thresholdDate) || (regDate && regDate >= thresholdDate);
+        }
+
+        return (regDate && regDate >= thresholdDate) || (startDate && startDate >= thresholdDate);
+    });
+
+    return matches;
+};
+
+/**
+ * For generating downloadable reports:
+ * Always ensures the category's members are included.
+ * In Weekly report: sorts by Due Date / Expiry Date (primary for weekly operations).
+ * In Monthly report: sorts by Registration Date / Start Date (primary for monthly operations).
+ * In All-Time: sorts newest joined first.
+ */
+export const getCategoryUsersForReport = (users = [], category = 'all', timeRange = 'weekly') => {
+    const categoryUsers = filterUsersByCategory(users, category);
+    const sorted = [...categoryUsers];
+
+    if (timeRange === 'weekly') {
+        // Sort by Due Date / End Date ascending so upcoming dues & expiries are front and center
+        sorted.sort((a, b) => {
+            const dueA = new Date(a.latestMembership?.dueDate || a.latestMembership?.endDate || 0);
+            const dueB = new Date(b.latestMembership?.dueDate || b.latestMembership?.endDate || 0);
+            return dueA - dueB;
+        });
+    } else if (timeRange === 'monthly') {
+        // Sort by start date / registration date descending
+        sorted.sort((a, b) => {
+            const dateA = new Date(a.latestMembership?.startDate || a.registrationDate || a.createdAt || 0);
+            const dateB = new Date(b.latestMembership?.startDate || b.registrationDate || b.createdAt || 0);
+            return dateB - dateA;
+        });
+    } else {
+        // Sort newest joined
+        sorted.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    }
+
+    return sorted;
+};
+
+/**
+ * Returns record counts for categories
  */
 export const getCategoryReportCounts = (users = [], category = 'all') => {
+    const fullCount = filterUsersByCategory(users, category).length;
     return {
-        weekly: filterUsersByCategoryAndTime(users, category, 'weekly').length,
-        monthly: filterUsersByCategoryAndTime(users, category, 'monthly').length,
-        all: filterUsersByCategoryAndTime(users, category, 'all').length
+        weekly: fullCount,
+        monthly: fullCount,
+        all: fullCount
     };
 };
 
@@ -141,7 +191,10 @@ export const formatUserReportData = (users = []) => {
     return users.map((user, idx) => {
         const m = user.latestMembership;
         const daysLeft = m ? getRemainingDays(m.endDate) : null;
-        const status = !m ? 'No Plan' : (daysLeft !== null && daysLeft > 0 ? 'Active' : 'Expired');
+        let status = 'No Plan';
+        if (m) {
+            status = (daysLeft !== null && daysLeft > 0) ? `Active (${daysLeft}d left)` : 'Expired';
+        }
 
         const dueDateRaw = m?.dueDate || m?.endDate;
         const dueDate = dueDateRaw ? fmtDate(dueDateRaw) : '—';
@@ -173,19 +226,20 @@ export const formatUserReportData = (users = []) => {
  * Download Report as DOC (.doc format with Word XML markup)
  */
 export const downloadUserReportDOC = ({ users, category = 'all', timeRange = 'weekly' }) => {
-    const filteredUsers = filterUsersByCategoryAndTime(users, category, timeRange);
-    const rows = formatUserReportData(filteredUsers);
+    const targetUsers = getCategoryUsersForReport(users, category, timeRange);
+    const rows = formatUserReportData(targetUsers);
 
     const catConfig = CATEGORY_CONFIG[category] || CATEGORY_CONFIG.all;
     const timeConfig = TIMEFRAME_CONFIG[timeRange] || TIMEFRAME_CONFIG.weekly;
     const now = new Date();
     const dateStamp = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
     const timeStamp = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    const cycleLabel = timeRange === 'weekly' ? getWeekCycleRange() : getMonthCycleRange();
 
     const totalAmount = rows.reduce((sum, r) => sum + (r.amount || 0), 0);
 
     const tableRowsHtml = rows.length > 0 ? rows.map(r => {
-        const statusStyle = r.status === 'Active'
+        const statusStyle = r.status.startsWith('Active')
             ? 'color: #15803d; background-color: #dcfce7;'
             : r.status === 'Expired'
                 ? 'color: #b91c1c; background-color: #fee2e2;'
@@ -193,17 +247,17 @@ export const downloadUserReportDOC = ({ users, category = 'all', timeRange = 'we
 
         return `
             <tr>
-                <td style="text-align: center; border: 1px solid #d1d5db; padding: 6px 8px;">${r.sr}</td>
-                <td style="font-weight: bold; border: 1px solid #d1d5db; padding: 6px 8px;">${r.name}</td>
-                <td style="border: 1px solid #d1d5db; padding: 6px 8px; font-family: monospace;">${r.phone}</td>
-                <td style="border: 1px solid #d1d5db; padding: 6px 8px;">${r.packageName}</td>
-                <td style="text-align: right; font-weight: bold; border: 1px solid #d1d5db; padding: 6px 8px;">${r.amountFormatted}</td>
-                <td style="text-align: center; border: 1px solid #d1d5db; padding: 6px 8px;">${r.startDate}</td>
-                <td style="text-align: center; border: 1px solid #d1d5db; padding: 6px 8px;">${r.endDate}</td>
-                <td style="text-align: center; font-weight: bold; border: 1px solid #d1d5db; padding: 6px 8px;">${r.dueDate}</td>
-                <td style="text-align: center; border: 1px solid #d1d5db; padding: 6px 8px;">${r.registrationDate}</td>
-                <td style="text-align: center; border: 1px solid #d1d5db; padding: 6px 8px;">
-                    <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 8.5pt; font-weight: bold; ${statusStyle}">
+                <td style="text-align: center; border: 1px solid #cbd5e1; padding: 7px 6px;">${r.sr}</td>
+                <td style="font-weight: bold; border: 1px solid #cbd5e1; padding: 7px 8px; color: #0f172a;">${r.name}</td>
+                <td style="border: 1px solid #cbd5e1; padding: 7px 8px; font-family: monospace;">${r.phone}</td>
+                <td style="border: 1px solid #cbd5e1; padding: 7px 8px; font-weight: 500;">${r.packageName}</td>
+                <td style="text-align: right; font-weight: bold; border: 1px solid #cbd5e1; padding: 7px 8px; color: #047857;">${r.amountFormatted}</td>
+                <td style="text-align: center; border: 1px solid #cbd5e1; padding: 7px 8px;">${r.startDate}</td>
+                <td style="text-align: center; border: 1px solid #cbd5e1; padding: 7px 8px;">${r.endDate}</td>
+                <td style="text-align: center; font-weight: bold; border: 1px solid #cbd5e1; padding: 7px 8px; color: #1e3a8a;">${r.dueDate}</td>
+                <td style="text-align: center; border: 1px solid #cbd5e1; padding: 7px 8px;">${r.registrationDate}</td>
+                <td style="text-align: center; border: 1px solid #cbd5e1; padding: 7px 6px;">
+                    <span style="display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 8.5pt; font-weight: bold; ${statusStyle}">
                         ${r.status}
                     </span>
                 </td>
@@ -211,8 +265,8 @@ export const downloadUserReportDOC = ({ users, category = 'all', timeRange = 'we
         `;
     }).join('') : `
         <tr>
-            <td colspan="10" style="text-align: center; padding: 20px; color: #6b7280; font-style: italic; border: 1px solid #d1d5db;">
-                No member records found for ${catConfig.label} (${timeConfig.label} - ${timeConfig.description}).
+            <td colspan="10" style="text-align: center; padding: 25px; color: #64748b; font-style: italic; border: 1px solid #cbd5e1;">
+                No member records found for ${catConfig.label}.
             </td>
         </tr>
     `;
@@ -240,8 +294,8 @@ export const downloadUserReportDOC = ({ users, category = 'all', timeRange = 'we
                     margin: 20px;
                 }
                 .header-title {
-                    color: #1e3a8a;
-                    font-size: 18pt;
+                    color: #0f172a;
+                    font-size: 20pt;
                     font-weight: bold;
                     margin: 0;
                     text-transform: uppercase;
@@ -250,7 +304,7 @@ export const downloadUserReportDOC = ({ users, category = 'all', timeRange = 'we
                 .sub-title {
                     font-size: 13pt;
                     font-weight: bold;
-                    color: #374151;
+                    color: ${catConfig.docHeaderColor || '#1e40af'};
                     margin: 4px 0 12px 0;
                 }
                 .meta-table {
@@ -289,15 +343,13 @@ export const downloadUserReportDOC = ({ users, category = 'all', timeRange = 'we
                     color: #6b7280;
                     border-top: 1px solid #e5e7eb;
                     padding-top: 8px;
-                    display: flex;
-                    justify-content: space-between;
                 }
             </style>
         </head>
         <body>
-            <div style="border-bottom: 2px solid ${catConfig.docHeaderColor || '#2563eb'}; padding-bottom: 10px; margin-bottom: 14px;">
+            <div style="border-bottom: 3px solid ${catConfig.docHeaderColor || '#2563eb'}; padding-bottom: 10px; margin-bottom: 14px;">
                 <p class="header-title">TARA FITNESS & GYM</p>
-                <p class="sub-title">${catConfig.label} — ${timeConfig.label} Report (${timeConfig.description})</p>
+                <p class="sub-title">${catConfig.label} — ${timeConfig.label} Report (${cycleLabel})</p>
             </div>
 
             <table class="meta-table">
@@ -351,49 +403,56 @@ export const downloadUserReportDOC = ({ users, category = 'all', timeRange = 'we
 
 /**
  * Download Report as PDF (using html2pdf.js in landscape A4)
+ * Guaranteed non-blank by rendering into active DOM coordinates during conversion
  */
 export const downloadUserReportPDF = async ({ users, category = 'all', timeRange = 'weekly' }) => {
-    const filteredUsers = filterUsersByCategoryAndTime(users, category, timeRange);
-    const rows = formatUserReportData(filteredUsers);
+    const targetUsers = getCategoryUsersForReport(users, category, timeRange);
+    const rows = formatUserReportData(targetUsers);
 
     const catConfig = CATEGORY_CONFIG[category] || CATEGORY_CONFIG.all;
     const timeConfig = TIMEFRAME_CONFIG[timeRange] || TIMEFRAME_CONFIG.weekly;
     const now = new Date();
     const dateStamp = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
     const timeStamp = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    const cycleLabel = timeRange === 'weekly' ? getWeekCycleRange() : getMonthCycleRange();
 
     const totalAmount = rows.reduce((sum, r) => sum + (r.amount || 0), 0);
 
-    // Create a temporary offscreen element for rendering PDF
+    // Create container directly at top:0, left:0 on screen so html2canvas renders with 100% visibility
     const printEl = document.createElement('div');
     printEl.id = 'temp-pdf-report-container';
     printEl.style.position = 'fixed';
-    printEl.style.top = '-99999px';
+    printEl.style.top = '0';
     printEl.style.left = '0';
-    printEl.style.width = '1120px'; // Wide enough for high-res landscape A4
+    printEl.style.width = '1120px';
+    printEl.style.minHeight = '100vh';
     printEl.style.backgroundColor = '#ffffff';
     printEl.style.color = '#111827';
     printEl.style.fontFamily = 'Segoe UI, Helvetica, Arial, sans-serif';
     printEl.style.padding = '24px 30px';
-    printEl.style.zIndex = '-1000';
+    printEl.style.zIndex = '999999'; // on top while rendering
+    printEl.style.boxSizing = 'border-box';
+    printEl.style.overflow = 'visible';
 
     const tableRowsHtml = rows.length > 0 ? rows.map(r => {
-        const statusBadge = r.status === 'Active'
-            ? '<span style="background-color: #dcfce7; color: #15803d; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 8pt;">Active</span>'
-            : r.status === 'Expired'
+        const isAct = r.status.startsWith('Active');
+        const isExp = r.status.startsWith('Expired');
+        const statusBadge = isAct
+            ? '<span style="background-color: #dcfce7; color: #15803d; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 8pt;">' + r.status + '</span>'
+            : isExp
                 ? '<span style="background-color: #fee2e2; color: #b91c1c; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 8pt;">Expired</span>'
                 : '<span style="background-color: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 8pt;">No Plan</span>';
 
         return `
-            <tr style="border-bottom: 1px solid #e2e8f0; font-size: 8.5pt;">
+            <tr style="border-bottom: 1px solid #e2e8f0; font-size: 8.5pt; page-break-inside: avoid; break-inside: avoid;">
                 <td style="padding: 7px 6px; text-align: center; color: #64748b; border: 1px solid #cbd5e1;">${r.sr}</td>
-                <td style="padding: 7px 8px; font-weight: 600; color: #0f172a; border: 1px solid #cbd5e1;">${r.name}</td>
+                <td style="padding: 7px 8px; font-weight: 700; color: #0f172a; border: 1px solid #cbd5e1;">${r.name}</td>
                 <td style="padding: 7px 8px; color: #334155; font-family: monospace; font-size: 8pt; border: 1px solid #cbd5e1;">${r.phone}</td>
-                <td style="padding: 7px 8px; color: #1e293b; font-weight: 500; border: 1px solid #cbd5e1;">${r.packageName}</td>
+                <td style="padding: 7px 8px; color: #1e293b; font-weight: 600; border: 1px solid #cbd5e1;">${r.packageName}</td>
                 <td style="padding: 7px 8px; text-align: right; font-weight: 700; color: #047857; border: 1px solid #cbd5e1;">${r.amountFormatted}</td>
                 <td style="padding: 7px 8px; text-align: center; color: #475569; border: 1px solid #cbd5e1;">${r.startDate}</td>
                 <td style="padding: 7px 8px; text-align: center; color: #475569; border: 1px solid #cbd5e1;">${r.endDate}</td>
-                <td style="padding: 7px 8px; text-align: center; font-weight: 600; color: #0f172a; border: 1px solid #cbd5e1;">${r.dueDate}</td>
+                <td style="padding: 7px 8px; text-align: center; font-weight: 700; color: #1e3a8a; border: 1px solid #cbd5e1;">${r.dueDate}</td>
                 <td style="padding: 7px 8px; text-align: center; color: #475569; border: 1px solid #cbd5e1;">${r.registrationDate}</td>
                 <td style="padding: 7px 6px; text-align: center; border: 1px solid #cbd5e1;">${statusBadge}</td>
             </tr>
@@ -401,25 +460,25 @@ export const downloadUserReportPDF = async ({ users, category = 'all', timeRange
     }).join('') : `
         <tr>
             <td colspan="10" style="text-align: center; padding: 28px; color: #64748b; font-style: italic; border: 1px solid #cbd5e1;">
-                No member records found for ${catConfig.label} (${timeConfig.label} - ${timeConfig.description}).
+                No member records found for ${catConfig.label}.
             </td>
         </tr>
     `;
 
     printEl.innerHTML = `
-        <div style="margin-bottom: 16px; border-bottom: 2px solid ${catConfig.docHeaderColor || '#2563eb'}; padding-bottom: 12px;">
+        <div style="margin-bottom: 16px; border-bottom: 3px solid ${catConfig.docHeaderColor || '#2563eb'}; padding-bottom: 12px;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                 <div>
                     <h1 style="font-size: 20pt; font-weight: 900; color: #0f172a; margin: 0; letter-spacing: -0.5px; text-transform: uppercase;">
                         TARA <span style="color: #ea580c;">FITNESS</span> & GYM
                     </h1>
                     <p style="font-size: 12pt; font-weight: 700; color: ${catConfig.docHeaderColor || '#1e40af'}; margin: 4px 0 0 0;">
-                        ${catConfig.label} — ${timeConfig.label} Report (${timeConfig.description})
+                        ${catConfig.label} — ${timeConfig.label} Report (${cycleLabel})
                     </p>
                 </div>
                 <div style="text-align: right;">
                     <span style="display: inline-block; background-color: #f1f5f9; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 6px; font-size: 8pt; font-weight: 600; color: #475569;">
-                        CONFIDENTIAL GYM RECORD
+                        OFFICIAL GYM RECORD
                     </span>
                     <p style="margin: 4px 0 0 0; font-size: 8pt; color: #64748b;">
                         Generated: ${dateStamp} ${timeStamp}
@@ -430,8 +489,8 @@ export const downloadUserReportPDF = async ({ users, category = 'all', timeRange
 
         <div style="display: flex; gap: 12px; margin-bottom: 14px;">
             <div style="flex: 1; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px;">
-                <p style="font-size: 7.5pt; text-transform: uppercase; color: #64748b; margin: 0; font-weight: 600;">Timeframe</p>
-                <p style="font-size: 11pt; font-weight: 700; color: #0f172a; margin: 2px 0 0 0;">${timeConfig.label} (${timeConfig.description})</p>
+                <p style="font-size: 7.5pt; text-transform: uppercase; color: #64748b; margin: 0; font-weight: 600;">Reporting Cycle</p>
+                <p style="font-size: 11pt; font-weight: 700; color: #0f172a; margin: 2px 0 0 0;">${timeConfig.label} (${cycleLabel})</p>
             </div>
             <div style="flex: 1; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px;">
                 <p style="font-size: 7.5pt; text-transform: uppercase; color: #64748b; margin: 0; font-weight: 600;">Total Members</p>
@@ -455,7 +514,7 @@ export const downloadUserReportPDF = async ({ users, category = 'all', timeRange
                     <th style="padding: 8px 8px; border: 1px solid #0f172a; font-size: 8pt; text-align: center; text-transform: uppercase;">End Date</th>
                     <th style="padding: 8px 8px; border: 1px solid #0f172a; font-size: 8pt; text-align: center; text-transform: uppercase;">Due Date</th>
                     <th style="padding: 8px 8px; border: 1px solid #0f172a; font-size: 8pt; text-align: center; text-transform: uppercase;">Reg. Date</th>
-                    <th style="padding: 8px 6px; border: 1px solid #0f172a; font-size: 8pt; text-align: center; text-transform: uppercase; width: 70px;">Status</th>
+                    <th style="padding: 8px 6px; border: 1px solid #0f172a; font-size: 8pt; text-align: center; text-transform: uppercase; width: 85px;">Status</th>
                 </tr>
             </thead>
             <tbody>
@@ -479,8 +538,16 @@ export const downloadUserReportPDF = async ({ users, category = 'all', timeRange
         margin: [6, 6, 6, 6],
         filename: `TaraFitness_${safeCat}_${safeTime}_Report_${dateFormatted}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+        html2canvas: {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            scrollX: 0,
+            scrollY: 0,
+            windowWidth: 1200
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
     try {
