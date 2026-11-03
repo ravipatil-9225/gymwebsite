@@ -19,6 +19,24 @@ const fmtInput = (dateStr) => {
     try { const d = new Date(dateStr); if (isNaN(d.getTime())) return ''; return d.toISOString().split('T')[0]; }
     catch { return ''; }
 };
+const parseDurationDays = (durationStr = '') => {
+    const n = typeof durationStr === 'string' ? durationStr.toLowerCase() : '';
+    if (n.includes('year')) { const m = n.match(/(\d+)\s*year/); return (m ? parseInt(m[1]) : 1) * 365; }
+    if (n.includes('month')) { const m = n.match(/(\d+)\s*month/); return (m ? parseInt(m[1]) : 1) * 30; }
+    if (n.includes('week')) { const m = n.match(/(\d+)\s*week/); return (m ? parseInt(m[1]) : 1) * 7; }
+    if (n.includes('day')) { const m = n.match(/(\d+)\s*day/); return m ? parseInt(m[1]) : 30; }
+    return 30;
+};
+const calcEndDate = (startDateStr, durationDays) => {
+    if (!startDateStr) return '';
+    try {
+        const d = new Date(startDateStr);
+        if (isNaN(d.getTime())) return '';
+        d.setDate(d.getDate() + Number(durationDays || 30));
+        return d.toISOString().split('T')[0];
+    } catch { return ''; }
+};
+
 const getRemainingDays = (endDate) => {
     if (!endDate) return null;
     return Math.ceil((new Date(endDate) - new Date()) / (1000 * 60 * 60 * 24));
@@ -613,17 +631,24 @@ const UserProfile = () => {
                                     {user.allMemberships?.length || 0} plans · ₹{totalSpent.toLocaleString('en-IN')}
                                 </span>
                                 <button
-                                    onClick={() => setPlanForm({
-                                        mode: 'create',
-                                        data: {
-                                            packageName: '',
-                                            planDuration: 30,
-                                            amountPaid: 0,
-                                            startDate: new Date().toISOString().split('T')[0],
-                                            endDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
-                                            status: 'active'
-                                        }
-                                    })}
+                                    onClick={() => {
+                                        const defaultPkg = packages[0];
+                                        const days = defaultPkg ? parseDurationDays(defaultPkg.duration) : 30;
+                                        const start = new Date().toISOString().split('T')[0];
+                                        const end = calcEndDate(start, days);
+                                        setPlanForm({
+                                            mode: 'create',
+                                            packageId: defaultPkg?._id || '',
+                                            data: {
+                                                packageName: defaultPkg?.name || '',
+                                                planDuration: days,
+                                                amountPaid: defaultPkg?.price || 0,
+                                                startDate: start,
+                                                endDate: end,
+                                                status: 'active'
+                                            }
+                                        });
+                                    }}
                                     className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-purple-300 bg-purple-900/40 border border-purple-700/60 hover:bg-purple-900/70 rounded-lg transition-colors"
                                 >
                                     <Plus className="w-3.5 h-3.5" /> Add Plan
@@ -648,28 +673,53 @@ const UserProfile = () => {
                                 </div>
                                 <form onSubmit={handlePlanSave} className="grid grid-cols-2 md:grid-cols-3 gap-3">
                                     <div>
-                                        <label className={`block ${LBL} mb-1`}>Package Name *</label>
+                                        <label className={`block ${LBL} mb-1`}>Package Name (Dropdown) *</label>
+                                        <select
+                                            value={planForm.packageId || ''}
+                                            onChange={(e) => {
+                                                const pkgId = e.target.value;
+                                                if (!pkgId) return;
+                                                if (pkgId === 'custom') {
+                                                    setPlanForm(f => ({ ...f, packageId: 'custom' }));
+                                                    return;
+                                                }
+                                                const sel = packages.find(p => p._id === pkgId);
+                                                if (sel) {
+                                                    const days = parseDurationDays(sel.duration);
+                                                    const sDate = planForm.data.startDate || new Date().toISOString().split('T')[0];
+                                                    const eDate = calcEndDate(sDate, days);
+                                                    setPlanForm(f => ({
+                                                        ...f,
+                                                        packageId: sel._id,
+                                                        data: {
+                                                            ...f.data,
+                                                            packageName: sel.name,
+                                                            amountPaid: sel.price,
+                                                            planDuration: days,
+                                                            endDate: eDate
+                                                        }
+                                                    }));
+                                                }
+                                            }}
+                                            className="w-full px-3 py-2 text-xs border border-[#2d3748] rounded-xl text-gray-200 bg-[#111827] outline-none focus:border-purple-500"
+                                        >
+                                            <option value="">-- Select a Package --</option>
+                                            {packages.map(p => (
+                                                <option key={p._id} value={p._id}>
+                                                    {p.name} ({p.duration}) — ₹{Number(p.price).toLocaleString('en-IN')}
+                                                </option>
+                                            ))}
+                                            <option value="custom">✏️ Other / Custom Name...</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className={`block ${LBL} mb-1`}>Package Name (Text) *</label>
                                         <input
                                             required
                                             value={planForm.data.packageName}
                                             onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, packageName: e.target.value } }))}
                                             className="w-full px-3 py-2 text-xs border border-[#2d3748] rounded-xl text-gray-200 bg-[#111827] outline-none focus:border-purple-500"
                                             placeholder="e.g. HARDCORE"
-                                            list="profile-pkg-list"
-                                        />
-                                        <datalist id="profile-pkg-list">
-                                            {packages.map(p => <option key={p._id} value={p.name} />)}
-                                        </datalist>
-                                    </div>
-                                    <div>
-                                        <label className={`block ${LBL} mb-1`}>Duration (days) *</label>
-                                        <input
-                                            required
-                                            type="number"
-                                            min="1"
-                                            value={planForm.data.planDuration}
-                                            onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, planDuration: e.target.value } }))}
-                                            className="w-full px-3 py-2 text-xs border border-[#2d3748] rounded-xl text-gray-200 bg-[#111827] outline-none focus:border-purple-500"
                                         />
                                     </div>
                                     <div>
@@ -680,6 +730,22 @@ const UserProfile = () => {
                                             min="0"
                                             value={planForm.data.amountPaid}
                                             onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, amountPaid: e.target.value } }))}
+                                            className="w-full px-3 py-2 text-xs border border-purple-500/40 rounded-xl text-purple-300 font-semibold bg-[#111827] outline-none focus:border-purple-500"
+                                            placeholder="Autofilled on select"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={`block ${LBL} mb-1`}>Duration (days) *</label>
+                                        <input
+                                            required
+                                            type="number"
+                                            min="1"
+                                            value={planForm.data.planDuration}
+                                            onChange={e => {
+                                                const newDur = e.target.value;
+                                                const newEnd = calcEndDate(planForm.data.startDate, newDur);
+                                                setPlanForm(f => ({ ...f, data: { ...f.data, planDuration: newDur, endDate: newEnd } }));
+                                            }}
                                             className="w-full px-3 py-2 text-xs border border-[#2d3748] rounded-xl text-gray-200 bg-[#111827] outline-none focus:border-purple-500"
                                         />
                                     </div>
@@ -689,7 +755,11 @@ const UserProfile = () => {
                                             required
                                             type="date"
                                             value={planForm.data.startDate}
-                                            onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, startDate: e.target.value } }))}
+                                            onChange={e => {
+                                                const newStart = e.target.value;
+                                                const newEnd = calcEndDate(newStart, planForm.data.planDuration);
+                                                setPlanForm(f => ({ ...f, data: { ...f.data, startDate: newStart, endDate: newEnd } }));
+                                            }}
                                             className="w-full px-3 py-2 text-xs border border-[#2d3748] rounded-xl text-gray-200 bg-[#111827] outline-none focus:border-purple-500"
                                         />
                                     </div>
@@ -786,18 +856,27 @@ const UserProfile = () => {
                                                         <div className="flex items-center gap-1.5">
                                                             <button
                                                                 title="Edit plan"
-                                                                onClick={() => setPlanForm({
-                                                                    mode: 'edit',
-                                                                    data: {
-                                                                        _id: mem._id,
-                                                                        packageName: mem.packageName || '',
-                                                                        planDuration: mem.planDuration || 30,
-                                                                        amountPaid: mem.amountPaid || 0,
-                                                                        startDate: fmtInput(mem.startDate),
-                                                                        endDate: fmtInput(mem.endDate),
-                                                                        status: mem.status || 'active'
-                                                                    }
-                                                                })}
+                                                                onClick={() => {
+                                                                    const matchedPkg = packages.find(p =>
+                                                                        p.name?.toLowerCase().trim() === mem.packageName?.toLowerCase().trim() &&
+                                                                        Number(p.price) === Number(mem.amountPaid)
+                                                                    ) || packages.find(p =>
+                                                                        p.name?.toLowerCase().trim() === mem.packageName?.toLowerCase().trim()
+                                                                    );
+                                                                    setPlanForm({
+                                                                        mode: 'edit',
+                                                                        packageId: matchedPkg ? matchedPkg._id : 'custom',
+                                                                        data: {
+                                                                            _id: mem._id,
+                                                                            packageName: mem.packageName || '',
+                                                                            planDuration: mem.planDuration || 30,
+                                                                            amountPaid: mem.amountPaid || 0,
+                                                                            startDate: fmtInput(mem.startDate),
+                                                                            endDate: fmtInput(mem.endDate),
+                                                                            status: mem.status || 'active'
+                                                                        }
+                                                                    });
+                                                                }}
                                                                 className="p-1 rounded text-blue-400 hover:bg-blue-500/10 transition-colors"
                                                             >
                                                                 <Edit className="w-3.5 h-3.5" />
