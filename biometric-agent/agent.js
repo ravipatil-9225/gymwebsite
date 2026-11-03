@@ -185,7 +185,10 @@ async function startAgent() {
         const savedSn = loadLastProcessedSn();
         const maxDeviceSn = data.length > 0 ? Math.max(...data.map(log => log.userSn || 0)) : 0;
 
-        if (savedSn !== null && savedSn <= maxDeviceSn) {
+        // savedSn=0 means corrupted/reset state — treat as first run to avoid replaying all history
+        const isValidSavedState = savedSn !== null && savedSn > 0 && savedSn <= maxDeviceSn;
+
+        if (isValidSavedState) {
             lastProcessedSn = savedSn;
             console.log(`📌 Resumed from last sync state: Last processed serial #${lastProcessedSn}`);
 
@@ -209,10 +212,11 @@ async function startAgent() {
                 console.log(`✨ All punches are up to date. No offline punches pending.`);
             }
         } else if (data.length > 0) {
-            // First time running or machine logs were reset
+            // First time running, corrupted state (savedSn=0), or machine logs were reset
+            // Skip ALL historical records — only watch for NEW scans from this moment
             lastProcessedSn = maxDeviceSn;
             saveLastProcessedSn(lastProcessedSn);
-            console.log(`📌 Initialized: Last processed record serial is #${lastProcessedSn}`);
+            console.log(`📌 Initialized fresh: Skipping ${maxDeviceSn} historical records. Watching for NEW scans only.`);
         } else {
             console.log('📌 Initialized: Machine log is empty, waiting for new scans.');
             lastProcessedSn = 0;
