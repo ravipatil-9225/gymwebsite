@@ -30,6 +30,43 @@ const fmtInput = (dateStr) => {
     } catch { return ''; }
 };
 
+// Helper to resolve accurate package amount if amountPaid is 0 or missing
+const resolveUserPlanAmount = (user, pkgs = []) => {
+    const m = user?.latestMembership;
+    if (!m) return null;
+    if (m.amountPaid != null && Number(m.amountPaid) > 0) return Number(m.amountPaid);
+    if (Array.isArray(user.allMemberships)) {
+        const pName = m.packageName?.toLowerCase().trim();
+        const memWithAmt = user.allMemberships.find(mem =>
+            Number(mem?.amountPaid) > 0 &&
+            (!pName || mem?.packageName?.toLowerCase().trim() === pName)
+        ) || user.allMemberships.find(mem => Number(mem?.amountPaid) > 0);
+        if (memWithAmt) return Number(memWithAmt.amountPaid);
+    }
+    const alt = m.planPrice ?? m.originalAmount;
+    if (alt != null && Number(alt) > 0) return Number(alt);
+    if (Array.isArray(pkgs) && pkgs.length > 0 && m.packageName) {
+        const pName = m.packageName.toLowerCase().trim();
+        const durDays = Number(m.planDuration || 30);
+        const isStrengthFitness = pName.includes('fitness');
+        const isHardcore = !isStrengthFitness && (pName.includes('hardcore') || pName.includes('strength'));
+        const matchedWithDur = pkgs.find(p => {
+            const pkgName = p.name?.toLowerCase().trim() || '';
+            const isMatch = isStrengthFitness
+                ? pkgName.includes('fitness')
+                : (isHardcore ? (pkgName.includes('hardcore') || pkgName.includes('strength')) : pkgName === pName);
+            if (!isMatch) return false;
+            const pDays = parseDurationDays(p.duration);
+            return Math.abs(pDays - durDays) <= 15;
+        });
+        if (matchedWithDur?.price != null && Number(matchedWithDur.price) > 0) return Number(matchedWithDur.price);
+        const nameMatch = pkgs.find(p => p.name?.toLowerCase().trim() === pName)
+            || pkgs.find(p => p.name && (pName.includes(p.name.toLowerCase().trim()) || p.name.toLowerCase().trim().includes(pName)));
+        if (nameMatch?.price != null && Number(nameMatch.price) > 0) return Number(nameMatch.price);
+    }
+    return Number(m.amountPaid || 0);
+};
+
 const parseDurationDays = (durationStr = '') => {
     const n = typeof durationStr === 'string' ? durationStr.toLowerCase() : '';
     if (n.includes('year')) { const m = n.match(/(\d+)\s*year/); return (m ? parseInt(m[1]) : 1) * 365; }
@@ -919,16 +956,18 @@ const UserManagement = () => {
 
                                         {/* Plan name */}
                                         <td className="px-4 py-3 whitespace-nowrap">
-                                            {m ? (
-                                                <div>
-                                                    <span className="font-medium text-gray-800">{m.packageName}</span>
-                                                    {m.amountPaid != null && (
-                                                        <span className="block text-[11px] font-bold text-emerald-600">
-                                                            ₹{Number(m.amountPaid).toLocaleString('en-IN')}
+                                            {m ? (() => {
+                                                const resolved = resolveUserPlanAmount(user, packages);
+                                                const finalAmount = (resolved != null && resolved > 0) ? resolved : Number(m.amountPaid || 0);
+                                                return (
+                                                    <div>
+                                                        <span className="font-semibold text-gray-900 block">{m.packageName}</span>
+                                                        <span className="inline-block text-xs font-bold text-emerald-600">
+                                                            ₹{finalAmount.toLocaleString('en-IN')}
                                                         </span>
-                                                    )}
-                                                </div>
-                                            ) : (
+                                                    </div>
+                                                );
+                                            })() : (
                                                 <span className="text-gray-300 text-xs">No Plan</span>
                                             )}
                                         </td>
@@ -1217,115 +1256,127 @@ const UserManagement = () => {
                                 <h3 className="text-sm font-bold text-purple-800 mb-3">
                                     {planForm.mode === 'create' ? '➕ Add New Plan' : '✏️ Edit Plan'}
                                 </h3>
-                                <form onSubmit={handlePlanSave} className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                    <div>
-                                        <label className="text-xs text-gray-600 font-medium">Package (Dropdown) *</label>
-                                        <select
-                                            value={planForm.packageId || ''}
-                                            onChange={(e) => {
-                                                const pkgId = e.target.value;
-                                                if (!pkgId) return;
-                                                if (pkgId === 'custom') {
-                                                    setPlanForm(f => ({ ...f, packageId: 'custom' }));
-                                                    return;
-                                                }
-                                                const sel = packages.find(p => p._id === pkgId);
-                                                if (sel) {
-                                                    const days = parseDurationDays(sel.duration);
-                                                    const sDate = planForm.data.startDate || new Date().toISOString().split('T')[0];
-                                                    const eDate = calcEndDate(sDate, days);
-                                                    setPlanForm(f => ({
-                                                        ...f,
-                                                        packageId: sel._id,
-                                                        data: {
-                                                            ...f.data,
-                                                            packageName: sel.name,
-                                                            amountPaid: sel.price,
-                                                            planDuration: days,
-                                                            endDate: eDate
-                                                        }
-                                                    }));
-                                                }
-                                            }}
-                                            className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400 outline-none bg-white"
-                                        >
-                                            <option value="">-- Choose a Package --</option>
-                                            {packages.map(p => (
-                                                <option key={p._id} value={p._id}>
-                                                    {p.name} ({p.duration}) — ₹{Number(p.price).toLocaleString('en-IN')}
-                                                </option>
-                                            ))}
-                                            <option value="custom">✏️ Other / Custom Name...</option>
-                                        </select>
+                                <form onSubmit={handlePlanSave} className="space-y-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                                        <div className="sm:col-span-2">
+                                            <label className="text-xs text-gray-600 font-semibold mb-1 block">Select Package *</label>
+                                            <select
+                                                value={planForm.packageId || ''}
+                                                onChange={(e) => {
+                                                    const pkgId = e.target.value;
+                                                    if (!pkgId) return;
+                                                    if (pkgId === 'custom') {
+                                                        setPlanForm(f => ({ ...f, packageId: 'custom' }));
+                                                        return;
+                                                    }
+                                                    const sel = packages.find(p => p._id === pkgId);
+                                                    if (sel) {
+                                                        const days = parseDurationDays(sel.duration);
+                                                        const sDate = planForm.data.startDate || new Date().toISOString().split('T')[0];
+                                                        const eDate = calcEndDate(sDate, days);
+                                                        setPlanForm(f => ({
+                                                            ...f,
+                                                            packageId: sel._id,
+                                                            data: {
+                                                                ...f.data,
+                                                                packageName: sel.name,
+                                                                amountPaid: sel.price,
+                                                                planDuration: days,
+                                                                endDate: eDate
+                                                            }
+                                                        }));
+                                                    }
+                                                }}
+                                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-400 outline-none bg-white cursor-pointer"
+                                            >
+                                                <option value="">-- Choose Package (Duration & Price) --</option>
+                                                {packages.map(p => (
+                                                    <option key={p._id} value={p._id}>
+                                                        {p.name} ({p.duration}) — ₹{Number(p.price).toLocaleString('en-IN')}
+                                                    </option>
+                                                ))}
+                                                <option value="custom">✏️ Other / Custom Name...</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="text-xs text-gray-600 font-semibold mb-1 block">Package Name (Text) *</label>
+                                            <input
+                                                required
+                                                value={planForm.data.packageName}
+                                                onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, packageName: e.target.value } }))}
+                                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-400 outline-none"
+                                                placeholder="e.g. HARDCORE"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="text-xs text-gray-600 font-semibold mb-1 block">Amount Paid (₹) *</label>
+                                            <input
+                                                required
+                                                type="number"
+                                                min="0"
+                                                value={planForm.data.amountPaid}
+                                                onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, amountPaid: e.target.value } }))}
+                                                className="w-full px-3 py-2 text-sm border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-400 outline-none font-bold text-purple-700 bg-purple-50/50"
+                                            />
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label className="text-xs text-gray-600 font-medium">Package Name (Text) *</label>
-                                        <input
-                                            required
-                                            value={planForm.data.packageName}
-                                            onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, packageName: e.target.value } }))}
-                                            className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400 outline-none"
-                                            placeholder="e.g. HARDCORE"
-                                        />
+
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                        <div>
+                                            <label className="text-xs text-gray-600 font-semibold mb-1 block">Duration (days) *</label>
+                                            <input
+                                                required type="number" min="1"
+                                                value={planForm.data.planDuration}
+                                                onChange={e => {
+                                                    const newDur = e.target.value;
+                                                    const newEnd = calcEndDate(planForm.data.startDate, newDur);
+                                                    setPlanForm(f => ({ ...f, data: { ...f.data, planDuration: newDur, endDate: newEnd } }));
+                                                }}
+                                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-400 outline-none"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="text-xs text-gray-600 font-semibold mb-1 block">Start Date *</label>
+                                            <input
+                                                required type="date"
+                                                value={planForm.data.startDate}
+                                                onChange={e => {
+                                                    const newStart = e.target.value;
+                                                    const newEnd = calcEndDate(newStart, planForm.data.planDuration);
+                                                    setPlanForm(f => ({ ...f, data: { ...f.data, startDate: newStart, endDate: newEnd } }));
+                                                }}
+                                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-400 outline-none"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="text-xs text-gray-600 font-semibold mb-1 block">End Date *</label>
+                                            <input
+                                                required type="date"
+                                                value={planForm.data.endDate}
+                                                onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, endDate: e.target.value } }))}
+                                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-400 outline-none"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="text-xs text-gray-600 font-semibold mb-1 block">Status *</label>
+                                            <select
+                                                value={planForm.data.status}
+                                                onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, status: e.target.value } }))}
+                                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-400 outline-none bg-white font-semibold cursor-pointer"
+                                            >
+                                                <option value="active">🟢 Active</option>
+                                                <option value="expired">🔴 Expired</option>
+                                                <option value="cancelled">⚪ Cancelled</option>
+                                            </select>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label className="text-xs text-gray-600 font-medium">Amount Paid (₹) *</label>
-                                        <input
-                                            required type="number" min="0"
-                                            value={planForm.data.amountPaid}
-                                            onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, amountPaid: e.target.value } }))}
-                                            className="w-full mt-1 px-3 py-2 text-sm border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-400 outline-none font-semibold text-purple-700 bg-purple-50/50"
-                                            placeholder="Autofilled on select"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-gray-600 font-medium">Duration (days) *</label>
-                                        <input
-                                            required type="number" min="1"
-                                            value={planForm.data.planDuration}
-                                            onChange={e => {
-                                                const newDur = e.target.value;
-                                                const newEnd = calcEndDate(planForm.data.startDate, newDur);
-                                                setPlanForm(f => ({ ...f, data: { ...f.data, planDuration: newDur, endDate: newEnd } }));
-                                            }}
-                                            className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400 outline-none"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-gray-600 font-medium">Start Date *</label>
-                                        <input
-                                            required type="date"
-                                            value={planForm.data.startDate}
-                                            onChange={e => {
-                                                const newStart = e.target.value;
-                                                const newEnd = calcEndDate(newStart, planForm.data.planDuration);
-                                                setPlanForm(f => ({ ...f, data: { ...f.data, startDate: newStart, endDate: newEnd } }));
-                                            }}
-                                            className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400 outline-none"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-gray-600 font-medium">End Date *</label>
-                                        <input
-                                            required type="date"
-                                            value={planForm.data.endDate}
-                                            onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, endDate: e.target.value } }))}
-                                            className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400 outline-none"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-xs text-gray-600 font-medium">Status</label>
-                                        <select
-                                            value={planForm.data.status}
-                                            onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, status: e.target.value } }))}
-                                            className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400 outline-none bg-white"
-                                        >
-                                            <option value="active">Active</option>
-                                            <option value="expired">Expired</option>
-                                            <option value="cancelled">Cancelled</option>
-                                        </select>
-                                    </div>
-                                    <div className="col-span-2 sm:col-span-3 flex gap-2 justify-end pt-1">
+
+                                    <div className="flex gap-2 justify-end pt-2 border-t border-purple-100">
                                         <button
                                             type="button"
                                             onClick={() => setPlanForm(null)}
@@ -1336,7 +1387,7 @@ const UserManagement = () => {
                                         <button
                                             type="submit"
                                             disabled={planSaving}
-                                            className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-60 rounded-lg transition-colors"
+                                            className="flex items-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-60 rounded-lg shadow transition-colors"
                                         >
                                             {planSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                                             {planSaving ? 'Saving…' : 'Save Plan'}

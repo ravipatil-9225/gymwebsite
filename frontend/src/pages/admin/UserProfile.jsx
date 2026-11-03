@@ -671,132 +671,146 @@ const UserProfile = () => {
                                         <X className="w-4 h-4" />
                                     </button>
                                 </div>
-                                <form onSubmit={handlePlanSave} className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                    <div>
-                                        <label className={`block ${LBL} mb-1`}>Package Name (Dropdown) *</label>
-                                        <select
-                                            value={planForm.packageId || ''}
-                                            onChange={(e) => {
-                                                const pkgId = e.target.value;
-                                                if (!pkgId) return;
-                                                if (pkgId === 'custom') {
-                                                    setPlanForm(f => ({ ...f, packageId: 'custom' }));
-                                                    return;
-                                                }
-                                                const sel = packages.find(p => p._id === pkgId);
-                                                if (sel) {
-                                                    const days = parseDurationDays(sel.duration);
-                                                    const sDate = planForm.data.startDate || new Date().toISOString().split('T')[0];
-                                                    const eDate = calcEndDate(sDate, days);
-                                                    setPlanForm(f => ({
-                                                        ...f,
-                                                        packageId: sel._id,
-                                                        data: {
-                                                            ...f.data,
-                                                            packageName: sel.name,
-                                                            amountPaid: sel.price,
-                                                            planDuration: days,
-                                                            endDate: eDate
-                                                        }
-                                                    }));
-                                                }
-                                            }}
-                                            className="w-full px-3 py-2 text-xs border border-[#2d3748] rounded-xl text-gray-200 bg-[#111827] outline-none focus:border-purple-500"
-                                        >
-                                            <option value="">-- Select a Package --</option>
-                                            {packages.map(p => (
-                                                <option key={p._id} value={p._id}>
-                                                    {p.name} ({p.duration}) — ₹{Number(p.price).toLocaleString('en-IN')}
-                                                </option>
-                                            ))}
-                                            <option value="custom">✏️ Other / Custom Name...</option>
-                                        </select>
+                                <form onSubmit={handlePlanSave} className="space-y-4">
+                                    {/* Top Row: Package selection + Name + Amount */}
+                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                        <div className="md:col-span-2">
+                                            <label className={`block ${LBL} mb-1.5`}>Select Package from Catalog *</label>
+                                            <select
+                                                value={planForm.packageId || ''}
+                                                onChange={(e) => {
+                                                    const pkgId = e.target.value;
+                                                    if (!pkgId) return;
+                                                    if (pkgId === 'custom') {
+                                                        setPlanForm(f => ({ ...f, packageId: 'custom' }));
+                                                        return;
+                                                    }
+                                                    const sel = packages.find(p => p._id === pkgId);
+                                                    if (sel) {
+                                                        const days = parseDurationDays(sel.duration);
+                                                        const sDate = planForm.data.startDate || new Date().toISOString().split('T')[0];
+                                                        const eDate = calcEndDate(sDate, days);
+                                                        setPlanForm(f => ({
+                                                            ...f,
+                                                            packageId: sel._id,
+                                                            data: {
+                                                                ...f.data,
+                                                                packageName: sel.name,
+                                                                amountPaid: sel.price,
+                                                                planDuration: days,
+                                                                endDate: eDate
+                                                            }
+                                                        }));
+                                                    }
+                                                }}
+                                                className="w-full px-3 py-2.5 text-xs font-medium border border-[#2d3748] rounded-xl text-gray-100 bg-[#111827] outline-none focus:border-purple-500 cursor-pointer"
+                                            >
+                                                <option value="">-- Choose Package (Duration & Price) --</option>
+                                                {packages.map(p => (
+                                                    <option key={p._id} value={p._id}>
+                                                        {p.name} ({p.duration}) — ₹{Number(p.price).toLocaleString('en-IN')}
+                                                    </option>
+                                                ))}
+                                                <option value="custom">✏️ Other / Custom Plan Name...</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className={`block ${LBL} mb-1.5`}>Package Name (Text) *</label>
+                                            <input
+                                                required
+                                                value={planForm.data.packageName}
+                                                onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, packageName: e.target.value } }))}
+                                                className="w-full px-3 py-2.5 text-xs border border-[#2d3748] rounded-xl text-gray-200 bg-[#111827] outline-none focus:border-purple-500 font-semibold"
+                                                placeholder="e.g. HARDCORE"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className={`block ${LBL} mb-1.5`}>Amount Paid (₹) *</label>
+                                            <input
+                                                required
+                                                type="number"
+                                                min="0"
+                                                value={planForm.data.amountPaid}
+                                                onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, amountPaid: e.target.value } }))}
+                                                className="w-full px-3 py-2.5 text-xs border border-purple-500/50 rounded-xl text-purple-300 font-bold bg-[#111827] outline-none focus:border-purple-500"
+                                                placeholder="Autofilled"
+                                            />
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label className={`block ${LBL} mb-1`}>Package Name (Text) *</label>
-                                        <input
-                                            required
-                                            value={planForm.data.packageName}
-                                            onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, packageName: e.target.value } }))}
-                                            className="w-full px-3 py-2 text-xs border border-[#2d3748] rounded-xl text-gray-200 bg-[#111827] outline-none focus:border-purple-500"
-                                            placeholder="e.g. HARDCORE"
-                                        />
+
+                                    {/* Second Row: Duration + Start Date + End Date + Status */}
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                        <div>
+                                            <label className={`block ${LBL} mb-1.5`}>Duration (days) *</label>
+                                            <input
+                                                required
+                                                type="number"
+                                                min="1"
+                                                value={planForm.data.planDuration}
+                                                onChange={e => {
+                                                    const newDur = e.target.value;
+                                                    const newEnd = calcEndDate(planForm.data.startDate, newDur);
+                                                    setPlanForm(f => ({ ...f, data: { ...f.data, planDuration: newDur, endDate: newEnd } }));
+                                                }}
+                                                className="w-full px-3 py-2.5 text-xs border border-[#2d3748] rounded-xl text-gray-200 bg-[#111827] outline-none focus:border-purple-500"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className={`block ${LBL} mb-1.5`}>Start Date *</label>
+                                            <input
+                                                required
+                                                type="date"
+                                                value={planForm.data.startDate}
+                                                onChange={e => {
+                                                    const newStart = e.target.value;
+                                                    const newEnd = calcEndDate(newStart, planForm.data.planDuration);
+                                                    setPlanForm(f => ({ ...f, data: { ...f.data, startDate: newStart, endDate: newEnd } }));
+                                                }}
+                                                className="w-full px-3 py-2.5 text-xs border border-[#2d3748] rounded-xl text-gray-200 bg-[#111827] outline-none focus:border-purple-500"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className={`block ${LBL} mb-1.5`}>End Date *</label>
+                                            <input
+                                                required
+                                                type="date"
+                                                value={planForm.data.endDate}
+                                                onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, endDate: e.target.value } }))}
+                                                className="w-full px-3 py-2.5 text-xs border border-[#2d3748] rounded-xl text-gray-200 bg-[#111827] outline-none focus:border-purple-500"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className={`block ${LBL} mb-1.5`}>Status *</label>
+                                            <select
+                                                value={planForm.data.status}
+                                                onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, status: e.target.value } }))}
+                                                className="w-full px-3 py-2.5 text-xs font-semibold border border-[#2d3748] rounded-xl text-emerald-400 bg-[#111827] outline-none focus:border-purple-500 cursor-pointer"
+                                            >
+                                                <option value="active" className="text-emerald-400">🟢 Active</option>
+                                                <option value="expired" className="text-red-400">🔴 Expired</option>
+                                                <option value="cancelled" className="text-gray-400">⚪ Cancelled</option>
+                                            </select>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label className={`block ${LBL} mb-1`}>Amount Paid (₹) *</label>
-                                        <input
-                                            required
-                                            type="number"
-                                            min="0"
-                                            value={planForm.data.amountPaid}
-                                            onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, amountPaid: e.target.value } }))}
-                                            className="w-full px-3 py-2 text-xs border border-purple-500/40 rounded-xl text-purple-300 font-semibold bg-[#111827] outline-none focus:border-purple-500"
-                                            placeholder="Autofilled on select"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className={`block ${LBL} mb-1`}>Duration (days) *</label>
-                                        <input
-                                            required
-                                            type="number"
-                                            min="1"
-                                            value={planForm.data.planDuration}
-                                            onChange={e => {
-                                                const newDur = e.target.value;
-                                                const newEnd = calcEndDate(planForm.data.startDate, newDur);
-                                                setPlanForm(f => ({ ...f, data: { ...f.data, planDuration: newDur, endDate: newEnd } }));
-                                            }}
-                                            className="w-full px-3 py-2 text-xs border border-[#2d3748] rounded-xl text-gray-200 bg-[#111827] outline-none focus:border-purple-500"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className={`block ${LBL} mb-1`}>Start Date *</label>
-                                        <input
-                                            required
-                                            type="date"
-                                            value={planForm.data.startDate}
-                                            onChange={e => {
-                                                const newStart = e.target.value;
-                                                const newEnd = calcEndDate(newStart, planForm.data.planDuration);
-                                                setPlanForm(f => ({ ...f, data: { ...f.data, startDate: newStart, endDate: newEnd } }));
-                                            }}
-                                            className="w-full px-3 py-2 text-xs border border-[#2d3748] rounded-xl text-gray-200 bg-[#111827] outline-none focus:border-purple-500"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className={`block ${LBL} mb-1`}>End Date *</label>
-                                        <input
-                                            required
-                                            type="date"
-                                            value={planForm.data.endDate}
-                                            onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, endDate: e.target.value } }))}
-                                            className="w-full px-3 py-2 text-xs border border-[#2d3748] rounded-xl text-gray-200 bg-[#111827] outline-none focus:border-purple-500"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className={`block ${LBL} mb-1`}>Status</label>
-                                        <select
-                                            value={planForm.data.status}
-                                            onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, status: e.target.value } }))}
-                                            className="w-full px-3 py-2 text-xs border border-[#2d3748] rounded-xl text-gray-200 bg-[#111827] outline-none focus:border-purple-500"
-                                        >
-                                            <option value="active">Active</option>
-                                            <option value="expired">Expired</option>
-                                            <option value="cancelled">Cancelled</option>
-                                        </select>
-                                    </div>
-                                    <div className="col-span-2 md:col-span-3 flex gap-2 justify-end pt-2">
+
+                                    {/* Action Buttons */}
+                                    <div className="flex gap-2 justify-end pt-2 border-t border-[#1f2937]">
                                         <button
                                             type="button"
                                             onClick={() => setPlanForm(null)}
-                                            className="px-3 py-1.5 text-xs font-semibold text-gray-400 hover:text-gray-200"
+                                            className="px-4 py-2 text-xs font-semibold text-gray-400 hover:text-gray-200 bg-[#1f2937] hover:bg-[#2d3748] rounded-xl transition-colors"
                                         >
                                             Cancel
                                         </button>
                                         <button
                                             type="submit"
                                             disabled={planSaving}
-                                            className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-lg transition-colors"
+                                            className="flex items-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-xl shadow-lg shadow-purple-900/30 transition-all"
                                         >
                                             {planSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                                             {planSaving ? 'Saving...' : 'Save Plan'}
@@ -817,43 +831,51 @@ const UserProfile = () => {
                                 <table className="w-full text-sm">
                                     <thead>
                                         <tr className="border-b border-[#1f2937]">
-                                            {['#', 'Plan', 'Duration', 'Start', 'End', 'Amount', 'Status', 'Actions'].map(h => (
-                                                <th key={h} className={`px-4 py-3 text-left ${LBL}`}>{h}</th>
-                                            ))}
+                                            <th className={`px-3 py-3 text-left whitespace-nowrap ${LBL}`}>#</th>
+                                            <th className={`px-4 py-3 text-left whitespace-nowrap ${LBL}`}>Plan</th>
+                                            <th className={`px-3 py-3 text-left whitespace-nowrap ${LBL}`}>Duration</th>
+                                            <th className={`px-3 py-3 text-left whitespace-nowrap ${LBL}`}>Start</th>
+                                            <th className={`px-3 py-3 text-left whitespace-nowrap ${LBL}`}>End</th>
+                                            <th className={`px-4 py-3 text-left whitespace-nowrap ${LBL}`}>Amount</th>
+                                            <th className={`px-4 py-3 text-left whitespace-nowrap ${LBL}`}>Status</th>
+                                            <th className={`px-3 py-3 text-center whitespace-nowrap ${LBL}`}>Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody className="divide-y divide-[#1a2233]">
                                         {user.allMemberships.map((mem, idx) => {
                                             const dl = getRemainingDays(mem.endDate);
                                             const active = dl !== null && dl > 0;
                                             return (
-                                                <tr key={mem._id || idx} className="border-b border-[#1a2233] hover:bg-[#1a2233] transition-colors">
-                                                    <td className="px-4 py-3 text-gray-600 text-xs font-mono">
+                                                <tr key={mem._id || idx} className="hover:bg-[#1a2233]/70 transition-colors">
+                                                    <td className="px-3 py-3.5 text-gray-500 text-xs font-mono whitespace-nowrap">
                                                         {user.allMemberships.length - idx}
                                                         {idx === 0 && (
-                                                            <span className="ml-1.5 text-[9px] bg-[#1f2937] text-gray-400 font-semibold px-1.5 py-0.5 rounded border border-[#374151]">
+                                                            <span className="ml-1.5 text-[9px] bg-purple-950/60 text-purple-300 font-bold px-1.5 py-0.5 rounded border border-purple-800/60">
                                                                 LATEST
                                                             </span>
                                                         )}
                                                     </td>
-                                                    <td className="px-4 py-3 text-gray-300 font-medium">{mem.packageName}</td>
-                                                    <td className="px-4 py-3 text-gray-600 text-xs">{mem.planDuration ? `${mem.planDuration}d` : '30d'}</td>
-                                                    <td className="px-4 py-3 text-gray-500 text-xs">{fmt(mem.startDate)}</td>
-                                                    <td className="px-4 py-3 text-xs">
-                                                        <span className={active ? 'text-gray-500' : 'text-red-500'}>{fmt(mem.endDate)}</span>
+                                                    <td className="px-4 py-3.5 text-white font-semibold whitespace-nowrap">{mem.packageName}</td>
+                                                    <td className="px-3 py-3.5 text-gray-400 text-xs whitespace-nowrap">{mem.planDuration ? `${mem.planDuration}d` : '30d'}</td>
+                                                    <td className="px-3 py-3.5 text-gray-400 text-xs whitespace-nowrap">{fmt(mem.startDate)}</td>
+                                                    <td className="px-3 py-3.5 text-xs whitespace-nowrap">
+                                                        <span className={active ? 'text-gray-300' : 'text-red-400 font-medium'}>{fmt(mem.endDate)}</span>
                                                     </td>
-                                                    <td className="px-4 py-3 text-gray-300 font-medium">₹{mem.amountPaid?.toLocaleString('en-IN') || '0'}</td>
-                                                    <td className="px-4 py-3">
-                                                        <span className={`text-[10px] font-semibold px-2 py-1 rounded-full border ${
+                                                    <td className="px-4 py-3.5 text-emerald-400 font-bold whitespace-nowrap">
+                                                        ₹{(mem.amountPaid || 0).toLocaleString('en-IN')}
+                                                    </td>
+                                                    <td className="px-4 py-3.5 whitespace-nowrap">
+                                                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap shadow-sm ${
                                                             active
-                                                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                                                                : 'bg-red-500/10 text-red-400 border-red-500/20'
+                                                                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                                                                : 'bg-red-500/15 text-red-400 border-red-500/30'
                                                         }`}>
+                                                            <span className={`w-1.5 h-1.5 rounded-full ${active ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
                                                             {active ? `${dl}d left` : 'Expired'}
                                                         </span>
                                                     </td>
-                                                    <td className="px-4 py-3">
-                                                        <div className="flex items-center gap-1.5">
+                                                    <td className="px-3 py-3.5 text-center whitespace-nowrap">
+                                                        <div className="flex items-center justify-center gap-1.5">
                                                             <button
                                                                 title="Edit plan"
                                                                 onClick={() => {
@@ -877,7 +899,7 @@ const UserProfile = () => {
                                                                         }
                                                                     });
                                                                 }}
-                                                                className="p-1 rounded text-blue-400 hover:bg-blue-500/10 transition-colors"
+                                                                className="p-1.5 rounded-lg text-blue-400 hover:bg-blue-500/15 transition-colors"
                                                             >
                                                                 <Edit className="w-3.5 h-3.5" />
                                                             </button>
@@ -885,7 +907,7 @@ const UserProfile = () => {
                                                                 title="Delete plan"
                                                                 disabled={planDeleting === mem._id}
                                                                 onClick={() => handlePlanDelete(mem._id)}
-                                                                className="p-1 rounded text-red-400 hover:bg-red-500/10 disabled:opacity-50 transition-colors"
+                                                                className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/15 disabled:opacity-50 transition-colors"
                                                             >
                                                                 {planDeleting === mem._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                                                             </button>
