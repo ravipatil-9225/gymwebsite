@@ -219,7 +219,7 @@ const AttendanceManager = () => {
             }
         };
 
-        // ── db_changed: guaranteed fallback refetch for the daily tab ─────────
+        // ── db_changed: guaranteed fallback refetch across all tabs ──────────
         // This fires alongside attendance_update. If attendance_update fails for
         // any reason (race condition, date mismatch, cold start), this ensures
         // the admin panel still syncs within one round-trip.
@@ -227,6 +227,10 @@ const AttendanceManager = () => {
             console.log('🔄 [SOCKET] db_changed received:', payload);
             if (activeTab === 'daily') {
                 fetchData(date, true); // silent = true (no loading spinner)
+            } else if (activeTab === 'monthly') {
+                fetchMonthly(monthlyMonth);
+            } else if (activeTab === 'history') {
+                fetchHistory();
             }
         };
 

@@ -38,3 +38,4 @@ Write-Host "✅ Task '$TaskName' registered successfully." -ForegroundColor Gree
 Write-Host "   It will run '$ScriptPath' on every Windows startup."
 Write-Host "   To test immediately: Start-ScheduledTask -TaskName '$TaskName'"
 Write-Host "   To remove:           Unregister-ScheduledTask -TaskName '$TaskName' -Confirm:`$false"
+

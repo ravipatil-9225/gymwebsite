@@ -145,9 +145,16 @@ router.post('/biometric-punch', async (req, res) => {
             candidates.add(`#${numericId}`);
         }
 
-        const user = await User.findOne({
+        let user = await User.findOne({
             biometricCardId: { $in: Array.from(candidates) }
         }).select('name email phone batchTime biometricCardId');
+
+        if (!user && cleanId) {
+            // Robust regex fallback: matches '#250', '250', '#0250', '00250', etc.
+            user = await User.findOne({
+                biometricCardId: new RegExp(`^#?0*${cleanId}$`, 'i')
+            }).select('name email phone batchTime biometricCardId');
+        }
 
         if (!user) {
             console.warn(`⛔ [BIOMETRIC] Unknown Biometric ID: ${deviceUserId} (candidates: ${Array.from(candidates).join(', ')}) — not linked to any member.`);

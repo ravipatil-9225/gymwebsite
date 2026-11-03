@@ -7,7 +7,7 @@ import {
     CheckCircle, XCircle, Edit, Trash2, Shield,
     Activity, CreditCard, ToggleLeft, ToggleRight, Save, X,
     AlertTriangle, TrendingUp, Award, Dumbbell, RefreshCw,
-    MessageCircle, FileText, UtensilsCrossed, IndianRupee, ClipboardCheck, Send, ExternalLink
+    MessageCircle, FileText, UtensilsCrossed, IndianRupee, ClipboardCheck, Send, ExternalLink, Plus, Loader2
 } from 'lucide-react';
 
 const fmt = (dateStr) => {
@@ -48,6 +48,11 @@ const UserProfile = () => {
     const [assignStartDate, setAssignStartDate] = useState('');
     const [assigning, setAssigning] = useState(false);
 
+    // ── Plan History CRUD ──────────────────────────────────────────────────────
+    const [planForm, setPlanForm] = useState(null); // null | { mode: 'create'|'edit', data: {} }
+    const [planSaving, setPlanSaving] = useState(false);
+    const [planDeleting, setPlanDeleting] = useState(null);
+
     const token = localStorage.getItem('adminToken');
     const headers = { Authorization: `Bearer ${token}` };
 
@@ -77,11 +82,111 @@ const UserProfile = () => {
 
     useEffect(() => {
         fetchUser(); fetchAttendance(); fetchPackages();
-        const onDbChange = () => { if (!editing) { fetchUser(true); fetchAttendance(); } };
-        socket.on('db_changed', onDbChange);
-        const interval = setInterval(() => { if (!editing) { fetchUser(true); fetchAttendance(); } }, 5000);
-        return () => { clearInterval(interval); socket.off('db_changed', onDbChange); };
-    }, [userId, editing]);
+
+        // ── db_changed: generic refetch (memberships, user data, bulk ops) ──
+        const onDbChange = (payload) => {
+            if (!editing) {
+                fetchUser(true);
+                // Only refetch attendance if the change is relevant to this user
+                // or no specific userId is given (broadcast change)
+                const changedUid = payload?.userId || payload?.user?._id;
+                if (!changedUid || changedUid === userId) {
+                    fetchAttendance();
+                }
+            }
+        };
+
+        // ── attendance_update: INSTANT per-user attendance patch ─────────────
+        // Fires on every biometric punch, admin mark, self check-in, or delete.
+        // We patch state in-place so the UI updates < 1s after the thumb scan.
+        const onAttendanceUpdate = (payload) => {
+            const record = payload?.record;
+            if (!record) return;
+
+            // Only handle records that belong to this user's profile
+            const recordUid = record.userId?.toString() || record.userId;
+            if (recordUid !== userId) return;
+
+            if (payload.action === 'delete') {
+                // Remove deleted record from the list
+                setAttendance(prev => prev.filter(r => r._id?.toString() !== record._id?.toString()));
+                return;
+            }
+
+            // Upsert: update existing record for same date, or prepend new one
+            setAttendance(prev => {
+                const existingIdx = prev.findIndex(r => r.date === record.date);
+                if (existingIdx > -1) {
+                    const updated = [...prev];
+                    updated[existingIdx] = { ...updated[existingIdx], ...record };
+                    return updated;
+                }
+                // New record — prepend (most recent first)
+                return [record, ...prev];
+            });
+        };
+
+        // ── Poll every 3s for any missed biometric punches ────────────────────
+        // This is a safety net in case a socket event is missed (page load race).
+        const interval = setInterval(() => {
+            if (!editing) { fetchUser(true); fetchAttendance(); }
+        }, 3000);
+
+        socket.on('db_changed',        onDbChange);
+        socket.on('attendance_update', onAttendanceUpdate);
+
+        return () => {
+            clearInterval(interval);
+            socket.off('db_changed',        onDbChange);
+            socket.off('attendance_update', onAttendanceUpdate);
+        };
+    }, [userId, editing, fetchAttendance, fetchUser]);
+
+    // ── Plan History CRUD Handlers ─────────────────────────────────────────────
+    const handlePlanSave = async (e) => {
+        if (e) e.preventDefault();
+        if (!planForm || !user) return;
+        setPlanSaving(true);
+        const token = localStorage.getItem('adminToken');
+        try {
+            const { mode, data } = planForm;
+            if (mode === 'create') {
+                await axios.post(
+                    `/api/admin/users/${userId}/memberships`,
+                    data,
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+            } else {
+                await axios.put(
+                    `/api/admin/memberships/${data._id}`,
+                    data,
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+            }
+            await fetchUser(true);
+            setPlanForm(null);
+        } catch (err) {
+            alert(err.response?.data?.message || 'Error saving plan');
+        } finally {
+            setPlanSaving(false);
+        }
+    };
+
+    const handlePlanDelete = async (membershipId) => {
+        if (!window.confirm('Are you sure you want to delete this plan record? This cannot be undone.')) return;
+        setPlanDeleting(membershipId);
+        const token = localStorage.getItem('adminToken');
+        try {
+            await axios.delete(`/api/admin/memberships/${membershipId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            await fetchUser(true);
+        } catch (err) {
+            alert(err.response?.data?.message || 'Error deleting plan');
+        } finally {
+            setPlanDeleting(null);
+        }
+    };
 
     const handleAssignMembership = async (e, packageData = null) => {
         if (e) e.preventDefault();
@@ -503,21 +608,146 @@ const UserProfile = () => {
                     <div className={CARD}>
                         <div className="flex items-center justify-between px-5 py-3 border-b border-[#1f2937]">
                             <p className={LBL}>Plan History</p>
-                            <span className="text-[11px] text-gray-600">
-                                {user.allMemberships?.length || 0} plans · ₹{totalSpent.toLocaleString('en-IN')}
-                            </span>
+                            <div className="flex items-center gap-3">
+                                <span className="text-[11px] text-gray-500">
+                                    {user.allMemberships?.length || 0} plans · ₹{totalSpent.toLocaleString('en-IN')}
+                                </span>
+                                <button
+                                    onClick={() => setPlanForm({
+                                        mode: 'create',
+                                        data: {
+                                            packageName: '',
+                                            planDuration: 30,
+                                            amountPaid: 0,
+                                            startDate: new Date().toISOString().split('T')[0],
+                                            endDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+                                            status: 'active'
+                                        }
+                                    })}
+                                    className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-purple-300 bg-purple-900/40 border border-purple-700/60 hover:bg-purple-900/70 rounded-lg transition-colors"
+                                >
+                                    <Plus className="w-3.5 h-3.5" /> Add Plan
+                                </button>
+                            </div>
                         </div>
+
+                        {/* Inline Plan Form for Create / Edit */}
+                        {planForm && (
+                            <div className="p-4 bg-[#161d2a] border-b border-[#1f2937]">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wider">
+                                        {planForm.mode === 'create' ? '➕ Add New Membership Plan' : '✏️ Edit Membership Plan'}
+                                    </h4>
+                                    <button
+                                        type="button"
+                                        onClick={() => setPlanForm(null)}
+                                        className="text-gray-400 hover:text-gray-200"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                                <form onSubmit={handlePlanSave} className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                    <div>
+                                        <label className={`block ${LBL} mb-1`}>Package Name *</label>
+                                        <input
+                                            required
+                                            value={planForm.data.packageName}
+                                            onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, packageName: e.target.value } }))}
+                                            className="w-full px-3 py-2 text-xs border border-[#2d3748] rounded-xl text-gray-200 bg-[#111827] outline-none focus:border-purple-500"
+                                            placeholder="e.g. HARDCORE"
+                                            list="profile-pkg-list"
+                                        />
+                                        <datalist id="profile-pkg-list">
+                                            {packages.map(p => <option key={p._id} value={p.name} />)}
+                                        </datalist>
+                                    </div>
+                                    <div>
+                                        <label className={`block ${LBL} mb-1`}>Duration (days) *</label>
+                                        <input
+                                            required
+                                            type="number"
+                                            min="1"
+                                            value={planForm.data.planDuration}
+                                            onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, planDuration: e.target.value } }))}
+                                            className="w-full px-3 py-2 text-xs border border-[#2d3748] rounded-xl text-gray-200 bg-[#111827] outline-none focus:border-purple-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={`block ${LBL} mb-1`}>Amount Paid (₹) *</label>
+                                        <input
+                                            required
+                                            type="number"
+                                            min="0"
+                                            value={planForm.data.amountPaid}
+                                            onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, amountPaid: e.target.value } }))}
+                                            className="w-full px-3 py-2 text-xs border border-[#2d3748] rounded-xl text-gray-200 bg-[#111827] outline-none focus:border-purple-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={`block ${LBL} mb-1`}>Start Date *</label>
+                                        <input
+                                            required
+                                            type="date"
+                                            value={planForm.data.startDate}
+                                            onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, startDate: e.target.value } }))}
+                                            className="w-full px-3 py-2 text-xs border border-[#2d3748] rounded-xl text-gray-200 bg-[#111827] outline-none focus:border-purple-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={`block ${LBL} mb-1`}>End Date *</label>
+                                        <input
+                                            required
+                                            type="date"
+                                            value={planForm.data.endDate}
+                                            onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, endDate: e.target.value } }))}
+                                            className="w-full px-3 py-2 text-xs border border-[#2d3748] rounded-xl text-gray-200 bg-[#111827] outline-none focus:border-purple-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={`block ${LBL} mb-1`}>Status</label>
+                                        <select
+                                            value={planForm.data.status}
+                                            onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, status: e.target.value } }))}
+                                            className="w-full px-3 py-2 text-xs border border-[#2d3748] rounded-xl text-gray-200 bg-[#111827] outline-none focus:border-purple-500"
+                                        >
+                                            <option value="active">Active</option>
+                                            <option value="expired">Expired</option>
+                                            <option value="cancelled">Cancelled</option>
+                                        </select>
+                                    </div>
+                                    <div className="col-span-2 md:col-span-3 flex gap-2 justify-end pt-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setPlanForm(null)}
+                                            className="px-3 py-1.5 text-xs font-semibold text-gray-400 hover:text-gray-200"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={planSaving}
+                                            className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-lg transition-colors"
+                                        >
+                                            {planSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                                            {planSaving ? 'Saving...' : 'Save Plan'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        )}
+
                         {(!user.allMemberships || user.allMemberships.length === 0) ? (
                             <div className="text-center py-12">
                                 <Award className="w-8 h-8 text-gray-700 mx-auto mb-2" />
                                 <p className="text-gray-600 text-sm">No plan history found.</p>
+                                <p className="text-xs text-gray-700 mt-1">Click Add Plan above to create a plan record.</p>
                             </div>
                         ) : (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm">
                                     <thead>
                                         <tr className="border-b border-[#1f2937]">
-                                            {['#', 'Plan', 'Duration', 'Start', 'End', 'Amount', 'Status'].map(h => (
+                                            {['#', 'Plan', 'Duration', 'Start', 'End', 'Amount', 'Status', 'Actions'].map(h => (
                                                 <th key={h} className={`px-4 py-3 text-left ${LBL}`}>{h}</th>
                                             ))}
                                         </tr>
@@ -547,9 +777,40 @@ const UserProfile = () => {
                                                         <span className={`text-[10px] font-semibold px-2 py-1 rounded-full border ${
                                                             active
                                                                 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                                                                : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                                                                : 'bg-red-500/10 text-red-400 border-red-500/20'
+                                                        }`}>
                                                             {active ? `${dl}d left` : 'Expired'}
                                                         </span>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <button
+                                                                title="Edit plan"
+                                                                onClick={() => setPlanForm({
+                                                                    mode: 'edit',
+                                                                    data: {
+                                                                        _id: mem._id,
+                                                                        packageName: mem.packageName || '',
+                                                                        planDuration: mem.planDuration || 30,
+                                                                        amountPaid: mem.amountPaid || 0,
+                                                                        startDate: fmtInput(mem.startDate),
+                                                                        endDate: fmtInput(mem.endDate),
+                                                                        status: mem.status || 'active'
+                                                                    }
+                                                                })}
+                                                                className="p-1 rounded text-blue-400 hover:bg-blue-500/10 transition-colors"
+                                                            >
+                                                                <Edit className="w-3.5 h-3.5" />
+                                                            </button>
+                                                            <button
+                                                                title="Delete plan"
+                                                                disabled={planDeleting === mem._id}
+                                                                onClick={() => handlePlanDelete(mem._id)}
+                                                                className="p-1 rounded text-red-400 hover:bg-red-500/10 disabled:opacity-50 transition-colors"
+                                                            >
+                                                                {planDeleting === mem._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             );
@@ -563,13 +824,21 @@ const UserProfile = () => {
                     {/* Attendance */}
                     <div className={CARD}>
                         <div className="flex items-center justify-between px-5 py-3 border-b border-[#1f2937]">
-                            <p className={LBL}>Attendance Log</p>
-                            <span className="text-[11px] text-gray-600">{presentDays} days present</span>
+                            <div className="flex items-center gap-2">
+                                <p className={LBL}>Attendance Log</p>
+                                {/* Live sync indicator */}
+                                <span className="flex items-center gap-1 text-[9px] font-semibold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                                    LIVE
+                                </span>
+                            </div>
+                            <span className="text-[11px] text-gray-600">{presentDays} days present · {attendance.length} total records</span>
                         </div>
                         {attendance.length === 0 ? (
                             <div className="text-center py-12">
                                 <Activity className="w-8 h-8 text-gray-700 mx-auto mb-2" />
                                 <p className="text-gray-600 text-sm">No attendance records found.</p>
+                                <p className="text-gray-700 text-xs mt-1">Records appear here instantly when this member scans their thumb.</p>
                             </div>
                         ) : (
                             <div className="overflow-x-auto">
@@ -582,8 +851,8 @@ const UserProfile = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {attendance.slice(0, 30).map((rec) => (
-                                            <tr key={rec._id} className="border-b border-[#1a2233] hover:bg-[#1a2233] transition-colors">
+                                        {attendance.map((rec) => (
+                                            <tr key={rec._id || rec.date} className="border-b border-[#1a2233] hover:bg-[#1a2233] transition-colors">
                                                 <td className="px-4 py-3 text-gray-400 font-medium">{fmt(rec.date)}</td>
                                                 <td className="px-4 py-3">
                                                     <span className={`text-[10px] font-semibold px-2 py-1 rounded-full border ${
@@ -600,16 +869,15 @@ const UserProfile = () => {
                                                         ? new Date(rec.checkInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
                                                         : '—'}
                                                 </td>
-                                                <td className="px-4 py-3 text-gray-600 text-xs capitalize">{rec.markedBy || '—'}</td>
+                                                <td className="px-4 py-3 text-xs capitalize">
+                                                    <span className={`${rec.markedBy === 'biometric' ? 'text-purple-400 font-semibold' : 'text-gray-600'}`}>
+                                                        {rec.markedBy === 'biometric' ? '🔐 Biometric' : rec.markedBy || '—'}
+                                                    </span>
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
-                                {attendance.length > 30 && (
-                                    <p className="text-center text-xs text-gray-700 py-3">
-                                        Showing last 30 of {attendance.length} records
-                                    </p>
-                                )}
                             </div>
                         )}
                     </div>
