@@ -50,39 +50,10 @@ let pollTimer = null;
 let zkInstance = null;
 let isConnected = false;
 
-// Play voice alerts and warning beeps on the physical machine when access is denied
+// NOTE: Machine denial (voice/beep) is intentionally disabled.
+// Expired plans are silently rejected in the backend — no noise on machine.
 async function triggerMachineDenial() {
-    if (!zkInstance || !isConnected) return;
-    try {
-        console.log('🔊 Playing voice alerts and warning beeps on machine for expired plan...');
-        
-        // 1. Play "Access Denied" (index 2)
-        const voiceBuf = Buffer.alloc(4);
-        voiceBuf.writeUInt32LE(2, 0); 
-        await zkInstance.executeCmd(1017, voiceBuf);
-
-        // 2. Play three short warning beeps to draw attention
-        for (let i = 0; i < 3; i++) {
-            setTimeout(async () => {
-                try {
-                    const beepBuf = Buffer.alloc(4);
-                    beepBuf.writeUInt32LE(24, 0); // 24 = standard beep
-                    await zkInstance.executeCmd(1017, beepBuf);
-                } catch (_) {}
-            }, 500 + i * 200);
-        }
-
-        // 3. Play "Invalid time period" (index 31) after 1.5s to indicate expired plan validity
-        setTimeout(async () => {
-            try {
-                const voiceBuf2 = Buffer.alloc(4);
-                voiceBuf2.writeUInt32LE(31, 0); 
-                await zkInstance.executeCmd(1017, voiceBuf2);
-            } catch (_) {}
-        }, 1500);
-    } catch (e) {
-        console.error('⚠️ Failed to trigger machine voice alert:', e.message);
-    }
+    // Disabled — machine will show its normal scan result without extra alerts
 }
 
 // Send punch to backend API
