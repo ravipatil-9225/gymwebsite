@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+﻿import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import socket from '../../utils/socket';
 import { Link } from 'react-router-dom';
 import {
     Trash2, Edit, X, User, Phone, Mail, Calendar, Package, Clock, CheckCircle,
-    XCircle, Search, History, RefreshCw, Download, FileText, ChevronDown, Filter, Check, Loader2
+    XCircle, Search, History, RefreshCw, Download, FileText, ChevronDown, Filter, Check, Loader2, Plus, Save
 } from 'lucide-react';
 import {
     filterUsersByCategoryAndTime,
@@ -77,6 +77,10 @@ const UserManagement = () => {
     const [editingUser, setEditingUser] = useState(null);
     const [addingUser, setAddingUser] = useState(null);
     const [historyUser, setHistoryUser] = useState(null);
+    // ── Plan History CRUD ──────────────────────────────────────────────────────
+    const [planForm, setPlanForm] = useState(null);           // null | { mode:'create'|'edit', data:{} }
+    const [planSaving, setPlanSaving] = useState(false);
+    const [planDeleting, setPlanDeleting] = useState(null);   // membershipId being deleted
     const [search, setSearch] = useState('');
     const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'alpha-asc' | 'alpha-desc'
 
@@ -134,6 +138,66 @@ const UserManagement = () => {
             setPackages(data);
         } catch (err) { console.error('Failed to fetch packages', err); }
     }, []);
+
+    // ── Plan History CRUD Handlers ─────────────────────────────────────────────
+
+    /** Save (create or update) a plan record from the form modal */
+    const handlePlanSave = async (e) => {
+        e.preventDefault();
+        if (!planForm || !historyUser) return;
+        setPlanSaving(true);
+        const token = localStorage.getItem('adminToken');
+        try {
+            const { mode, data } = planForm;
+            if (mode === 'create') {
+                await axios.post(
+                    `/api/admin/users/${historyUser._id}/memberships`,
+                    data,
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+            } else {
+                await axios.put(
+                    `/api/admin/memberships/${data._id}`,
+                    data,
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+            }
+            const { data: updatedUsers } = await axios.get('/api/admin/users', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setUsers(updatedUsers);
+            // Refresh historyUser in-place
+            const fresh = updatedUsers.find(u => u._id === historyUser._id);
+            if (fresh) setHistoryUser(fresh);
+            setPlanForm(null);
+        } catch (err) {
+            alert(err.response?.data?.message || 'Error saving plan');
+        } finally {
+            setPlanSaving(false);
+        }
+    };
+
+    /** Delete a plan record after confirmation */
+    const handlePlanDelete = async (membershipId) => {
+        if (!window.confirm('Are you sure you want to delete this plan record? This cannot be undone.')) return;
+        setPlanDeleting(membershipId);
+        const token = localStorage.getItem('adminToken');
+        try {
+            await axios.delete(`/api/admin/memberships/${membershipId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const { data: updatedUsers } = await axios.get('/api/admin/users', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setUsers(updatedUsers);
+            const fresh = updatedUsers.find(u => u._id === historyUser._id);
+            if (fresh) setHistoryUser(fresh);
+        } catch (err) {
+            alert(err.response?.data?.message || 'Error deleting plan');
+        } finally {
+            setPlanDeleting(null);
+        }
+    };
 
     const handleRenewMembership = async (e) => {
         if (e) e.preventDefault();
@@ -1084,10 +1148,11 @@ const UserManagement = () => {
                 </div>
             )}
 
-            {/* ── Plan History Modal ────────────────────────────────────── */}
+            {/* ── Plan History Modal ────────────────────────────────────────────── */}
             {historyUser && (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col" style={{ maxHeight: '85vh' }}>
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col" style={{ maxHeight: '90vh' }}>
+
                         {/* Header */}
                         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center shrink-0">
                             <div>
@@ -1097,55 +1162,199 @@ const UserManagement = () => {
                                 </h2>
                                 <p className="text-xs text-gray-400 mt-0.5">{historyUser.email}</p>
                             </div>
-                            <button onClick={() => setHistoryUser(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                                <X className="w-5 h-5" />
-                            </button>
+                            <div className="flex items-center gap-3">
+                                {/* Add Plan button */}
+                                <button
+                                    onClick={() => setPlanForm({
+                                        mode: 'create',
+                                        data: {
+                                            packageName: '',
+                                            planDuration: 30,
+                                            amountPaid: 0,
+                                            startDate: new Date().toISOString().split('T')[0],
+                                            endDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+                                            status: 'active'
+                                        }
+                                    })}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                                >
+                                    <Plus className="w-3.5 h-3.5" /> Add Plan
+                                </button>
+                                <button onClick={() => { setHistoryUser(null); setPlanForm(null); }} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
                         </div>
 
-                        {/* Body */}
+                        {/* Plan Form (inline — shown when creating or editing) */}
+                        {planForm && (
+                            <div className="px-6 py-4 bg-purple-50 border-b border-purple-100 shrink-0">
+                                <h3 className="text-sm font-bold text-purple-800 mb-3">
+                                    {planForm.mode === 'create' ? '➕ Add New Plan' : '✏️ Edit Plan'}
+                                </h3>
+                                <form onSubmit={handlePlanSave} className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                    <div>
+                                        <label className="text-xs text-gray-600 font-medium">Package Name *</label>
+                                        <input
+                                            required
+                                            value={planForm.data.packageName}
+                                            onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, packageName: e.target.value } }))}
+                                            className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400 outline-none"
+                                            placeholder="e.g. HARDCORE"
+                                            list="pkg-names-list"
+                                        />
+                                        <datalist id="pkg-names-list">
+                                            {packages.map(p => <option key={p._id} value={p.name} />)}
+                                        </datalist>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-600 font-medium">Duration (days) *</label>
+                                        <input
+                                            required type="number" min="1"
+                                            value={planForm.data.planDuration}
+                                            onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, planDuration: e.target.value } }))}
+                                            className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400 outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-600 font-medium">Amount Paid (₹) *</label>
+                                        <input
+                                            required type="number" min="0"
+                                            value={planForm.data.amountPaid}
+                                            onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, amountPaid: e.target.value } }))}
+                                            className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400 outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-600 font-medium">Start Date *</label>
+                                        <input
+                                            required type="date"
+                                            value={planForm.data.startDate}
+                                            onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, startDate: e.target.value } }))}
+                                            className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400 outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-600 font-medium">End Date *</label>
+                                        <input
+                                            required type="date"
+                                            value={planForm.data.endDate}
+                                            onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, endDate: e.target.value } }))}
+                                            className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400 outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-600 font-medium">Status</label>
+                                        <select
+                                            value={planForm.data.status}
+                                            onChange={e => setPlanForm(f => ({ ...f, data: { ...f.data, status: e.target.value } }))}
+                                            className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-400 outline-none bg-white"
+                                        >
+                                            <option value="active">Active</option>
+                                            <option value="expired">Expired</option>
+                                            <option value="cancelled">Cancelled</option>
+                                        </select>
+                                    </div>
+                                    <div className="col-span-2 sm:col-span-3 flex gap-2 justify-end pt-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => setPlanForm(null)}
+                                            className="px-4 py-2 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={planSaving}
+                                            className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-60 rounded-lg transition-colors"
+                                        >
+                                            {planSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                                            {planSaving ? 'Saving…' : 'Save Plan'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        )}
+
+                        {/* Body – plan table */}
                         <div className="overflow-y-auto p-6">
                             {(!historyUser.allMemberships || historyUser.allMemberships.length === 0) ? (
                                 <div className="text-center py-12 text-gray-400">
                                     <Package className="w-10 h-10 mx-auto mb-3 opacity-30" />
                                     <p>No plan history found for this user.</p>
+                                    <p className="text-xs mt-1">Click <strong>Add Plan</strong> to create the first record.</p>
                                 </div>
                             ) : (
                                 <table className="w-full text-sm border-collapse">
                                     <thead>
                                         <tr className="bg-gray-50 text-gray-500 border-b border-gray-100">
-                                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">#</th>
-                                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Plan Name</th>
-                                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Duration</th>
-                                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Start Date</th>
-                                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">End Date</th>
-                                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Amount Paid</th>
-                                            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Status</th>
+                                            <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider">#</th>
+                                            <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider">Plan Name</th>
+                                            <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider">Duration</th>
+                                            <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider">Start Date</th>
+                                            <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider">End Date</th>
+                                            <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider">Amount Paid</th>
+                                            <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider">Status</th>
+                                            <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-50">
                                         {historyUser.allMemberships.map((m, idx) => {
                                             const daysLeft = getRemainingDays(m.endDate);
                                             const isActive = daysLeft !== null && daysLeft > 0;
+                                            const isDeleting = planDeleting === m._id;
                                             return (
-                                                <tr key={m._id} className={`transition-colors ${ idx === 0 ? 'bg-green-50/50' : 'hover:bg-gray-50'}`}>
-                                                    <td className="px-4 py-3 text-gray-400 text-xs font-mono">
+                                                <tr key={m._id} className={`transition-colors ${idx === 0 ? 'bg-green-50/50' : 'hover:bg-gray-50'}`}>
+                                                    <td className="px-3 py-3 text-gray-400 text-xs font-mono">
                                                         {historyUser.allMemberships.length - idx}
                                                         {idx === 0 && <span className="ml-1 text-[10px] text-purple-500 font-semibold">LATEST</span>}
                                                     </td>
-                                                    <td className="px-4 py-3 font-semibold text-gray-800">{m.packageName}</td>
-                                                    <td className="px-4 py-3 text-gray-600">{m.planDuration ? `${m.planDuration} days` : '30 days'}</td>
-                                                    <td className="px-4 py-3 text-gray-600 text-xs">{fmt(m.startDate)}</td>
-                                                    <td className="px-4 py-3 text-xs">
+                                                    <td className="px-3 py-3 font-semibold text-gray-800">{m.packageName}</td>
+                                                    <td className="px-3 py-3 text-gray-600">{m.planDuration ? `${m.planDuration} days` : '30 days'}</td>
+                                                    <td className="px-3 py-3 text-gray-600 text-xs">{fmt(m.startDate)}</td>
+                                                    <td className="px-3 py-3 text-xs">
                                                         <span className={isActive ? 'text-gray-700' : 'text-red-500 font-medium'}>{fmt(m.endDate)}</span>
                                                     </td>
-                                                    <td className="px-4 py-3 text-gray-700 font-medium">₹{m.amountPaid?.toLocaleString('en-IN')}</td>
-                                                    <td className="px-4 py-3">
+                                                    <td className="px-3 py-3 text-gray-700 font-medium">₹{(m.amountPaid || 0).toLocaleString('en-IN')}</td>
+                                                    <td className="px-3 py-3">
                                                         <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
                                                             isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
                                                         }`}>
                                                             {isActive ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
                                                             {isActive ? `${daysLeft}d left` : 'Expired'}
                                                         </span>
+                                                    </td>
+                                                    <td className="px-3 py-3 text-center">
+                                                        <div className="flex items-center justify-center gap-1.5">
+                                                            {/* Edit button */}
+                                                            <button
+                                                                title="Edit this plan"
+                                                                onClick={() => setPlanForm({
+                                                                    mode: 'edit',
+                                                                    data: {
+                                                                        _id: m._id,
+                                                                        packageName: m.packageName || '',
+                                                                        planDuration: m.planDuration || 30,
+                                                                        amountPaid: m.amountPaid || 0,
+                                                                        startDate: fmtInput(m.startDate),
+                                                                        endDate: fmtInput(m.endDate),
+                                                                        status: m.status || 'active'
+                                                                    }
+                                                                })}
+                                                                className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 transition-colors"
+                                                            >
+                                                                <Edit className="w-3.5 h-3.5" />
+                                                            </button>
+                                                            {/* Delete button */}
+                                                            <button
+                                                                title="Delete this plan"
+                                                                disabled={isDeleting}
+                                                                onClick={() => handlePlanDelete(m._id)}
+                                                                className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 disabled:opacity-50 transition-colors"
+                                                            >
+                                                                {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             );

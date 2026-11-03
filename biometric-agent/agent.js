@@ -268,4 +268,18 @@ process.on('SIGINT', async () => {
     process.exit(0);
 });
 
+// ── Crash-proof: Never let the agent die silently ─────────────────────────────
+// These handlers ensure PM2 can restart on actual crashes, and log everything.
+process.on('uncaughtException', (err) => {
+    console.error(`\n💥 [UNCAUGHT EXCEPTION] ${err.message}`);
+    console.error(err.stack);
+    // Give 2s for logs to flush, then crash so PM2 can restart us
+    setTimeout(() => process.exit(1), 2000);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error(`\n⚠️ [UNHANDLED REJECTION]`, reason);
+    // Unhandled rejections don't crash the process — just log them
+});
+
 startAgent();

@@ -567,6 +567,93 @@ router.post('/users/:id/assign-membership', async (req, res) => {
     }
 });
 
+// ==========================================
+// PLAN HISTORY CRUD (Create / Update / Delete a specific membership)
+// ==========================================
+
+/**
+ * POST /api/admin/users/:userId/memberships
+ * Manually create a new membership record for a user (plan history "Add Plan").
+ */
+router.post('/users/:userId/memberships', async (req, res) => {
+    try {
+        const user = await User.findById(req.params.userId);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        let { packageName, planDuration, amountPaid, startDate, endDate, status } = req.body;
+
+        if (!packageName || !planDuration || amountPaid === undefined || !startDate || !endDate) {
+            return res.status(400).json({ message: 'packageName, planDuration, amountPaid, startDate and endDate are required' });
+        }
+
+        const newMembership = await Membership.create({
+            userId: user._id,
+            userName: user.name,
+            userEmail: user.email,
+            packageName,
+            planDuration: Number(planDuration),
+            amountPaid: Number(amountPaid),
+            startDate: new Date(startDate),
+            endDate: new Date(endDate),
+            status: status || 'active'
+        });
+
+        res.status(201).json({ message: 'Plan created successfully', membership: newMembership });
+        socket.getIO().emit('db_changed', { type: 'membership_created' });
+    } catch (err) {
+        console.error('Create membership error:', err);
+        res.status(500).json({ message: 'Error creating membership' });
+    }
+});
+
+/**
+ * PUT /api/admin/memberships/:membershipId
+ * Update a specific membership record by its ID.
+ */
+router.put('/memberships/:membershipId', async (req, res) => {
+    try {
+        const { packageName, planDuration, amountPaid, startDate, endDate, status } = req.body;
+
+        const updateFields = {};
+        if (packageName  !== undefined) updateFields.packageName  = packageName;
+        if (planDuration !== undefined) updateFields.planDuration = Number(planDuration);
+        if (amountPaid   !== undefined) updateFields.amountPaid   = Number(amountPaid);
+        if (startDate    !== undefined) updateFields.startDate    = new Date(startDate);
+        if (endDate      !== undefined) updateFields.endDate      = new Date(endDate);
+        if (status       !== undefined) updateFields.status       = status;
+
+        const updated = await Membership.findByIdAndUpdate(
+            req.params.membershipId,
+            { $set: updateFields },
+            { new: true, runValidators: true }
+        );
+        if (!updated) return res.status(404).json({ message: 'Membership record not found' });
+
+        res.json({ message: 'Plan updated successfully', membership: updated });
+        socket.getIO().emit('db_changed', { type: 'membership_updated' });
+    } catch (err) {
+        console.error('Update membership error:', err);
+        res.status(500).json({ message: 'Error updating membership' });
+    }
+});
+
+/**
+ * DELETE /api/admin/memberships/:membershipId
+ * Delete a specific membership record by its ID.
+ */
+router.delete('/memberships/:membershipId', async (req, res) => {
+    try {
+        const deleted = await Membership.findByIdAndDelete(req.params.membershipId);
+        if (!deleted) return res.status(404).json({ message: 'Membership record not found' });
+
+        res.json({ message: 'Plan deleted successfully' });
+        socket.getIO().emit('db_changed', { type: 'membership_deleted' });
+    } catch (err) {
+        console.error('Delete membership error:', err);
+        res.status(500).json({ message: 'Error deleting membership' });
+    }
+});
+
 router.delete('/users/:id', async (req, res) => {
     try {
         const user = await User.findById(req.params.id);
