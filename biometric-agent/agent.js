@@ -50,12 +50,6 @@ let pollTimer = null;
 let zkInstance = null;
 let isConnected = false;
 
-// NOTE: Machine denial (voice/beep) is intentionally disabled.
-// Expired plans are silently rejected in the backend — no noise on machine.
-async function triggerMachineDenial() {
-    // Disabled — machine will show its normal scan result without extra alerts
-}
-
 // Send punch to backend API
 async function sendPunchToCloud(deviceUserId, recordTime) {
     const cleanDeviceUserId = String(deviceUserId || '').replace(/\0/g, '').trim();
@@ -89,17 +83,16 @@ async function sendPunchToCloud(deviceUserId, recordTime) {
         return { success: true };
     } catch (err) {
         if (err.response) {
-            console.error(`❌ [SERVER ERROR] ${err.response.status} - ${err.response.data?.message || err.message}`);
-            // Check if plan is expired (403 Forbidden with planExpired: true flag)
             if (err.response.status === 403 && err.response.data?.planExpired) {
-                console.log(`⛔ [DENIED] Plan Expired for User #${deviceUserId}. Triggering machine voice/beep denial...`);
-                await triggerMachineDenial();
+                console.log(`⛔ [DENIED] Plan expired for User #${deviceUserId} — silently rejected.`);
+            } else {
+                console.error(`❌ [SERVER ERROR] ${err.response.status} - ${err.response.data?.message || err.message}`);
             }
-            // 4xx errors (400, 403, 404) mean server processed the request, so don't get stuck retrying
+            // 4xx errors mean server processed the request — move cursor forward, no retry
             if (err.response.status < 500) {
                 return { success: true };
             }
-            // 5xx errors mean backend crashed or is restarting — retry later
+            // 5xx errors mean backend crashed — retry later
             return { success: false, retry: true };
         } else {
             console.error(`⚠️ [NETWORK ERROR] Cloud API unreachable: ${err.message}`);

@@ -178,26 +178,11 @@ router.post('/biometric-punch', async (req, res) => {
         }).sort({ endDate: -1 });                  // pick the latest one if multiple
 
         if (!activeMembership) {
-            console.warn(`⛔ [BIOMETRIC] Plan EXPIRED for ${user.name} (${user.email}) — punch rejected on ${todayDateStr}.`);
-            // Emit a dedicated socket event so the admin dashboard can show a
-            // real-time "Plan Expired" alert immediately.
-            try {
-                const socket = require('../socket');
-                socket.getIO().emit('biometric_denied', {
-                    reason: 'plan_expired',
-                    userId: user._id.toString(),
-                    userName: user.name,
-                    userEmail: user.email,
-                    phone: user.phone,
-                    deviceUserId: String(deviceUserId),
-                    date: todayDateStr
-                });
-            } catch (_) {}
-
+            console.warn(`⛔ [BIOMETRIC] Plan EXPIRED for ${user.name} (${user.email}) — punch silently rejected on ${todayDateStr}.`);
             return res.status(403).json({
                 success: false,
                 planExpired: true,
-                message: `❌ Access Denied: ${user.name}'s membership plan has expired. Please renew to continue using the gym.`,
+                message: `Plan expired for ${user.name}. Please renew membership.`,
                 user: { _id: user._id, name: user.name, email: user.email, phone: user.phone }
             });
         }
