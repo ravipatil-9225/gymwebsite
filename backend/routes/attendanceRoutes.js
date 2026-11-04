@@ -110,6 +110,12 @@ router.get('/today', verifyAdmin, async (req, res) => {
 // ✅ PLAN EXPIRY ENFORCEMENT: Every punch checks today's date against the
 //    member's active Membership record. Plans can expire on ANY day of the
 //    month — not just month-end — so we run this check on every single scan.
+
+// Server-side dedup map: userId → timestamp of last biometric_denied emit.
+// Prevents the same expired member's repeated retries from flooding the admin popup.
+const deniedEmitCache = new Map(); // { userId: lastEmitMs }
+const DENIED_DEDUP_WINDOW_MS = 30 * 1000; // suppress duplicates within 30 seconds
+
 router.post('/biometric-punch', async (req, res) => {
     const Attendance = require('../models/Attendance');
     const Membership = require('../models/Membership');
@@ -179,6 +185,46 @@ router.post('/biometric-punch', async (req, res) => {
 
         if (!activeMembership) {
             console.warn(`⛔ [BIOMETRIC] Plan EXPIRED for ${user.name} (${user.email}) — punch silently rejected on ${todayDateStr}.`);
+
+            // Only show the "Access Denied" popup for LIVE punches (on-machine, real-time).
+            // Offline catch-up punches (replayed when the PC comes back online) have a
+            // timestamp that is significantly older than "now", so we skip the socket
+            // notification for those to avoid flooding the admin panel with historical alerts.
+            const LIVE_PUNCH_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+            const isLivePunch = (Date.now() - checkInTime.getTime()) <= LIVE_PUNCH_WINDOW_MS;
+
+            if (isLivePunch) {
+                // Server-side dedup: only emit if we haven't already emitted for this
+                // user in the last 30 seconds. Prevents device retries from spamming
+                // the admin panel with repeated "Access Denied" popups.
+                const userIdStr = user._id.toString();
+                const lastEmit = deniedEmitCache.get(userIdStr) || 0;
+                const now = Date.now();
+                if (now - lastEmit > DENIED_DEDUP_WINDOW_MS) {
+                    deniedEmitCache.set(userIdStr, now);
+                    // Clean up old entries to prevent memory leak
+                    if (deniedEmitCache.size > 500) {
+                        const cutoff = now - DENIED_DEDUP_WINDOW_MS * 2;
+                        for (const [k, v] of deniedEmitCache.entries()) {
+                            if (v < cutoff) deniedEmitCache.delete(k);
+                        }
+                    }
+                    try {
+                        const socket = require('../socket');
+                        socket.getIO().emit('biometric_denied', {
+                            userName:  user.name,
+                            userEmail: user.email,
+                            userId:    userIdStr,
+                            timestamp: checkInTime.toISOString()
+                        });
+                    } catch (_) { /* socket not ready */ }
+                } else {
+                    console.log(`ℹ️  [BIOMETRIC] Duplicate denied popup suppressed for ${user.name} (within ${DENIED_DEDUP_WINDOW_MS / 1000}s window).`);
+                }
+            } else {
+                console.log(`ℹ️  [BIOMETRIC] Offline catch-up denied punch for ${user.name} — skipping live popup.`);
+            }
+
             return res.status(403).json({
                 success: false,
                 planExpired: true,

@@ -80,6 +80,8 @@ const AttendanceManager = () => {
     const [marking, setMarking]       = useState({});
     const [flashedRows, setFlashedRows] = useState({}); // { userId: 'green'|'red'|'yellow' }
     const [liveUpdate, setLiveUpdate] = useState(null); // { name, status, markedBy, time }
+    const liveUpdateTimerRef = React.useRef(null); // tracks the auto-dismiss timeout
+    const deniedUserRef = React.useRef(null); // tracks currently-shown denied userId to deduplicate
     const [filter, setFilter]         = useState('all');
     const [search, setSearch]         = useState('');
     
@@ -128,6 +130,18 @@ const AttendanceManager = () => {
             return new Date(now.getTime() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
         }
 
+        // Helper: show the live toast and auto-dismiss it after `ms`.
+        // Cancels any previous pending dismiss so timers never stack up.
+        function showLiveToast(update, ms) {
+            if (liveUpdateTimerRef.current) clearTimeout(liveUpdateTimerRef.current);
+            setLiveUpdate(update);
+            liveUpdateTimerRef.current = setTimeout(() => {
+                setLiveUpdate(null);
+                liveUpdateTimerRef.current = null;
+                deniedUserRef.current = null; // clear denied dedup lock on dismiss
+            }, ms);
+        }
+
         // ── attendance_update: patch a single row instantly ───────────────────
         const handleAttendanceUpdate = (payload) => {
             console.log('🔌 [SOCKET] attendance_update received:', payload);
@@ -154,8 +168,7 @@ const AttendanceManager = () => {
 
             if (payload.isBulk) {
                 fetchData(date, true);
-                setLiveUpdate({ name: 'All members', status: payload.status, markedBy: 'admin', time: new Date() });
-                setTimeout(() => setLiveUpdate(null), 3500);
+                showLiveToast({ name: 'All members', status: payload.status, markedBy: 'admin', time: new Date() }, 3500);
                 return;
             }
 
@@ -166,7 +179,7 @@ const AttendanceManager = () => {
                             ? { ...row, record: null }
                             : row
                     );
-                    setStats(recomputeStats(next, stats.total));
+                    setStats(prev => recomputeStats(next, prev.total));
                     return next;
                 });
                 return;
@@ -199,7 +212,7 @@ const AttendanceManager = () => {
                         console.warn('⚠️ [SOCKET] Row not found for userId:', recUserIdStr, '— triggering silent refetch.');
                         fetchData(date, true);
                     }
-                    setStats(recomputeStats(next, stats.total));
+                    setStats(prev => recomputeStats(next, prev.total));
                     return next;
                 });
 
@@ -208,23 +221,32 @@ const AttendanceManager = () => {
                 setFlashedRows(f => ({ ...f, [recUserIdStr]: flashColor }));
                 setTimeout(() => setFlashedRows(f => { const n = { ...f }; delete n[recUserIdStr]; return n; }), 2000);
 
-                // Show live badge in header
-                setLiveUpdate({
-                    name:     rec.userName || payload.user?.name || 'Member',
-                    status:   rec.status,
-                    markedBy: rec.markedBy,
-                    time:     rec.checkInTime ? new Date(rec.checkInTime) : new Date()
-                });
-                setTimeout(() => setLiveUpdate(null), 4000);
+                // Show live badge in header ONLY for biometric and self check-ins.
+                // Admin manual marks are silent — they already show optimistic UI.
+                if (rec.markedBy === 'biometric' || rec.markedBy === 'self') {
+                    showLiveToast({
+                        name:     rec.userName || payload.user?.name || 'Member',
+                        status:   rec.status,
+                        markedBy: rec.markedBy,
+                        time:     rec.checkInTime ? new Date(rec.checkInTime) : new Date()
+                    }, 4000);
+                }
             }
         };
 
         // ── db_changed: guaranteed fallback refetch across all tabs ──────────
-        // This fires alongside attendance_update. If attendance_update fails for
-        // any reason (race condition, date mismatch, cold start), this ensures
-        // the admin panel still syncs within one round-trip.
+        // This fires alongside attendance_update for biometric punches.
+        // Skip the full refetch for biometric punches — attendance_update already
+        // patched the row instantly. Only refetch for other db changes (payments,
+        // bulk marks, etc.) to avoid a redundant HTTP round-trip that causes lag.
         const handleDbChanged = (payload) => {
             console.log('🔄 [SOCKET] db_changed received:', payload);
+            // If this came from a biometric punch, attendance_update already handled
+            // the row patch — skip the full refetch to prevent lag / double-render.
+            if (payload && payload.type === 'biometric_punch') {
+                console.log('ℹ️ [SOCKET] db_changed from biometric_punch — skipped (attendance_update handles it).');
+                return;
+            }
             if (activeTab === 'daily') {
                 fetchData(date, true); // silent = true (no loading spinner)
             } else if (activeTab === 'monthly') {
@@ -234,17 +256,28 @@ const AttendanceManager = () => {
             }
         };
 
-        // ── biometric_denied: show red toast when expired member scans ────────
+        // ── biometric_denied: show red toast ONLY when a member physically
+        //    scans on the machine and their plan is expired. This event is
+        //    emitted by the backend only for live (real-time) punches — not
+        //    for offline catch-up punches replayed after the PC restarts.
+        //    Deduplication: if the same user's denied toast is already showing,
+        //    suppress the duplicate (device retries can fire the event multiple times).
         const handleBiometricDenied = (payload) => {
             console.warn('🚫 [SOCKET] Biometric denied — plan expired:', payload);
-            setLiveUpdate({
+            const userId = payload.userId || payload.userName || 'unknown';
+            // If this exact user's denied popup is already on screen, skip
+            if (deniedUserRef.current === userId) {
+                console.log('ℹ️ [SOCKET] Duplicate biometric_denied suppressed for:', userId);
+                return;
+            }
+            deniedUserRef.current = userId;
+            showLiveToast({
                 name:      payload.userName || 'A member',
                 status:    'denied',
                 markedBy:  'biometric',
                 denied:    true,
                 time:      new Date()
-            });
-            setTimeout(() => setLiveUpdate(null), 5000);
+            }, 5000);
         };
 
         socket.on('attendance_update',  handleAttendanceUpdate);
@@ -256,7 +289,10 @@ const AttendanceManager = () => {
             socket.off('db_changed',         handleDbChanged);
             socket.off('biometric_denied',   handleBiometricDenied);
         };
-    }, [date, activeTab, fetchData, stats.total]);
+    // stats.total intentionally excluded — stats are read via functional setStats(prev => ...)
+    // to avoid re-registering socket listeners on every attendance update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [date, activeTab, fetchData]);
 
     // ── Admin mark one user (optimistic + server confirm via socket) ──────────
     const markOne = async (userId, status) => {
