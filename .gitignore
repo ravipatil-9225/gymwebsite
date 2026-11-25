@@ -7,6 +7,8 @@ backend/node_modules/
 .env
 frontend/.env
 backend/.env
+biometric-agent/.env
+biometric-agent/last_sync.json
 *.env.local
 *.env.production
 

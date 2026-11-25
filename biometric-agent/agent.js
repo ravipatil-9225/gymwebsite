@@ -107,6 +107,10 @@ async function pollAttendanceLogs() {
     isPolling = true;
 
     try {
+        // Disable the device while reading logs — prevents the machine from
+        // beeping or accepting fingerprint scans during data transfer.
+        await zkInstance.disableDevice();
+
         const attendanceRes = await zkInstance.getAttendances();
         const logs = attendanceRes?.data || [];
 
@@ -142,7 +146,12 @@ async function pollAttendanceLogs() {
     } catch (err) {
         console.error(`⚠️ [CONNECTION LOST] Failed to communicate with machine: ${err.message}`);
         handleDisconnectAndRetry();
+        return; // skip enableDevice — connection is gone
     } finally {
+        // Always re-enable the device so members can scan again
+        try {
+            await zkInstance.enableDevice();
+        } catch (_) { /* ignore if already disconnected */ }
         isPolling = false;
     }
 }
@@ -173,7 +182,14 @@ async function startAgent() {
         console.log('✅ Connected to ZKTeco K40 Pro device successfully!');
 
         // Fetch logs to check for any offline punches that occurred while PC was OFF
-        const initialLogs = await zkInstance.getAttendances();
+        // Disable the device first — prevents beeping during the catch-up data read.
+        await zkInstance.disableDevice();
+        let initialLogs;
+        try {
+            initialLogs = await zkInstance.getAttendances();
+        } finally {
+            await zkInstance.enableDevice();
+        }
         const data = initialLogs?.data || [];
         const savedSn = loadLastProcessedSn();
         const maxDeviceSn = data.length > 0 ? Math.max(...data.map(log => log.userSn || 0)) : 0;
