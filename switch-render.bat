@@ -70,7 +70,7 @@ echo }
 echo     ✅ vercel.json updated.
 
 REM ── Step 2: Update biometric-agent/.env ───────────────────────────
-echo [2/4] Updating biometric-agent\.env...
+echo [2/5] Updating biometric-agent\.env...
 (
 echo # ZKTeco K40 Pro Machine IP ^& Port ^(Local Gym Network^)
 echo DEVICE_IP=192.168.1.201
@@ -86,6 +86,24 @@ echo # Polling fallback interval in seconds ^(optional^)
 echo SYNC_INTERVAL_SECONDS=10
 ) > "d:\GYM WEBSITE\biometric-agent\.env"
 echo     ✅ biometric-agent\.env updated.
+
+REM ── Step 3: Update frontend/src/utils/socket.js ───────────────────
+echo [3/5] Updating frontend\src\utils\socket.js...
+(
+echo import { io } from 'socket.io-client';
+echo.
+echo const url = import.meta.env.PROD
+echo     ? '%TARGET_URL%'
+echo     : `http://${window.location.hostname}:5000`;
+echo.
+echo const socket = io(url, {
+echo     autoConnect: true,
+echo     transports: ['websocket', 'polling'],
+echo });
+echo.
+echo export default socket;
+) > "d:\GYM WEBSITE\frontend\src\utils\socket.js"
+echo     ✅ socket.js updated.
 
 REM ── Step 3: Restart biometric agent with new URL ──────────────────
 echo [3/4] Restarting biometric-agent in PM2...
